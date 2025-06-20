@@ -2,7 +2,13 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  printJson(body: any) {
-    console.log(body);
+  saveEvento(body: any) {
+    // Aquí luego se implementará el guardado en la base de datos
+    console.log('Evento recibido:', body);
+  }
+
+  saveImpacto(body: any) {
+    // Aquí luego se implementará el guardado en la base de datos
+    console.log('Impacto recibido:', body);
   }
 }
