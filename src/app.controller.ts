@@ -7,6 +7,7 @@ export class AppController {
 
   @Post('evento')
   handleEvento(@Body() body: any) {
+    console.log('POST /evento recibido:', body);
     const { estacion, id, intervalo, distancia, luz } = body;
     if (!estacion || !id) {
       return { error: 'Datos incompletos' };
@@ -27,11 +28,13 @@ export class AppController {
 
   @Get('sincronizar')
   sincronizar() {
+    console.log('GET /sincronizar recibido');
     return { guardado: 1 };
   }
 
   @Post('impacto')
   handleImpacto(@Body() body: any) {
+    console.log('POST /impacto recibido:', body);
     const { estacion, id } = body;
     if (!estacion || typeof estacion !== 'string' || estacion.trim() === '') {
       return { error: 'Falta estacion' };
