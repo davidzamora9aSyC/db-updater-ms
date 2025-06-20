@@ -48,4 +48,32 @@ export class AppController {
     this.appService.saveImpacto(body);
     return { guardado: 1 };
   }
+
+
+  @Post('minuta')
+  handleMinuta(@Body() body: any) {
+    console.log('POST /minuta recibido:', body);
+    const { accion, fecha, trabajador, orden_produccion, proceso, cantidad_piezas, meta, npt_min } = body;
+
+    if (!accion || !fecha || !proceso) {
+      return { error: 'Datos incompletos' };
+    }
+
+    if (accion === 'Terminar turno') {
+      if (cantidad_piezas === undefined || meta === undefined || npt_min === undefined) {
+        return { error: 'Faltan datos para terminar turno' };
+      }
+
+      const cumplimiento = (cantidad_piezas / meta) * 100;
+      const turnoMinutos = 480; // asumimos turno de 8 horas
+      const porcentajeNPT = (npt_min / turnoMinutos) * 100;
+
+      console.log(`% cumplimiento: ${cumplimiento.toFixed(2)}%`);
+      console.log(`% NPT: ${porcentajeNPT.toFixed(2)}%`);
+    }
+
+    this.appService.saveMinuta(body);
+    return { guardado: 1 };
+  }
+
 }

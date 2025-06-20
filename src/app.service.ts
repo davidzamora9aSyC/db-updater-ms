@@ -11,4 +11,9 @@ export class AppService {
     // Aquí luego se implementará el guardado en la base de datos
     console.log('Impacto recibido:', body);
   }
+
+  saveMinuta(body: any) {
+    // Aquí luego se implementará el guardado en la base de datos
+    console.log('Minuta recibida:', body);
+  }
 }
