@@ -1,22 +1,23 @@
 import { Injectable } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { Minuta } from './minuta.schema'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { Minuta } from './minuta.entity'
 import { CreateMinutaDto } from './dto/create-minuta.dto'
 
 @Injectable()
 export class MinutaService {
-  constructor(@InjectModel(Minuta.name) private model: Model<Minuta>) {}
+  constructor(@InjectRepository(Minuta) private readonly repo: Repository<Minuta>) {}
 
-  create(dto: CreateMinutaDto) {
-    return this.model.create(dto)
+  async create(dto: CreateMinutaDto) {
+    const nueva = this.repo.create(dto);
+    return this.repo.save(nueva);
   }
 
-  findAll() {
-    return this.model.find().sort({ createdAt: -1 }).exec()
+  async findAll() {
+    return this.repo.find({ order: { createdAt: 'DESC' } });
   }
 
-  findOne(id: string) {
-    return this.model.findById(id).exec()
+  async findOne(id: string) {
+    return this.repo.findOne({ where: { id } });
   }
 }

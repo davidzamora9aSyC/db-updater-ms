@@ -1,24 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Asignacion, AsignacionDocument } from './asignacion.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Asignacion } from './asignacion.entity';
 import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 
 @Injectable()
 export class AsignacionService {
-  constructor(@InjectModel(Asignacion.name) private model: Model<AsignacionDocument>) {}
+  constructor(@InjectRepository(Asignacion) private readonly repo: Repository<Asignacion>) {}
 
   async crear(dto: CreateAsignacionDto) {
-    return this.model.create(dto);
+    const nueva = this.repo.create(dto);
+    return this.repo.save(nueva);
   }
 
   async obtenerPorId(id: string) {
-    const asignacion = await this.model.findById(id);
+    const asignacion = await this.repo.findOne({ where: { id } });
     if (!asignacion) throw new NotFoundException('Asignación no encontrada');
     return asignacion;
   }
 
   async listar() {
-    return this.model.find().sort({ createdAt: -1 });
+    return this.repo.find({ order: { createdAt: 'DESC' } });
   }
 }

@@ -1,26 +1,45 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
-import { UpdateTrabajadorDto } from './dto/update-trabajador.dto';
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { CreateTrabajadorDto } from './dto/create-trabajador.dto'
+import { UpdateTrabajadorDto } from './dto/update-trabajador.dto'
+import { Trabajador } from './trabajador.entity'
 
 @Injectable()
 export class TrabajadorService {
-  crear(data: CreateTrabajadorDto) {
-    return { mensaje: 'Trabajador creado', data };
+  constructor(
+    @InjectRepository(Trabajador)
+    private readonly repo: Repository<Trabajador>,
+  ) {}
+
+  async crear(data: CreateTrabajadorDto) {
+    const nuevoTrabajador = this.repo.create(data)
+    await this.repo.save(nuevoTrabajador)
+    return { mensaje: 'Trabajador creado', data: nuevoTrabajador }
   }
 
-  listar() {
-    return [{ id: 1, nombre: 'Ejemplo' }];
+  async listar() {
+    return this.repo.find()
   }
 
-  obtener(id: string) {
-    return { id, nombre: 'Ejemplo' };
+  async obtener(id: string) {
+    const trabajador = await this.repo.findOneBy({ id })
+    if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
+    return trabajador
   }
 
-  actualizar(id: string, data: UpdateTrabajadorDto) {
-    return { mensaje: `Trabajador ${id} actualizado`, data };
+  async actualizar(id: string, data: UpdateTrabajadorDto) {
+    const trabajador = await this.repo.preload({ id, ...data })
+    if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
+    await this.repo.save(trabajador)
+    return { mensaje: `Trabajador ${id} actualizado`, data: trabajador }
   }
 
-  cambiarEstado(id: string, estado: boolean) {
-    return { mensaje: `Estado de trabajador ${id} cambiado a ${estado}` };
+  async cambiarEstado(id: string, estado: boolean) {
+    const trabajador = await this.repo.findOneBy({ id })
+    if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
+    trabajador.estado = estado
+    await this.repo.save(trabajador)
+    return { mensaje: `Estado de trabajador ${id} cambiado a ${estado}` }
   }
 }

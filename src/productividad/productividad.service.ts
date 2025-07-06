@@ -1,36 +1,32 @@
 import { Injectable } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { Productividad } from './productividad.schema'
+import { DataSource } from 'typeorm'
+import { Productividad } from './productividad.entity'
 
 @Injectable()
 export class ProductividadService {
-  constructor(@InjectModel(Productividad.name) private readonly model: Model<Productividad>) {}
+  private readonly repo
+
+  constructor(private readonly dataSource: DataSource) {
+    this.repo = this.dataSource.getRepository(Productividad)
+  }
 
   async getMasProductivos(anio: number, mes: number) {
-    return this.model.aggregate([
-      {
-        $match: {
-          anio,
-          mes
-        }
-      },
-      {
-        $group: {
-          _id: '$trabajadorId',
-          total: { $sum: '$cantidad' }
-        }
-      },
-      {
-        $sort: { total: -1 }
-      },
-      {
-        $limit: 10
-      }
-    ])
+    return this.repo
+      .createQueryBuilder('p')
+      .select('p.trabajadorId', 'trabajadorId')
+      .addSelect('SUM(p.cantidad)', 'total')
+      .where('p.anio = :anio AND p.mes = :mes', { anio, mes })
+      .groupBy('p.trabajadorId')
+      .orderBy('total', 'DESC')
+      .limit(10)
+      .getRawMany()
   }
 
   async getResumenPorTrabajador(trabajadorId: string) {
-    return this.model.find({ trabajadorId }).sort({ fecha: -1 }).limit(30)
+    return this.repo.find({
+      where: { trabajadorId },
+      order: { fecha: 'DESC' },
+      take: 30
+    })
   }
 }

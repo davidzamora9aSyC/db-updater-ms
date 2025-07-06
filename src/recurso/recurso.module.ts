@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { RecursoController } from './recurso.controller';
-import { RecursoService } from './recurso.service';
-import { Recurso, RecursoSchema } from './recurso.schema';
+import { Module } from '@nestjs/common'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { RecursoController } from './recurso.controller'
+import { RecursoService } from './recurso.service'
+import { Recurso } from './recurso.entity'
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Recurso.name, schema: RecursoSchema }])],
+  imports: [TypeOrmModule.forFeature([Recurso])],
   controllers: [RecursoController],
   providers: [RecursoService],
 })

@@ -1,9 +1,9 @@
-import { IsMongoId } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class CreateRecursoDto {
-  @IsMongoId()
+  @IsUUID()
   trabajador: string;
 
-  @IsMongoId()
+  @IsUUID()
   maquina: string;
 }

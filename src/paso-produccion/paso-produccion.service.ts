@@ -1,17 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { PasoProduccion, PasoProduccionDocument } from './paso-produccion.schema'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { PasoProduccion } from './paso-produccion.entity'
 
 @Injectable()
 export class PasoProduccionService {
   constructor(
-    @InjectModel(PasoProduccion.name) private pasoModel: Model<PasoProduccionDocument>
+    @InjectRepository(PasoProduccion) private readonly repo: Repository<PasoProduccion>
   ) {}
 
   async findOne(id: string) {
-    const paso = await this.pasoModel.findById(id)
-    if (!paso) throw new NotFoundException('Paso no encontrado')
-    return paso
+    const paso = await this.repo.findOne({ where: { id } });
+    if (!paso) throw new NotFoundException('Paso no encontrado');
+    return paso;
   }
 }

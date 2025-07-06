@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { RegistroMinuto } from './registro-minuto.schema'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { RegistroMinuto } from './registro-minuto.entity'
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto'
 
 @Injectable()
 export class RegistroMinutoService {
   private memoria: Map<string, { cantidad: number; pedalazos: number }> = new Map()
 
-  constructor(@InjectModel(RegistroMinuto.name) private model: Model<RegistroMinuto>) {}
+  constructor(
+    @InjectRepository(RegistroMinuto)
+    private readonly repo: Repository<RegistroMinuto>,
+  ) {}
 
   acumular(recursoId: string, ordenId: string, pasoId: string, cantidad: number, pedalazos: number) {
     const clave = `${recursoId}-${ordenId}-${pasoId}`
@@ -27,7 +30,7 @@ export class RegistroMinutoService {
       registros.push({ recursoId, ordenId, pasoId, ...data, timestamp: fecha })
     }
 
-    if (registros.length > 0) await this.model.insertMany(registros)
+    if (registros.length > 0) await this.repo.save(registros)
 
     this.memoria.clear()
   }

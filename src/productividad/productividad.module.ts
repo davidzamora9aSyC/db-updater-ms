@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common'
+import { TypeOrmModule } from '@nestjs/typeorm'
 import { ProductividadService } from './productividad.service'
 import { ProductividadController } from './productividad.controller'
-import { MongooseModule } from '@nestjs/mongoose'
-import { Productividad, ProductividadSchema } from './productividad.schema'
+import { Productividad } from './productividad.entity'
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Productividad.name, schema: ProductividadSchema }])],
+  imports: [TypeOrmModule.forFeature([Productividad])],
   controllers: [ProductividadController],
   providers: [ProductividadService],
 })

@@ -1,30 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Indicador } from './indicador.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Indicador } from './indicador.entity';
 
 @Injectable()
 export class IndicadorService {
   constructor(
-    @InjectModel(Indicador.name) private readonly modelo: Model<Indicador>,
+    @InjectRepository(Indicador) private readonly repo: Repository<Indicador>,
   ) {}
 
   async getGlobales() {
-    return this.modelo.aggregate([
-      { $group: {
-          _id: null,
-          totalPiezas: { $sum: '$piezas' },
-          totalPedalazos: { $sum: '$pedalazos' },
-        }
-      }
-    ]);
+    const data = await this.repo.find();
+    const totalPiezas = data.reduce((a, b) => a + b.piezas, 0);
+    const totalPedalazos = data.reduce((a, b) => a + b.pedalazos, 0);
+    return { totalPiezas, totalPedalazos };
   }
 
   async getPorRecurso(recursoId: string) {
-    return this.modelo.findOne({ recursoId }).lean();
+    return this.repo.findOne({ where: { recursoId } });
   }
 
   async getPorMinuto(recursoId: string) {
-    return this.modelo.find({ recursoId }).sort({ timestamp: -1 }).limit(60).lean();
+    return this.repo.find({
+      where: { recursoId },
+      order: { timestamp: 'DESC' },
+      take: 60
+    });
   }
 }

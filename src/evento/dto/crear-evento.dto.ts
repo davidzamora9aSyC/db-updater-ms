@@ -1,14 +1,14 @@
-import { IsString, IsOptional, IsIn } from 'class-validator'
+import { IsUUID, IsOptional } from 'class-validator'
 
 export class CrearEventoDto {
-  @IsString()
+  @IsUUID()
   recursoId: string
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   ordenId?: string
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   pasoId?: string
 }

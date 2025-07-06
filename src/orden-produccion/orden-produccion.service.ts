@@ -1,38 +1,39 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { OrdenProduccion, OrdenProduccionDocument } from './schema'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { OrdenProduccion } from './entity'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
 import { ActualizarProgresoDto } from './dto/actualizar-progreso.dto'
 
 @Injectable()
 export class OrdenProduccionService {
-  constructor(@InjectModel(OrdenProduccion.name) private model: Model<OrdenProduccionDocument>) {}
+  constructor(@InjectRepository(OrdenProduccion) private readonly repo: Repository<OrdenProduccion>) {}
 
   crear(dto: CrearOrdenDto) {
-    return this.model.create(dto)
+    const nueva = this.repo.create(dto)
+    return this.repo.save(nueva)
   }
 
   obtenerTodas() {
-    return this.model.find()
+    return this.repo.find()
   }
 
   async obtenerPorId(id: string) {
-    const orden = await this.model.findById(id)
+    const orden = await this.repo.findOne({ where: { id } })
     if (!orden) throw new NotFoundException('Orden no encontrada')
     return orden
   }
 
   async obtenerPasos(id: string) {
-    const orden = await this.model.findById(id).populate('pasos')
+    const orden = await this.repo.findOne({ where: { id } })
     if (!orden) throw new NotFoundException('Orden no encontrada')
     return orden.pasos
   }
 
   async actualizarProgreso(id: string, dto: ActualizarProgresoDto) {
-    const orden = await this.model.findById(id)
+    const orden = await this.repo.findOne({ where: { id } })
     if (!orden) throw new NotFoundException('Orden no encontrada')
     orden.progreso = dto.progreso
-    return orden.save()
+    return this.repo.save(orden)
   }
 }

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { MaquinaController } from './maquina.controller';
 import { MaquinaService } from './maquina.service';
-import { Maquina, MaquinaSchema } from './schema/maquina.schema';
+import { Maquina } from './maquina.entity';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Maquina.name, schema: MaquinaSchema }])],
+  imports: [TypeOrmModule.forFeature([Maquina])],
   controllers: [MaquinaController],
   providers: [MaquinaService],
   exports: [MaquinaService],

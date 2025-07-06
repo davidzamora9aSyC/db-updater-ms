@@ -1,12 +1,12 @@
-import { IsOptional, IsBoolean, IsMongoId } from 'class-validator';
+import { IsOptional, IsBoolean, IsUUID } from 'class-validator';
 
 export class UpdateRecursoDto {
   @IsOptional()
-  @IsMongoId()
+  @IsUUID()
   trabajador?: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsUUID()
   maquina?: string;
 
   @IsOptional()

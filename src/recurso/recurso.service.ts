@@ -1,30 +1,39 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Recurso } from './recurso.schema';
-import { Model } from 'mongoose';
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { Recurso } from './recurso.entity'
 
 @Injectable()
 export class RecursoService {
-  constructor(@InjectModel(Recurso.name) private readonly model: Model<Recurso>) {}
+  constructor(
+    @InjectRepository(Recurso)
+    private readonly repo: Repository<Recurso>,
+  ) {}
 
   async findAll() {
-    return this.model.find().populate('trabajador maquina');
+    return this.repo.find({ relations: ['trabajador', 'maquina'] })
   }
 
   async findActuales() {
-    return this.model.find({ activo: true }).populate('trabajador maquina');
+    return this.repo.find({
+      where: { activo: true },
+      relations: ['trabajador', 'maquina'],
+    })
   }
 
   async findOne(id: string) {
-    const recurso = await this.model.findById(id).populate('trabajador maquina');
-    if (!recurso) throw new NotFoundException('Recurso no encontrado');
-    return recurso;
+    const recurso = await this.repo.findOne({
+      where: { id },
+      relations: ['trabajador', 'maquina'],
+    })
+    if (!recurso) throw new NotFoundException('Recurso no encontrado')
+    return recurso
   }
 
   async toggleEstado(id: string) {
-    const recurso = await this.model.findById(id);
-    if (!recurso) throw new NotFoundException('Recurso no encontrado');
-    recurso.activo = !recurso.activo;
-    return recurso.save();
+    const recurso = await this.repo.findOneBy({ id })
+    if (!recurso) throw new NotFoundException('Recurso no encontrado')
+    recurso.activo = !recurso.activo
+    return this.repo.save(recurso)
   }
 }

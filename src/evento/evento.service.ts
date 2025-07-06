@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common'
-import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { Evento, EventoTipo } from './evento.schema'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { Evento, EventoTipo } from './evento.entity'
 import { CrearEventoDto } from './dto/crear-evento.dto'
 
 @Injectable()
 export class EventoService {
-  constructor(@InjectModel(Evento.name) private model: Model<Evento>) {}
+  constructor(@InjectRepository(Evento) private readonly repo: Repository<Evento>) {}
 
   async registrar(tipo: EventoTipo, dto: CrearEventoDto) {
-    return this.model.create({ tipo, ...dto })
+    const evento = this.repo.create({ tipo, ...dto })
+    return this.repo.save(evento)
   }
 }
