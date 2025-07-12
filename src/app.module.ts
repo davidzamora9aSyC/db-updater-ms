@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { TrabajadorModule } from './trabajador/trabajador.module';
 import { MaquinaModule } from './maquina/maquina.module';
 import { OrdenProduccionModule } from './orden-produccion/orden-produccion.module';
@@ -11,10 +12,22 @@ import { IndicadorModule } from './indicador/indicador.module';
 import { MinutaModule } from './minuta/minuta.module';
 import { RegistroMinutoModule } from './registro-minuto/registro-minuto.module';
 import { ProductividadModule } from './productividad/productividad.module';
+import { AuthModule } from './auth/auth.module';
 
 
 @Module({
   imports: [
+
+  TypeOrmModule.forRoot({
+    type: 'postgres',
+    host: 'distrecoldb.cfqes4cyag2k.us-east-2.rds.amazonaws.com',
+    port: 5432,
+    username: 'postgres',
+    password: 'Distrecol2025',
+    database: 'distrecoldb',
+    autoLoadEntities: true,
+    synchronize: true,
+  }),
 
   TrabajadorModule,
 
@@ -38,6 +51,8 @@ import { ProductividadModule } from './productividad/productividad.module';
 
   RegistroMinutoModule,
 
-  ProductividadModule],
+  ProductividadModule,
+
+  AuthModule],
 })
 export class AppModule {}
