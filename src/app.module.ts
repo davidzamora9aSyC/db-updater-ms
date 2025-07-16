@@ -30,7 +30,7 @@ import * as path from 'path';
     autoLoadEntities: true,
     synchronize: true,
     ssl: {
-      ca: fs.readFileSync(path.join(__dirname, 'certs/global-bundle.pem')).toString(),
+      ca: fs.readFileSync(path.join(__dirname, '..','certs', 'global-bundle.pem')).toString(),
     },
   }),
 
