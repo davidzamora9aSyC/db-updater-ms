@@ -26,11 +26,14 @@ export class Maquina {
   @Column({ nullable: true })
   fechaInstalacion: string;
 
-  @Column({ type: 'enum', enum: TipoMaquina })
+  @Column({ type: 'enum', enum: TipoMaquina, nullable: true })
   tipo: TipoMaquina;
 
   @Column({ type: 'enum', enum: EstadoMaquina, default: EstadoMaquina.ACTIVA })
   estado: EstadoMaquina;
+
+  @Column({ length: 255, nullable: true })
+  observaciones: string;
 
   @CreateDateColumn()
   createdAt: Date;

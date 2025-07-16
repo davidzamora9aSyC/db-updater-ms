@@ -24,4 +24,9 @@ export class UpdateMaquinaDto {
   @IsOptional()
   @IsEnum(TipoMaquina)
   tipo?: TipoMaquina
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 255)
+  observaciones?: string
 }

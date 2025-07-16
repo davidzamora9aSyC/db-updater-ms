@@ -30,4 +30,8 @@ export class CreateMaquinaDto {
 
   @IsEnum(TipoMaquina)
   tipo: TipoMaquina
+
+  @IsString()
+  @Length(0, 255)
+  observaciones?: string
 }
