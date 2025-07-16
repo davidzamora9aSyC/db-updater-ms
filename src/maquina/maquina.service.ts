@@ -30,4 +30,10 @@ export class MaquinaService {
     maquina.estado = dto.estado;
     return this.repo.save(maquina);
   }
+
+  async remove(id: string) {
+    const maquina = await this.repo.findOne({ where: { id } });
+    if (!maquina) throw new NotFoundException('Máquina no encontrada');
+    return this.repo.remove(maquina);
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, Delete } from '@nestjs/common';
 import { MaquinaService } from './maquina.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateEstadoDto } from './dto/update-estado.dto';
@@ -26,5 +26,10 @@ export class MaquinaController {
   @Patch(':id/estado')
   updateEstado(@Param('id') id: string, @Body() dto: UpdateEstadoDto) {
     return this.maquinaService.updateEstado(id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.maquinaService.remove(id);
   }
 }
