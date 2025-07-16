@@ -13,6 +13,8 @@ import { MinutaModule } from './minuta/minuta.module';
 import { RegistroMinutoModule } from './registro-minuto/registro-minuto.module';
 import { ProductividadModule } from './productividad/productividad.module';
 import { AuthModule } from './auth/auth.module';
+import * as fs from 'fs';
+import * as path from 'path';
 
 
 @Module({
@@ -27,6 +29,9 @@ import { AuthModule } from './auth/auth.module';
     database: 'distrecoldb',
     autoLoadEntities: true,
     synchronize: true,
+    ssl: {
+      ca: fs.readFileSync(path.join(__dirname, 'certs/global-bundle.pem')).toString(),
+    },
   }),
 
   TrabajadorModule,
