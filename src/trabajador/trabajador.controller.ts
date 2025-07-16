@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Patch, Param, Body } from '@nestjs/common';
 import { TrabajadorService } from './trabajador.service';
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
-import { UpdateTrabajadorDto } from './dto/update-trabajador.dto';
+import { UpdateTrabajadorDto, EstadoTrabajador } from './dto/update-trabajador.dto';
 
 @Controller('trabajadores')
 export class TrabajadorController {
@@ -33,7 +33,7 @@ export class TrabajadorController {
 
   // Cambia el estado (activo/inactivo) de un trabajador por su ID
   @Patch(':id/estado')
-  cambiarEstado(@Param('id') id: string, @Body('estado') estado: boolean) {
+  cambiarEstado(@Param('id') id: string, @Body('estado') estado: EstadoTrabajador) {
     return this.service.cambiarEstado(id, estado);
   }
 }

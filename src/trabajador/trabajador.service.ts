@@ -1,3 +1,4 @@
+import { EstadoTrabajador } from './dto/update-trabajador.dto'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -35,7 +36,7 @@ export class TrabajadorService {
     return { mensaje: `Trabajador ${id} actualizado`, data: trabajador }
   }
 
-  async cambiarEstado(id: string, estado: boolean) {
+  async cambiarEstado(id: string, estado: EstadoTrabajador) {
     const trabajador = await this.repo.findOneBy({ id })
     if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
     trabajador.estado = estado
