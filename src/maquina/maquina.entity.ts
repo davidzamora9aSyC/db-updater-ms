@@ -23,7 +23,7 @@ export class Maquina {
   @Column({ length: 100, nullable: true })
   ubicacion: string;
 
-  @Column()
+  @Column({ nullable: true })
   fechaInstalacion: string;
 
   @Column({ type: 'enum', enum: TipoMaquina })
