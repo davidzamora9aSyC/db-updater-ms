@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Param, Body, Delete } from '@nestjs/common';
+import { Controller, Post, Get, Put,Patch, Param, Body, Delete } from '@nestjs/common';
 import { MaquinaService } from './maquina.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateEstadoDto } from './dto/update-estado.dto';
@@ -29,7 +29,7 @@ export class MaquinaController {
     return this.maquinaService.updateEstado(id, dto);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() dto: UpdateMaquinaDto) {
     return this.maquinaService.update(id, dto);
   }
