@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Param, Body, Delete } from '@nestjs/common';
 import { TrabajadorService } from './trabajador.service';
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
 import { UpdateTrabajadorDto, EstadoTrabajador } from './dto/update-trabajador.dto';
@@ -35,5 +35,10 @@ export class TrabajadorController {
   @Patch(':id/estado')
   cambiarEstado(@Param('id') id: string, @Body('estado') estado: EstadoTrabajador) {
     return this.service.cambiarEstado(id, estado);
+  }
+
+  @Delete(':id')
+  eliminar(@Param('id') id: string) {
+    return this.service.eliminar(id);
   }
 }

@@ -43,4 +43,10 @@ export class TrabajadorService {
     await this.repo.save(trabajador)
     return { mensaje: `Estado de trabajador ${id} cambiado a ${estado}` }
   }
+  async eliminar(id: string) {
+    const trabajador = await this.repo.findOneBy({ id })
+    if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
+    await this.repo.remove(trabajador)
+    return { mensaje: `Trabajador ${id} eliminado` }
+  }
 }
