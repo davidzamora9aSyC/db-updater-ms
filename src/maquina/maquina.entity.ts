@@ -20,7 +20,7 @@ export class Maquina {
   @Column()
   nombre: string;
 
-  @Column({ length: 100 })
+  @Column({ length: 100, nullable: true })
   ubicacion: string;
 
   @Column()
