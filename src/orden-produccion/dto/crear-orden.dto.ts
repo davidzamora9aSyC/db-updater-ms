@@ -1,10 +1,21 @@
-import { IsString, IsArray, IsOptional } from 'class-validator'
+import { IsString, IsInt, IsDate } from 'class-validator'
 
 export class CrearOrdenDto {
   @IsString()
-  codigo: string
+  numero: string
 
-  @IsArray()
-  @IsOptional()
-  pasos?: string[]
+  @IsString()
+  producto: string
+
+  @IsInt()
+  cantidadAProducir: number
+
+  @IsDate()
+  fechaOrden: Date
+
+  @IsDate()
+  fechaVencimiento: Date
+
+  @IsString()
+  estado: string
 }

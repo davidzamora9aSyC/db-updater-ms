@@ -13,6 +13,10 @@ import { MinutaModule } from './minuta/minuta.module';
 import { RegistroMinutoModule } from './registro-minuto/registro-minuto.module';
 import { ProductividadModule } from './productividad/productividad.module';
 import { AuthModule } from './auth/auth.module';
+import { SesionTrabajoModule } from './sesion-trabajo/sesion-trabajo.module';
+import { EstadoRecursoModule } from './estado-recurso/estado-recurso.module';
+import { EmpresaModule } from './empresa/empresa.module';
+import { MaterialOrdenModule } from './material-orden/material-orden.module';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -55,6 +59,14 @@ import * as path from 'path';
   MinutaModule,
 
   RegistroMinutoModule,
+
+  SesionTrabajoModule,
+
+  EstadoRecursoModule,
+
+  EmpresaModule,
+
+  MaterialOrdenModule,
 
   ProductividadModule,
 

@@ -1,16 +1,21 @@
-import { IsString, IsNotEmpty, IsNumber, IsIn } from 'class-validator'
+import { IsString, IsNotEmpty, IsNumber, IsIn, IsUUID } from 'class-validator'
 
 export class CreatePasoProduccionDto {
   @IsString()
   @IsNotEmpty()
   nombre: string
 
+  @IsUUID()
+  orden: string
+
   @IsString()
-  @IsNotEmpty()
-  ordenProduccionId: string
+  codigoInterno: string
 
   @IsNumber()
-  numeroPaso: number
+  cantidadRequerida: number
+
+  @IsNumber()
+  cantidadProducida: number
 
   @IsString()
   @IsIn(['pendiente', 'en_progreso', 'completado'])

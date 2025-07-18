@@ -6,13 +6,22 @@ export class OrdenProduccion {
   id: string;
 
   @Column()
-  codigo: string;
+  numero: string;
 
-  @Column("simple-array")
-  pasos: string[];
+  @Column()
+  producto: string;
 
-  @Column({ default: 0 })
-  progreso: number;
+  @Column('int')
+  cantidadAProducir: number;
+
+  @Column({ type: 'date' })
+  fechaOrden: string;
+
+  @Column({ type: 'date' })
+  fechaVencimiento: string;
+
+  @Column()
+  estado: string;
 
   @CreateDateColumn()
   createdAt: Date;
