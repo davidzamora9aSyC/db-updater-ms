@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { OrdenProduccion } from './entity'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
-import { ActualizarProgresoDto } from './dto/actualizar-progreso.dto'
+import { CrearOrdenDto as UpdateOrdenDto } from './dto/crear-orden.dto'
 
 @Injectable()
 export class OrdenProduccionService {
@@ -24,16 +24,16 @@ export class OrdenProduccionService {
     return orden
   }
 
-  async obtenerPasos(id: string) {
-    const orden = await this.repo.findOne({ where: { id } })
+  async actualizar(id: string, dto: UpdateOrdenDto) {
+    const orden = await this.repo.preload({ id, ...dto })
     if (!orden) throw new NotFoundException('Orden no encontrada')
-    return orden.pasos
+    return this.repo.save(orden)
   }
 
-  async actualizarProgreso(id: string, dto: ActualizarProgresoDto) {
+  async eliminar(id: string) {
     const orden = await this.repo.findOne({ where: { id } })
     if (!orden) throw new NotFoundException('Orden no encontrada')
-    orden.progreso = dto.progreso
-    return this.repo.save(orden)
+    await this.repo.remove(orden)
+    return { deleted: true }
   }
 }

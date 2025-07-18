@@ -1,25 +1,21 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, BaseEntity } from 'typeorm'
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm'
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity'
 
 @Entity('registro_minuto')
 export class RegistroMinuto extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column()
-  recursoId: string
+  @ManyToOne(() => SesionTrabajo, { nullable: false })
+  @JoinColumn({ name: 'sesionTrabajoId' })
+  sesionTrabajo: SesionTrabajo
 
-  @Column()
-  ordenId: string
-
-  @Column()
-  pasoId: string
+  @Column({ type: 'timestamp' })
+  minutoInicio: Date
 
   @Column('int')
-  cantidad: number
+  pedaleadas: number
 
   @Column('int')
-  pedalazos: number
-
-  @CreateDateColumn()
-  timestamp: Date
+  piezasContadas: number
 }

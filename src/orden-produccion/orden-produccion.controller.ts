@@ -1,7 +1,6 @@
-import { Controller, Post, Get, Param, Patch, Body } from '@nestjs/common'
+import { Controller, Post, Get, Param, Body, Put, Delete } from '@nestjs/common'
 import { OrdenProduccionService } from './orden-produccion.service'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
-import { ActualizarProgresoDto } from './dto/actualizar-progreso.dto'
 
 @Controller('ordenes')
 export class OrdenProduccionController {
@@ -22,13 +21,13 @@ export class OrdenProduccionController {
     return this.service.obtenerPorId(id)
   }
 
-  @Get(':id/pasos')
-  obtenerPasos(@Param('id') id: string) {
-    return this.service.obtenerPasos(id)
+  @Put(':id')
+  actualizar(@Param('id') id: string, @Body() dto: CrearOrdenDto) {
+    return this.service.actualizar(id, dto)
   }
 
-  @Patch(':id/progreso')
-  actualizarProgreso(@Param('id') id: string, @Body() dto: ActualizarProgresoDto) {
-    return this.service.actualizarProgreso(id, dto)
+  @Delete(':id')
+  eliminar(@Param('id') id: string) {
+    return this.service.eliminar(id)
   }
 }
