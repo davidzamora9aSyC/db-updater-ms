@@ -6,18 +6,18 @@ import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto'
 
 @Injectable()
 export class RegistroMinutoService {
-  private memoria: Map<string, { cantidad: number; pedalazos: number }> = new Map()
+  private memoria: Map<string, { pedaleadas: number; piezasContadas: number }> = new Map()
 
   constructor(
     @InjectRepository(RegistroMinuto)
     private readonly repo: Repository<RegistroMinuto>,
   ) {}
 
-  acumular(recursoId: string, ordenId: string, pasoId: string, cantidad: number, pedalazos: number) {
-    const clave = `${recursoId}-${ordenId}-${pasoId}`
-    const actual = this.memoria.get(clave) || { cantidad: 0, pedalazos: 0 }
-    actual.cantidad += cantidad
-    actual.pedalazos += pedalazos
+  acumular(sesionTrabajoId: string, pedaleadas: number, piezasContadas: number) {
+    const clave = sesionTrabajoId
+    const actual = this.memoria.get(clave) || { pedaleadas: 0, piezasContadas: 0 }
+    actual.pedaleadas += pedaleadas
+    actual.piezasContadas += piezasContadas
     this.memoria.set(clave, actual)
   }
 
@@ -25,9 +25,8 @@ export class RegistroMinutoService {
     const fecha = new Date()
     const registros: CreateRegistroMinutoDto[] = []
 
-    for (const [clave, data] of this.memoria.entries()) {
-      const [recursoId, ordenId, pasoId] = clave.split('-')
-      registros.push({ recursoId, ordenId, pasoId, ...data, timestamp: fecha })
+    for (const [sesionTrabajo, data] of this.memoria.entries()) {
+      registros.push({ sesionTrabajo, ...data, minutoInicio: fecha })
     }
 
     if (registros.length > 0) await this.repo.save(registros)

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNotEmpty, IsNumber, IsIn } from 'class-validator'
+import { IsOptional, IsString, IsNotEmpty, IsNumber, IsIn, IsUUID } from 'class-validator'
 
 export class UpdatePasoProduccionDto {
   @IsOptional()
@@ -7,13 +7,20 @@ export class UpdatePasoProduccionDto {
   nombre?: string
 
   @IsOptional()
+  @IsUUID()
+  orden?: string
+
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  ordenProduccionId?: string
+  codigoInterno?: string
 
   @IsOptional()
   @IsNumber()
-  numeroPaso?: number
+  cantidadRequerida?: number
+
+  @IsOptional()
+  @IsNumber()
+  cantidadProducida?: number
 
   @IsOptional()
   @IsString()

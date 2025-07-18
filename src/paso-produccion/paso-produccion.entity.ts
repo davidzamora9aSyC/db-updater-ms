@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { OrdenProduccion } from '../orden-produccion/entity';
 
 @Entity()
 export class PasoProduccion {
@@ -8,11 +9,18 @@ export class PasoProduccion {
   @Column()
   nombre: string;
 
-  @Column()
-  ordenProduccionId: string;
+  @ManyToOne(() => OrdenProduccion, { nullable: false })
+  @JoinColumn({ name: 'ordenId' })
+  orden: OrdenProduccion;
 
   @Column()
-  numeroPaso: number;
+  codigoInterno: string;
+
+  @Column('int')
+  cantidadRequerida: number;
+
+  @Column('int')
+  cantidadProducida: number;
 
   @Column({ default: 'pendiente' })
   estado: 'pendiente' | 'en_progreso' | 'completado';
