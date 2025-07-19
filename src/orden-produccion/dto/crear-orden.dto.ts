@@ -1,4 +1,5 @@
 import { IsString, IsInt, IsDate } from 'class-validator'
+import { Type } from 'class-transformer'
 
 export class CrearOrdenDto {
   @IsString()
@@ -10,9 +11,11 @@ export class CrearOrdenDto {
   @IsInt()
   cantidadAProducir: number
 
+  @Type(() => Date)
   @IsDate()
   fechaOrden: Date
 
+  @Type(() => Date)
   @IsDate()
   fechaVencimiento: Date
 
