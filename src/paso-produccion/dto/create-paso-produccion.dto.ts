@@ -1,5 +1,7 @@
 import { IsString, IsNotEmpty, IsNumber, IsIn, IsUUID } from 'class-validator'
 
+export type EstadoPaso = 'pendiente' | 'en_progreso' | 'completado';
+
 export class CreatePasoProduccionDto {
   @IsString()
   @IsNotEmpty()
@@ -19,5 +21,5 @@ export class CreatePasoProduccionDto {
 
   @IsString()
   @IsIn(['pendiente', 'en_progreso', 'completado'])
-  estado: string
+  estado: EstadoPaso;
 }

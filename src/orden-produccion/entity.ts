@@ -15,10 +15,10 @@ export class OrdenProduccion {
   cantidadAProducir: number;
 
   @Column({ type: 'date' })
-  fechaOrden: string;
+  fechaOrden: Date;
 
   @Column({ type: 'date' })
-  fechaVencimiento: string;
+  fechaVencimiento: Date;
 
   @Column()
   estado: string;

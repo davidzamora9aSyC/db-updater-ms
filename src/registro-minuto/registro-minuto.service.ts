@@ -29,7 +29,13 @@ export class RegistroMinutoService {
       registros.push({ sesionTrabajo, ...data, minutoInicio: fecha })
     }
 
-    if (registros.length > 0) await this.repo.save(registros)
+    if (registros.length > 0) {
+      const entidades = registros.map(dto => ({
+        ...dto,
+        sesionTrabajo: { id: dto.sesionTrabajo },
+      }))
+      await this.repo.save(entidades)
+    }
 
     this.memoria.clear()
   }

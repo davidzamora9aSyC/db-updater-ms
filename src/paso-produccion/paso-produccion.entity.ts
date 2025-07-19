@@ -22,7 +22,7 @@ export class PasoProduccion {
   @Column('int')
   cantidadProducida: number;
 
-  @Column({ default: 'pendiente' })
+  @Column({ type: 'enum', enum: ['pendiente', 'en_progreso', 'completado'] })
   estado: 'pendiente' | 'en_progreso' | 'completado';
 
   @CreateDateColumn()
