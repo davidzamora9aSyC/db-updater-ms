@@ -8,7 +8,7 @@ export class UpdateSesionTrabajoDto {
 
   @IsOptional()
   @IsUUID()
-  pasoOrden?: string;
+  pasosOrden?: string;
 
   @IsOptional()
   @IsDate()

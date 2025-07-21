@@ -20,7 +20,7 @@ export class SesionTrabajo extends BaseEntity {
   @JoinTable({
     name: 'sesion_trabajo_pasos',
     joinColumn: { name: 'sesionTrabajoId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'pasoOrdenId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'pasosOrdenId', referencedColumnName: 'id' },
   })
   pasosOrden: PasoProduccion[];
 

@@ -6,7 +6,7 @@ export class CreateSesionTrabajoDto {
   recurso: string;
 
   @IsUUID()
-  pasoOrden: string;
+  pasosOrden: string;
 
   @IsDateString()
   fechaInicio: Date;
