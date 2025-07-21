@@ -43,4 +43,12 @@ export class PasoProduccionService {
     await this.repo.remove(paso);
     return { deleted: true };
   }
+
+  async findByOrden(ordenId: string) {
+    return this.repo.find({
+      where: { orden: { id: ordenId } },
+      relations: ['orden'],
+      order: { createdAt: 'ASC' }
+    });
+  }
 }

@@ -17,6 +17,11 @@ export class PasoProduccionController {
     return this.pasoService.findAll()
   }
 
+  @Get('/orden/:ordenId')
+  findByOrden(@Param('ordenId') ordenId: string) {
+    return this.pasoService.findByOrden(ordenId)
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.pasoService.findOne(id)
