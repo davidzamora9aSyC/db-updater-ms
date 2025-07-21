@@ -57,4 +57,16 @@ export class SesionTrabajoPasoService {
       relations: ['sesionTrabajo', 'pasoOrden'],
     });
   }
+
+  async removeByPaso(pasoId: string) {
+    const relaciones = await this.repo.find({ where: { pasoOrden: { id: pasoId } } });
+    await this.repo.remove(relaciones);
+    return { deleted: true, count: relaciones.length };
+  }
+
+  async removeBySesion(sesionId: string) {
+    const relaciones = await this.repo.find({ where: { sesionTrabajo: { id: sesionId } } });
+    await this.repo.remove(relaciones);
+    return { deleted: true, count: relaciones.length };
+  }
 }

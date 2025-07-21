@@ -41,4 +41,14 @@ export class SesionTrabajoPasoController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Delete('por-sesion/:sesionId')
+  removeBySesion(@Param('sesionId') sesionId: string) {
+    return this.service.removeBySesion(sesionId);
+  }
+
+  @Delete('por-paso/:pasoId')
+  removeByPaso(@Param('pasoId') pasoId: string) {
+    return this.service.removeByPaso(pasoId);
+  }
 }
