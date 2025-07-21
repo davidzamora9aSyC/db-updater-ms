@@ -1,9 +1,16 @@
-import { Controller, Get, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Post, Body, Put, Delete } from '@nestjs/common';
 import { RecursoService } from './recurso.service';
+import { CreateRecursoDto } from './dto/create-recurso.dto';
+import { UpdateRecursoDto } from './dto/update-recurso.dto';
 
 @Controller('recursos')
 export class RecursoController {
   constructor(private readonly recursoService: RecursoService) {}
+
+  @Post()
+  create(@Body() createRecursoDto: CreateRecursoDto) {
+    return this.recursoService.create(createRecursoDto);
+  }
 
   @Get()
   findAll() {
@@ -18,6 +25,16 @@ export class RecursoController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.recursoService.findOne(id);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() updateRecursoDto: UpdateRecursoDto) {
+    return this.recursoService.update(id, updateRecursoDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.recursoService.remove(id);
   }
 
   @Patch(':id/estado')
