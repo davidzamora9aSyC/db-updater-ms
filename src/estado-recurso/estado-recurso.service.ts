@@ -52,4 +52,10 @@ export class EstadoRecursoService {
       order: { inicio: 'DESC' },
     });
   }
+
+  async removeByRecurso(recursoId: string) {
+    const estados = await this.repo.find({ where: { recurso: { id: recursoId } } });
+    await this.repo.remove(estados);
+    return { deleted: true, count: estados.length };
+  }
 }

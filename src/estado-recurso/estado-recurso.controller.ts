@@ -36,4 +36,9 @@ export class EstadoRecursoController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Delete('por-recurso/:recursoId')
+  removeByRecurso(@Param('recursoId') recursoId: string) {
+    return this.service.removeByRecurso(recursoId);
+  }
 }
