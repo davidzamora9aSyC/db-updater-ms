@@ -7,10 +7,6 @@ export class UpdateSesionTrabajoDto {
   recurso?: string;
 
   @IsOptional()
-  @IsUUID()
-  pasosOrden?: string;
-
-  @IsOptional()
   @IsDate()
   fechaInicio?: Date;
 

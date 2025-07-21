@@ -15,6 +15,7 @@ import { ProductividadModule } from './productividad/productividad.module';
 import { AuthModule } from './auth/auth.module';
 import { SesionTrabajoModule } from './sesion-trabajo/sesion-trabajo.module';
 import { EstadoRecursoModule } from './estado-recurso/estado-recurso.module';
+import { SesionTrabajoPasoModule } from './sesion-trabajo-paso/sesion-trabajo-paso.module';
 import { EmpresaModule } from './empresa/empresa.module';
 import { MaterialOrdenModule } from './material-orden/material-orden.module';
 import * as fs from 'fs';
@@ -61,6 +62,7 @@ import * as path from 'path';
   RegistroMinutoModule,
 
   SesionTrabajoModule,
+  SesionTrabajoPasoModule,
 
   EstadoRecursoModule,
 

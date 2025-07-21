@@ -1,6 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
 import { Recurso } from '../recurso/recurso.entity';
-import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 
 export enum EstadoSesionTrabajo {
   ACTIVA = 'activa',
@@ -15,15 +14,6 @@ export class SesionTrabajo extends BaseEntity {
   @ManyToOne(() => Recurso, { nullable: false })
   @JoinColumn({ name: 'recursoId' })
   recurso: Recurso;
-
-  @ManyToMany(() => PasoProduccion)
-  @JoinTable({
-    name: 'sesion_trabajo_pasos',
-    joinColumn: { name: 'sesionTrabajoId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'pasosOrdenId', referencedColumnName: 'id' },
-  })
-  pasosOrden: PasoProduccion[];
-
   @Column({ type: 'timestamp' })
   fechaInicio: Date;
 

@@ -16,17 +16,16 @@ export class SesionTrabajoService {
     const sesion = this.repo.create({
       ...dto,
       recurso: { id: dto.recurso } as any,
-      pasosOrden: { id: dto.pasosOrden } as any,
     });
     return this.repo.save(sesion);
   }
 
   findAll() {
-    return this.repo.find({ relations: ['recurso', 'pasosOrden'] });
+    return this.repo.find({ relations: ['recurso'] });
   }
 
   async findOne(id: string) {
-    const sesion = await this.repo.findOne({ where: { id }, relations: ['recurso', 'pasosOrden'] });
+    const sesion = await this.repo.findOne({ where: { id }, relations: ['recurso'] });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     return sesion;
   }
@@ -35,7 +34,6 @@ export class SesionTrabajoService {
     const sesion = await this.repo.findOne({ where: { id } });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     if (dto.recurso) sesion.recurso = { id: dto.recurso } as any;
-    if (dto.pasosOrden) sesion.pasosOrden = { id: dto.pasosOrden } as any;
     Object.assign(sesion, dto);
     return this.repo.save(sesion);
   }
