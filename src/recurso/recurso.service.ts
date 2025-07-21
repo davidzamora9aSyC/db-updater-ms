@@ -2,15 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Recurso } from './recurso.entity'
-import { Trabajador } from '../trabajador/trabajador.entity';
+import { Maquina } from '../maquina/maquina.entity'
+import { Trabajador } from '../trabajador/trabajador.entity'
+import { CreateRecursoDto } from './dto/create-recurso.dto'
+import { UpdateRecursoDto } from './dto/update-recurso.dto'
 
 @Injectable()
 export class RecursoService {
   constructor(
     @InjectRepository(Recurso)
     private readonly repo: Repository<Recurso>,
-    @InjectRepository(Trabajador)
-    private readonly trabajadorRepo: Repository<Trabajador>,
   ) {}
 
   async findAll() {
@@ -39,25 +40,21 @@ export class RecursoService {
     recurso.activo = !recurso.activo
     return this.repo.save(recurso)
   }
-  async create(data: Partial<Recurso>) {
-    const recurso = this.repo.create(data)
+  async create(dto: CreateRecursoDto) {
+    const recurso = this.repo.create({
+      trabajador: { id: dto.trabajador } as Trabajador,
+      maquina: { id: dto.maquina } as Maquina,
+    })
     return this.repo.save(recurso)
   }
 
-  async update(id: string, data: Partial<Recurso>) {
-    let trabajadorEntity = undefined;
-    if (typeof data.trabajador === 'string') {
-      trabajadorEntity = await this.trabajadorRepo.findOneBy({ id: data.trabajador });
-      if (!trabajadorEntity) throw new NotFoundException('Trabajador no encontrado');
-    }
-
-    const recurso = await this.repo.preload({
-      id,
-      ...data,
-      trabajador: trabajadorEntity ?? data.trabajador,
-    });
-    if (!recurso) throw new NotFoundException('Recurso no encontrado');
-    return this.repo.save(recurso);
+  async update(id: string, dto: UpdateRecursoDto) {
+    const recurso = await this.repo.findOne({ where: { id } })
+    if (!recurso) throw new NotFoundException('Recurso no encontrado')
+    if (dto.trabajador) recurso.trabajador = { id: dto.trabajador } as Trabajador
+    if (dto.maquina) recurso.maquina = { id: dto.maquina } as Maquina
+    if (dto.activo !== undefined) recurso.activo = dto.activo
+    return this.repo.save(recurso)
   }
 
   async remove(id: string) {
