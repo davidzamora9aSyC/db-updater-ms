@@ -17,6 +17,11 @@ export class EstadoRecursoController {
     return this.service.findAll();
   }
 
+  @Get('por-recurso/:recursoId')
+  findByRecurso(@Param('recursoId') recursoId: string) {
+    return this.service.findByRecurso(recursoId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

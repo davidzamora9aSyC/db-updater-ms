@@ -44,4 +44,12 @@ export class EstadoRecursoService {
     await this.repo.remove(estado);
     return { deleted: true };
   }
+
+  findByRecurso(recursoId: string) {
+    return this.repo.find({
+      where: { recurso: { id: recursoId } },
+      relations: ['recurso'],
+      order: { inicio: 'DESC' },
+    });
+  }
 }
