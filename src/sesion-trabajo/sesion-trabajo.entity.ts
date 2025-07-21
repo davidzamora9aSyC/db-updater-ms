@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity, ManyToMany, JoinTable } from 'typeorm';
 import { Recurso } from '../recurso/recurso.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 
@@ -16,9 +16,13 @@ export class SesionTrabajo extends BaseEntity {
   @JoinColumn({ name: 'recursoId' })
   recurso: Recurso;
 
-  @ManyToOne(() => PasoProduccion, { nullable: false })
-  @JoinColumn({ name: 'pasoOrdenId' })
-  pasoOrden: PasoProduccion;
+  @ManyToMany(() => PasoProduccion)
+  @JoinTable({
+    name: 'sesion_trabajo_pasos',
+    joinColumn: { name: 'sesionTrabajoId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'pasoOrdenId', referencedColumnName: 'id' },
+  })
+  pasosOrden: PasoProduccion[];
 
   @Column({ type: 'timestamp' })
   fechaInicio: Date;
