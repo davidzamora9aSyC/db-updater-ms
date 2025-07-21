@@ -6,5 +6,6 @@ import { RegistroMinuto } from './registro-minuto.entity'
 @Module({
   imports: [TypeOrmModule.forFeature([RegistroMinuto])],
   providers: [RegistroMinutoService],
+  controllers: [],
 })
 export class RegistroMinutoModule {}

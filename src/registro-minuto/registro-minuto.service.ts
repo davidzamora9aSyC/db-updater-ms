@@ -13,8 +13,8 @@ export class RegistroMinutoService {
     private readonly repo: Repository<RegistroMinuto>,
   ) {}
 
-  acumular(sesionTrabajoId: string, pedaleadas: number, piezasContadas: number) {
-    const clave = sesionTrabajoId
+  acumular(sesionTrabajoId: string, pedaleadas: number, piezasContadas: number, minutoInicio: string) {
+    const clave = `${sesionTrabajoId}_${minutoInicio}`
     const actual = this.memoria.get(clave) || { pedaleadas: 0, piezasContadas: 0 }
     actual.pedaleadas += pedaleadas
     actual.piezasContadas += piezasContadas
@@ -22,16 +22,21 @@ export class RegistroMinutoService {
   }
 
   async guardarYLimpiar() {
-    const fecha = new Date()
     const registros: CreateRegistroMinutoDto[] = []
 
-    for (const [sesionTrabajo, data] of this.memoria.entries()) {
-      registros.push({ sesionTrabajo, ...data, minutoInicio: fecha })
+    for (const [clave, data] of this.memoria.entries()) {
+      const [sesionTrabajo, minutoInicio] = clave.split('_')
+      registros.push({
+        sesionTrabajo,
+        minutoInicio: new Date(minutoInicio).toISOString(),
+        ...data
+      })
     }
 
     if (registros.length > 0) {
       const entidades = registros.map(dto => ({
         ...dto,
+        minutoInicio: new Date(dto.minutoInicio),
         sesionTrabajo: { id: dto.sesionTrabajo },
       }))
       await this.repo.save(entidades)

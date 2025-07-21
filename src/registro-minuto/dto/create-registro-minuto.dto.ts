@@ -1,11 +1,11 @@
-import { IsNotEmpty, IsString, IsNumber, IsDate, IsUUID } from 'class-validator'
+import { IsUUID, IsDateString, IsNumber } from 'class-validator'
 
 export class CreateRegistroMinutoDto {
   @IsUUID()
   sesionTrabajo: string
 
-  @IsDate()
-  minutoInicio: Date
+  @IsDateString()
+  minutoInicio: string
 
   @IsNumber()
   pedaleadas: number
