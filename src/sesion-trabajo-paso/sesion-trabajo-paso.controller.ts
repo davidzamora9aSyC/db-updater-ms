@@ -17,6 +17,16 @@ export class SesionTrabajoPasoController {
     return this.service.findAll();
   }
 
+  @Get('por-paso/:pasoId')
+  findByPaso(@Param('pasoId') pasoId: string) {
+    return this.service.findByPaso(pasoId);
+  }
+
+  @Get('por-sesion/:sesionId')
+  findBySesion(@Param('sesionId') sesionId: string) {
+    return this.service.findBySesion(sesionId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

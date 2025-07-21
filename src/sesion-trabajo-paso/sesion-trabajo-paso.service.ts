@@ -44,4 +44,17 @@ export class SesionTrabajoPasoService {
     await this.repo.remove(entity);
     return { deleted: true };
   }
+  findByPaso(pasoId: string) {
+    return this.repo.find({
+      where: { pasoOrden: { id: pasoId } },
+      relations: ['sesionTrabajo', 'pasoOrden'],
+    });
+  }
+
+  findBySesion(sesionId: string) {
+    return this.repo.find({
+      where: { sesionTrabajo: { id: sesionId } },
+      relations: ['sesionTrabajo', 'pasoOrden'],
+    });
+  }
 }
