@@ -70,6 +70,7 @@ export class RegistroMinutoService {
         })
   
         await this.repo.save(nuevoRegistro)
+        if (existente) await this.repo.remove(existente)
       }
   
       this.memoria.clear()
