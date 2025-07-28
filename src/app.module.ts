@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TrabajadorModule } from './trabajador/trabajador.module';
 import { MaquinaModule } from './maquina/maquina.module';
 import { OrdenProduccionModule } from './orden-produccion/orden-produccion.module';
@@ -24,6 +25,8 @@ import * as path from 'path';
 
 @Module({
   imports: [
+
+  ScheduleModule.forRoot(),
 
   TypeOrmModule.forRoot({
     type: 'postgres',

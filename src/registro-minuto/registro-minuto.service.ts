@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { RegistroMinuto } from './registro-minuto.entity'
@@ -15,6 +16,11 @@ export class RegistroMinutoService {
     @InjectRepository(RegistroMinuto)
     private readonly repo: Repository<RegistroMinuto>,
   ) {}
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async procesarAutomatico() {
+    await this.guardarYLimpiar()
+  }
 
   async acumular(sesionTrabajoId: string, tipo: 'pedal' | 'pieza', minutoInicio: string) {
   await this.mutex.runExclusive(() => {
