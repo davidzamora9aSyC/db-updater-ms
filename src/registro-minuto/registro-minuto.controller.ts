@@ -1,15 +1,16 @@
 import { Controller, Post, Body } from '@nestjs/common'
 import { RegistroMinutoService } from './registro-minuto.service'
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto'
+import { AcumuladorDto } from './dto/acumulador.dto'
 
 @Controller('registro-minuto')
 export class RegistroMinutoController {
   constructor(private readonly service: RegistroMinutoService) {}
 
   @Post('acumular')
-  acumular(@Body() body: CreateRegistroMinutoDto) {
-    const { sesionTrabajo, pedaleadas, piezasContadas, minutoInicio } = body
-    this.service.acumular(sesionTrabajo, pedaleadas, piezasContadas, minutoInicio)
+  async acumular(@Body() body: AcumuladorDto) {
+    const { sesionTrabajo, tipo, minutoInicio } = body
+    await this.service.acumular(sesionTrabajo, tipo, minutoInicio)
     return { ok: true }
   }
 

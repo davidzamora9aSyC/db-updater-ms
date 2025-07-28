@@ -3,23 +3,30 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { RegistroMinuto } from './registro-minuto.entity'
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto'
+import { Mutex } from 'async-mutex'
+
 
 @Injectable()
 export class RegistroMinutoService {
   private memoria: Map<string, { pedaleadas: number; piezasContadas: number }> = new Map()
+  private mutex = new Mutex()
 
   constructor(
     @InjectRepository(RegistroMinuto)
     private readonly repo: Repository<RegistroMinuto>,
   ) {}
 
-  acumular(sesionTrabajoId: string, pedaleadas: number, piezasContadas: number, minutoInicio: string) {
+  async acumular(sesionTrabajoId: string, tipo: 'pedal' | 'pieza', minutoInicio: string) {
+  await this.mutex.runExclusive(() => {
     const clave = `${sesionTrabajoId}_${minutoInicio}`
     const actual = this.memoria.get(clave) || { pedaleadas: 0, piezasContadas: 0 }
-    actual.pedaleadas += pedaleadas
-    actual.piezasContadas += piezasContadas
+
+    if (tipo === 'pedal') actual.pedaleadas += 1
+    if (tipo === 'pieza') actual.piezasContadas += 1
+
     this.memoria.set(clave, actual)
-  }
+  })
+}
 
   async guardarYLimpiar() {
     const registros: CreateRegistroMinutoDto[] = []
