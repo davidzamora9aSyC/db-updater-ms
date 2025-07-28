@@ -30,27 +30,29 @@ export class RegistroMinutoService {
 }
 
   async guardarYLimpiar() {
-    const registros: CreateRegistroMinutoDto[] = []
-
-    for (const [clave, data] of this.memoria.entries()) {
-      const [sesionTrabajo, minutoInicio] = clave.split('_')
-      registros.push({
-        sesionTrabajo,
-        minutoInicio: new Date(minutoInicio).toISOString(),
-        ...data
-      })
-    }
-
-    if (registros.length > 0) {
-      const entidades = registros.map(dto => ({
-        ...dto,
-        minutoInicio: new Date(dto.minutoInicio),
-        sesionTrabajo: { id: dto.sesionTrabajo },
-      }))
-      await this.repo.save(entidades)
-    }
-
-    this.memoria.clear()
+    await this.mutex.runExclusive(async () => {
+      const registros: CreateRegistroMinutoDto[] = []
+  
+      for (const [clave, data] of this.memoria.entries()) {
+        const [sesionTrabajo, minutoInicio] = clave.split('_')
+        registros.push({
+          sesionTrabajo,
+          minutoInicio: new Date(minutoInicio).toISOString(),
+          ...data
+        })
+      }
+  
+      if (registros.length > 0) {
+        const entidades = registros.map(dto => ({
+          ...dto,
+          minutoInicio: new Date(dto.minutoInicio),
+          sesionTrabajo: { id: dto.sesionTrabajo },
+        }))
+        await this.repo.save(entidades)
+      }
+  
+      this.memoria.clear()
+    })
   }
 
   @Cron('* * * * *')
