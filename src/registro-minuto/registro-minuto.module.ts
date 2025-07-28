@@ -9,5 +9,6 @@ import { RegistroMinutoController } from './registro-minuto.controller'
   imports: [TypeOrmModule.forFeature([RegistroMinuto])],
   providers: [RegistroMinutoService],
   controllers: [RegistroMinutoController],
+  exports: [RegistroMinutoService]
 })
 export class RegistroMinutoModule {}
