@@ -8,9 +8,6 @@ export class CreateSesionTrabajoDto {
   @IsUUID()
   maquina: string;
 
-  @IsDateString()
-  fechaInicio: Date;
-
   @IsOptional()
   @IsDateString()
   fechaFin?: Date;
