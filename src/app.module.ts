@@ -14,50 +14,62 @@ import { EstadoSesionModule } from './estado-sesion/estado-sesion.module';
 import { SesionTrabajoPasoModule } from './sesion-trabajo-paso/sesion-trabajo-paso.module';
 import { EmpresaModule } from './empresa/empresa.module';
 import { MaterialOrdenModule } from './material-orden/material-orden.module';
+import { ConfiguracionModule } from './configuracion/configuracion.module';
+import { TimezoneModule } from './common/timezone.module';
+import { TimezoneInterceptor } from './common/timezone.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Module({
   imports: [
-  ScheduleModule.forRoot(),
+    ScheduleModule.forRoot(),
 
-  TypeOrmModule.forRoot({
-    type: 'postgres',
-    host: 'distrecoldb.cfqes4cyag2k.us-east-2.rds.amazonaws.com',
-    port: 5432,
-    username: 'postgres',
-    password: 'Distrecol2025',
-    database: 'distrecoldb',
-    autoLoadEntities: true,
-    synchronize: true,
-    ssl: {
-      ca: fs.readFileSync(path.join(__dirname, '..','certs', 'global-bundle.pem')).toString(),
-    },
-  }),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: 'distrecoldb.cfqes4cyag2k.us-east-2.rds.amazonaws.com',
+      port: 5432,
+      username: 'postgres',
+      password: 'Distrecol2025',
+      database: 'distrecoldb',
+      autoLoadEntities: true,
+      synchronize: true,
+      ssl: {
+        ca: fs
+          .readFileSync(
+            path.join(__dirname, '..', 'certs', 'global-bundle.pem'),
+          )
+          .toString(),
+      },
+    }),
 
-  TrabajadorModule,
+    TrabajadorModule,
 
-  MaquinaModule,
+    MaquinaModule,
 
-  OrdenProduccionModule,
+    OrdenProduccionModule,
 
-  PasoProduccionModule,
+    PasoProduccionModule,
 
-  IndicadorModule,
+    IndicadorModule,
 
-  MinutaModule,
+    MinutaModule,
 
-  RegistroMinutoModule,
+    RegistroMinutoModule,
+    ConfiguracionModule,
+    TimezoneModule,
 
-  SesionTrabajoModule,
-  SesionTrabajoPasoModule,
+    SesionTrabajoModule,
+    SesionTrabajoPasoModule,
 
-  EstadoSesionModule,
+    EstadoSesionModule,
 
-  EmpresaModule,
+    EmpresaModule,
 
-  MaterialOrdenModule,
+    MaterialOrdenModule,
 
-  AuthModule],
+    AuthModule,
+  ],
+  providers: [{ provide: APP_INTERCEPTOR, useClass: TimezoneInterceptor }],
 })
 export class AppModule {}
