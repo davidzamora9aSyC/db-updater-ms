@@ -41,7 +41,7 @@ export class RegistroMinutoService {
   async guardarYLimpiar() {
     await this.mutex.runExclusive(async () => {
       const registros: CreateRegistroMinutoDto[] = []
-
+  
       for (const [clave, data] of this.memoria.entries()) {
         const [sesionTrabajo, minutoInicio] = clave.split('_')
         registros.push({
@@ -50,29 +50,31 @@ export class RegistroMinutoService {
           ...data
         })
       }
-
-      if (registros.length > 0) {
-        const entidades = registros.map(dto => ({
-          ...dto,
-          minutoInicio: new Date(dto.minutoInicio),
-          sesionTrabajo: { id: dto.sesionTrabajo },
-        }))
-        await this.repo
-          .createQueryBuilder()
-          .insert()
-          .into(RegistroMinuto)
-          .values(entidades)
-          .orUpdate(
-            ['pedaleadas', 'piezasContadas'],
-            ['sesionTrabajoId', 'minutoInicio']
-          )
-          .execute()
+  
+      for (const dto of registros) {
+        const sesionTrabajoId = dto.sesionTrabajo
+        const minutoInicio = new Date(dto.minutoInicio)
+  
+        const existente = await this.repo.findOne({
+          where: {
+            sesionTrabajo: { id: sesionTrabajoId },
+            minutoInicio
+          }
+        })
+  
+        const nuevoRegistro = this.repo.create({
+          sesionTrabajo: { id: sesionTrabajoId },
+          minutoInicio,
+          pedaleadas: (existente?.pedaleadas || 0) + dto.pedaleadas,
+          piezasContadas: (existente?.piezasContadas || 0) + dto.piezasContadas
+        })
+  
+        await this.repo.save(nuevoRegistro)
       }
-
+  
       this.memoria.clear()
     })
   }
-
   @Cron('* * * * *')
   handleCron() {
     this.guardarYLimpiar()
