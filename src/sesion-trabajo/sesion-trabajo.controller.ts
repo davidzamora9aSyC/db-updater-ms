@@ -17,6 +17,11 @@ export class SesionTrabajoController {
     return this.service.findAll();
   }
 
+  @Get('actuales')
+  findActuales() {
+    return this.service.findActuales();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

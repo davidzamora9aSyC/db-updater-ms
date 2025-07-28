@@ -4,7 +4,11 @@ import { EstadoSesionTrabajo } from '../sesion-trabajo.entity';
 export class UpdateSesionTrabajoDto {
   @IsOptional()
   @IsUUID()
-  recurso?: string;
+  trabajador?: string;
+
+  @IsOptional()
+  @IsUUID()
+  maquina?: string;
 
   @IsOptional()
   @IsDate()
