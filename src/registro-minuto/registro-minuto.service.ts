@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { Cron } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { RegistroMinuto } from './registro-minuto.entity'
@@ -50,5 +51,10 @@ export class RegistroMinutoService {
     }
 
     this.memoria.clear()
+  }
+
+  @Cron('* * * * *')
+  handleCron() {
+    this.guardarYLimpiar()
   }
 }

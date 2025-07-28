@@ -1,17 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TrabajadorModule } from './trabajador/trabajador.module';
 import { MaquinaModule } from './maquina/maquina.module';
 import { OrdenProduccionModule } from './orden-produccion/orden-produccion.module';
 import { PasoProduccionModule } from './paso-produccion/paso-produccion.module';
 import { RecursoModule } from './recurso/recurso.module';
-import { AsignacionModule } from './asignacion/asignacion.module';
-import { EventoModule } from './evento/evento.module';
-import { BotonModule } from './boton/boton.module';
 import { IndicadorModule } from './indicador/indicador.module';
 import { MinutaModule } from './minuta/minuta.module';
 import { RegistroMinutoModule } from './registro-minuto/registro-minuto.module';
-import { ProductividadModule } from './productividad/productividad.module';
 import { AuthModule } from './auth/auth.module';
 import { SesionTrabajoModule } from './sesion-trabajo/sesion-trabajo.module';
 import { EstadoRecursoModule } from './estado-recurso/estado-recurso.module';
@@ -24,6 +21,7 @@ import * as path from 'path';
 
 @Module({
   imports: [
+  ScheduleModule.forRoot(),
 
   TypeOrmModule.forRoot({
     type: 'postgres',
@@ -49,12 +47,6 @@ import * as path from 'path';
 
   RecursoModule,
 
-  AsignacionModule,
-
-  EventoModule,
-
-  BotonModule,
-
   IndicadorModule,
 
   MinutaModule,
@@ -69,8 +61,6 @@ import * as path from 'path';
   EmpresaModule,
 
   MaterialOrdenModule,
-
-  ProductividadModule,
 
   AuthModule],
 })
