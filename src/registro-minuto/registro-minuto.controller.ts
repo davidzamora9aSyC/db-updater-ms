@@ -9,6 +9,7 @@ export class RegistroMinutoController {
 
   @Post('acumular')
   async acumular(@Body() body: AcumuladorDto) {
+    
     const { sesionTrabajo, tipo, minutoInicio } = body
     await this.service.acumular(sesionTrabajo, tipo, minutoInicio)
     return { ok: true }

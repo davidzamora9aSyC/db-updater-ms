@@ -15,24 +15,33 @@ export class RegistroMinutoService {
   constructor(
     @InjectRepository(RegistroMinuto)
     private readonly repo: Repository<RegistroMinuto>,
-  ) {}
+  ) { }
 
   async acumular(sesionTrabajoId: string, tipo: 'pedal' | 'pieza', minutoInicio: string) {
-  await this.mutex.runExclusive(() => {
-    const clave = `${sesionTrabajoId}_${minutoInicio}`
-    const actual = this.memoria.get(clave) || { pedaleadas: 0, piezasContadas: 0 }
+    const existe = await this.repo.manager
+      .getRepository('sesion_trabajo')
+      .createQueryBuilder('s')
+      .select('s.id')
+      .where('s.id = :id', { id: sesionTrabajoId })
+      .getOne()
 
-    if (tipo === 'pedal') actual.pedaleadas += 1
-    if (tipo === 'pieza') actual.piezasContadas += 1
+    if (!existe) return
 
-    this.memoria.set(clave, actual)
-  })
-}
+    await this.mutex.runExclusive(() => {
+      const clave = `${sesionTrabajoId}_${minutoInicio}`
+      const actual = this.memoria.get(clave) || { pedaleadas: 0, piezasContadas: 0 }
+
+      if (tipo === 'pedal') actual.pedaleadas += 1
+      if (tipo === 'pieza') actual.piezasContadas += 1
+
+      this.memoria.set(clave, actual)
+    })
+  }
 
   async guardarYLimpiar() {
     await this.mutex.runExclusive(async () => {
       const registros: CreateRegistroMinutoDto[] = []
-  
+
       for (const [clave, data] of this.memoria.entries()) {
         const [sesionTrabajo, minutoInicio] = clave.split('_')
         registros.push({
@@ -41,16 +50,25 @@ export class RegistroMinutoService {
           ...data
         })
       }
-  
+
       if (registros.length > 0) {
         const entidades = registros.map(dto => ({
           ...dto,
           minutoInicio: new Date(dto.minutoInicio),
           sesionTrabajo: { id: dto.sesionTrabajo },
         }))
-        await this.repo.save(entidades)
+        await this.repo
+          .createQueryBuilder()
+          .insert()
+          .into(RegistroMinuto)
+          .values(entidades)
+          .orUpdate(
+            ['pedaleadas', 'piezasContadas'],
+            ['sesionTrabajoId', 'minutoInicio']
+          )
+          .execute()
       }
-  
+
       this.memoria.clear()
     })
   }
