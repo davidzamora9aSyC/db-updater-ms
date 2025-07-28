@@ -3,7 +3,10 @@ import { EstadoSesionTrabajo } from '../sesion-trabajo.entity';
 
 export class CreateSesionTrabajoDto {
   @IsUUID()
-  recurso: string;
+  trabajador: string;
+
+  @IsUUID()
+  maquina: string;
 
   @IsDateString()
   fechaInicio: Date;

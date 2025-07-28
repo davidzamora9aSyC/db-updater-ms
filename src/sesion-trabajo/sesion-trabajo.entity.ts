@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
-import { Recurso } from '../recurso/recurso.entity';
+import { Trabajador } from '../trabajador/trabajador.entity';
+import { Maquina } from '../maquina/maquina.entity';
 
 export enum EstadoSesionTrabajo {
   ACTIVA = 'activa',
@@ -11,9 +12,14 @@ export class SesionTrabajo extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Recurso, { nullable: false })
-  @JoinColumn({ name: 'recursoId' })
-  recurso: Recurso;
+  @ManyToOne(() => Trabajador, { nullable: false })
+  @JoinColumn({ name: 'trabajadorId' })
+  trabajador: Trabajador;
+
+  @ManyToOne(() => Maquina, { nullable: false })
+  @JoinColumn({ name: 'maquinaId' })
+  maquina: Maquina;
+
   @Column({ type: 'timestamp' })
   fechaInicio: Date;
 
