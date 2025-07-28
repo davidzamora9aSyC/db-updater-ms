@@ -59,4 +59,11 @@ export class RegistroMinutoService {
   handleCron() {
     this.guardarYLimpiar()
   }
+
+  async obtenerPorSesion(sesionTrabajoId: string): Promise<RegistroMinuto[]> {
+    return this.repo.find({
+      where: { sesionTrabajo: { id: sesionTrabajoId } },
+      order: { minutoInicio: 'ASC' }
+    })
+  }
 }

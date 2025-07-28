@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common'
+import { Controller, Post, Body, Get, Param } from '@nestjs/common'
 import { RegistroMinutoService } from './registro-minuto.service'
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto'
 import { AcumuladorDto } from './dto/acumulador.dto'
@@ -18,5 +18,11 @@ export class RegistroMinutoController {
   async guardar() {
     await this.service.guardarYLimpiar()
     return { ok: true }
+  }
+
+  @Get('sesion/:id')
+  async obtenerPorSesion(@Param('id') id: string) {
+    const registros = await this.service.obtenerPorSesion(id)
+    return registros
   }
 }
