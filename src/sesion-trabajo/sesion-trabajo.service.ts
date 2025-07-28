@@ -7,7 +7,6 @@ import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
-import { TimezoneService } from '../common/timezone.service';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -17,16 +16,13 @@ export class SesionTrabajoService {
     private readonly registroMinutoService: RegistroMinutoService,
     private readonly estadoSesionService: EstadoSesionService,
     private readonly configService: ConfiguracionService,
-    private readonly tzService: TimezoneService,
   ) {}
 
   async create(dto: CreateSesionTrabajoDto) {
     const sesion = this.repo.create({
       ...dto,
-      fechaInicio: await this.tzService.toUTC(new Date(dto.fechaInicio)),
-      fechaFin: dto.fechaFin
-        ? await this.tzService.toUTC(new Date(dto.fechaFin))
-        : undefined,
+      fechaInicio: new Date(),
+      fechaFin: dto.fechaFin ? new Date(dto.fechaFin) : undefined,
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
     });
@@ -37,10 +33,6 @@ export class SesionTrabajoService {
     const sesiones = await this.repo.find({
       relations: ['trabajador', 'maquina'],
     });
-    for (const s of sesiones) {
-      s.fechaInicio = await this.tzService.fromUTC(s.fechaInicio);
-      if (s.fechaFin) s.fechaFin = await this.tzService.fromUTC(s.fechaFin);
-    }
     return sesiones;
   }
 
@@ -50,9 +42,6 @@ export class SesionTrabajoService {
       relations: ['trabajador', 'maquina'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    sesion.fechaInicio = await this.tzService.fromUTC(sesion.fechaInicio);
-    if (sesion.fechaFin)
-      sesion.fechaFin = await this.tzService.fromUTC(sesion.fechaFin);
     return sesion;
   }
 
@@ -61,12 +50,8 @@ export class SesionTrabajoService {
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     if (dto.trabajador) sesion.trabajador = { id: dto.trabajador } as any;
     if (dto.maquina) sesion.maquina = { id: dto.maquina } as any;
-    if (dto.fechaInicio)
-      sesion.fechaInicio = await this.tzService.toUTC(
-        new Date(dto.fechaInicio),
-      );
-    if (dto.fechaFin)
-      sesion.fechaFin = await this.tzService.toUTC(new Date(dto.fechaFin));
+    if (dto.fechaInicio) sesion.fechaInicio = new Date(dto.fechaInicio);
+    if (dto.fechaFin) sesion.fechaFin = new Date(dto.fechaFin);
     Object.assign(sesion, dto);
     return this.repo.save(sesion);
   }
@@ -89,10 +74,6 @@ export class SesionTrabajoService {
     const resultado: any[] = [];
 
     for (const sesion of sesiones) {
-      sesion.fechaInicio = await this.tzService.fromUTC(sesion.fechaInicio);
-      if (sesion.fechaFin)
-        sesion.fechaFin = await this.tzService.fromUTC(sesion.fechaFin);
-
       const registros = await this.registroMinutoService.obtenerPorSesion(
         sesion.id,
       );
@@ -169,9 +150,6 @@ export class SesionTrabajoService {
 
       const estados = await this.estadoSesionService.findBySesion(sesion.id);
       const estadoActual = estados[0];
-      if (estadoActual) {
-        estadoActual.inicio = await this.tzService.fromUTC(estadoActual.inicio);
-      }
 
       resultado.push({
         ...sesion,
