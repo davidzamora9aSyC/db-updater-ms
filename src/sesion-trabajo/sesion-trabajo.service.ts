@@ -14,7 +14,7 @@ export class SesionTrabajoService {
     private readonly repo: Repository<SesionTrabajo>,
     private readonly registroMinutoService: RegistroMinutoService,
     private readonly estadoSesionService: EstadoSesionService,
-  ) {}
+  ) { }
 
   create(dto: CreateSesionTrabajoDto) {
     const sesion = this.repo.create({
@@ -56,30 +56,49 @@ export class SesionTrabajoService {
       where: { estado: EstadoSesionTrabajo.ACTIVA },
       relations: ['trabajador', 'maquina'],
     });
-
+  
+    const minutosInactividadParaNPT = await this.configService.getMinInactividad(); // configurable
     const resultado: any[] = [];
+  
     for (const sesion of sesiones) {
       const registros = await this.registroMinutoService.obtenerPorSesion(sesion.id);
       const totalPiezas = registros.reduce((a, b) => a + b.piezasContadas, 0);
       const totalPedales = registros.reduce((a, b) => a + b.pedaleadas, 0);
-      const horas = (Date.now() - new Date(sesion.fechaInicio).getTime()) / 3600000;
-      const velocidad = horas > 0 ? totalPiezas / horas : 0;
+  
+      const minutos = (Date.now() - new Date(sesion.fechaInicio).getTime()) / 60000;
+      const velocidad = minutos > 0 ? (totalPiezas / minutos) * 60 : 0;
       const defectos = totalPedales - totalPiezas;
-      const nptMin = registros.filter(r => r.pedaleadas === 0 && r.piezasContadas === 0).length;
+  
+      const nptMinRegistro = registros.filter(r => r.pedaleadas === 0 && r.piezasContadas === 0).length;
+  
+      let nptPorInactividad = 0;
+      const ordenados = registros.sort((a, b) => new Date(a.minutoInicio).getTime() - new Date(b.minutoInicio).getTime());
+      for (let i = 1; i < ordenados.length; i++) {
+        const diff = (new Date(ordenados[i].minutoInicio).getTime() - new Date(ordenados[i - 1].minutoInicio).getTime()) / 60000;
+        if (diff > minutosInactividadParaNPT) nptPorInactividad += (diff - minutosInactividadParaNPT);
+      }
+  
+      const nptTotal = nptMinRegistro + nptPorInactividad;
+      const porcentajeNPT = minutos > 0 ? (nptTotal / minutos) * 100 : 0;
+  
       const estados = await this.estadoSesionService.findBySesion(sesion.id);
       const estadoActual = estados[0];
+  
       resultado.push({
         ...sesion,
         grupo: sesion.maquina?.tipo,
         estadoSesion: estadoActual?.estado,
         estadoInicio: estadoActual?.inicio,
         avgSpeed: velocidad,
-        nptMin,
-        nptMinDia: nptMin,
+        nptMin: nptMinRegistro,
+        nptMinDia: nptTotal,
+        nptPorInactividad,
+        porcentajeNPT,
         defectos,
         produccionTotal: totalPiezas,
       });
     }
+  
     return resultado;
   }
 }
