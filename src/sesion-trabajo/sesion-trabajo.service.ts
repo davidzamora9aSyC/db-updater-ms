@@ -24,7 +24,9 @@ export class SesionTrabajoService {
       ...dto,
       fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
       fechaFin: dto.fechaFin
-        ? DateTime.fromISO(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
+
+        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
+
         : undefined,
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
@@ -54,9 +56,11 @@ export class SesionTrabajoService {
     if (dto.trabajador) sesion.trabajador = { id: dto.trabajador } as any;
     if (dto.maquina) sesion.maquina = { id: dto.maquina } as any;
     if (dto.fechaInicio)
-      sesion.fechaInicio = DateTime.fromISO(dto.fechaInicio, { zone: 'America/Bogota' }).toJSDate();
+
+      sesion.fechaInicio = DateTime.fromJSDate(dto.fechaInicio, { zone: 'America/Bogota' }).toJSDate();
     if (dto.fechaFin)
-      sesion.fechaFin = DateTime.fromISO(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate();
+      sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate();
+
     Object.assign(sesion, dto);
     return this.repo.save(sesion);
   }
