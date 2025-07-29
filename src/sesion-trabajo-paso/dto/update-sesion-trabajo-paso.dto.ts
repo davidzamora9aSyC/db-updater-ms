@@ -1,4 +1,4 @@
-import { IsUUID, IsOptional, IsNumber, IsIn } from 'class-validator';
+import { IsUUID, IsOptional, IsNumber, IsEnum } from 'class-validator';
 import { EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso.entity';
 
 export class UpdateSesionTrabajoPasoDto {
@@ -19,6 +19,6 @@ export class UpdateSesionTrabajoPasoDto {
   cantidadProducida?: number;
 
   @IsOptional()
-  @IsIn(['activo', 'pausado', 'finalizado'])
+  @IsEnum(EstadoSesionTrabajoPaso)
   estado?: EstadoSesionTrabajoPaso;
 }

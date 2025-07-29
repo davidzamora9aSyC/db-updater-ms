@@ -22,15 +22,13 @@ export class SesionTrabajoService {
   async create(dto: CreateSesionTrabajoDto) {
     await this.finalizarSesionesPrevias(dto.trabajador);
     const sesion = this.repo.create({
-      ...dto,
-      fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
-      fechaFin: dto.fechaFin
-
-        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
-
-        : undefined,
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
+      fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
+      fechaFin: dto.fechaFin
+        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
+        : undefined,
+      estado: EstadoSesionTrabajo.ACTIVA,
     });
     return this.repo.save(sesion);
   }
@@ -64,6 +62,20 @@ export class SesionTrabajoService {
 
     Object.assign(sesion, dto);
     return this.repo.save(sesion);
+  }
+
+  async finalizar(id: string) {
+    const sesion = await this.repo.findOne({ where: { id } });
+    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    sesion.estado = EstadoSesionTrabajo.FINALIZADA;
+    sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
+    await this.repo.save(sesion);
+    const pasos = await this.repo.manager.getRepository('sesion_trabajo_paso').find({ where: { sesionTrabajo: { id } } });
+    for (const p of pasos) {
+      p.estado = 'finalizado';
+      await this.repo.manager.getRepository('sesion_trabajo_paso').save(p);
+    }
+    return sesion;
   }
 
   async remove(id: string) {
