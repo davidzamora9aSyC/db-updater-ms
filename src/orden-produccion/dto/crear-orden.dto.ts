@@ -2,7 +2,6 @@ import {
   IsString,
   IsInt,
   IsDate,
-  IsUUID,
   ValidateNested,
   IsArray,
 } from 'class-validator'
@@ -29,9 +28,6 @@ export class CrearOrdenDto {
 
   @IsString()
   estado: string
-
-  @IsUUID()
-  maquina: string
 
   @IsArray()
   @ValidateNested({ each: true })
