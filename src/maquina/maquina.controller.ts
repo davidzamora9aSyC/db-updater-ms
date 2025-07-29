@@ -10,7 +10,6 @@ export class MaquinaController {
 
   @Post()
   create(@Body() dto: CreateMaquinaDto) {
-    
     return this.maquinaService.create(dto);
   }
 

@@ -20,6 +20,7 @@ export class SesionTrabajoService {
   ) {}
 
   async create(dto: CreateSesionTrabajoDto) {
+    await this.finalizarSesionesPrevias(dto.trabajador);
     const sesion = this.repo.create({
       ...dto,
       fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
@@ -181,5 +182,20 @@ export class SesionTrabajoService {
     }
 
     return resultado;
+  }
+
+  private async finalizarSesionesPrevias(trabajadorId: string) {
+    const activas = await this.repo.find({
+      where: {
+        estado: EstadoSesionTrabajo.ACTIVA,
+        trabajador: { id: trabajadorId },
+      },
+    });
+
+    for (const sesion of activas) {
+      sesion.estado = EstadoSesionTrabajo.FINALIZADA;
+      sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
+      await this.repo.save(sesion);
+    }
   }
 }
