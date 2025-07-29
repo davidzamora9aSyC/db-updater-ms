@@ -22,7 +22,6 @@ export class SesionTrabajoService {
     const sesion = this.repo.create({
       ...dto,
       fechaInicio: new Date(),
-      fechaFin: dto.fechaFin ? new Date(dto.fechaFin) : undefined,
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
     });
@@ -53,6 +52,14 @@ export class SesionTrabajoService {
     if (dto.fechaInicio) sesion.fechaInicio = new Date(dto.fechaInicio);
     if (dto.fechaFin) sesion.fechaFin = new Date(dto.fechaFin);
     Object.assign(sesion, dto);
+    return this.repo.save(sesion);
+  }
+
+  async finalizar(id: string) {
+    const sesion = await this.repo.findOne({ where: { id } });
+    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    sesion.estado = EstadoSesionTrabajo.FINALIZADA;
+    sesion.fechaFin = new Date();
     return this.repo.save(sesion);
   }
 
