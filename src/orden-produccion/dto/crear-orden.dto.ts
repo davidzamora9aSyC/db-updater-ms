@@ -1,5 +1,13 @@
-import { IsString, IsInt, IsDate } from 'class-validator'
+import {
+  IsString,
+  IsInt,
+  IsDate,
+  IsUUID,
+  ValidateNested,
+  IsArray,
+} from 'class-validator'
 import { Type } from 'class-transformer'
+import { PasoOrdenDto } from './paso-orden.dto'
 
 export class CrearOrdenDto {
   @IsString()
@@ -21,4 +29,12 @@ export class CrearOrdenDto {
 
   @IsString()
   estado: string
+
+  @IsUUID()
+  maquina: string
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PasoOrdenDto)
+  pasos: PasoOrdenDto[]
 }
