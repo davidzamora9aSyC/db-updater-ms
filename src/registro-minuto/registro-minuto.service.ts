@@ -3,6 +3,10 @@ import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegistroMinuto } from './registro-minuto.entity';
+import {
+  SesionTrabajoPaso,
+  EstadoSesionTrabajoPaso,
+} from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
 import { TimezoneService } from '../common/timezone.service';
@@ -16,6 +20,8 @@ export class RegistroMinutoService {
   constructor(
     @InjectRepository(RegistroMinuto)
     private readonly repo: Repository<RegistroMinuto>,
+    @InjectRepository(SesionTrabajoPaso)
+    private readonly stpRepo: Repository<SesionTrabajoPaso>,
     private readonly tzService: TimezoneService,
   ) {}
 
@@ -81,6 +87,19 @@ export class RegistroMinutoService {
 
         await this.repo.save(nuevoRegistro);
         if (existente) await this.repo.remove(existente);
+
+        if (dto.piezasContadas > 0) {
+          const activo = await this.stpRepo.findOne({
+            where: {
+              sesionTrabajo: { id: sesionTrabajoId },
+              estado: EstadoSesionTrabajoPaso.ACTIVO,
+            },
+          });
+          if (activo) {
+            activo.cantidadProducida += dto.piezasContadas;
+            await this.stpRepo.save(activo);
+          }
+        }
       }
 
       this.memoria.clear();
