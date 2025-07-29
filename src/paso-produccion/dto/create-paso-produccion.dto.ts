@@ -1,6 +1,5 @@
-import { IsString, IsNotEmpty, IsNumber, IsIn, IsUUID } from 'class-validator'
-
-export type EstadoPaso = 'pendiente' | 'en_progreso' | 'completado';
+import { IsString, IsNotEmpty, IsNumber, IsUUID, IsOptional, IsEnum } from 'class-validator'
+import { EstadoPasoOrden } from '../paso-produccion.entity'
 
 export class CreatePasoProduccionDto {
   @IsString()
@@ -16,10 +15,11 @@ export class CreatePasoProduccionDto {
   @IsNumber()
   cantidadRequerida: number
 
+  @IsOptional()
   @IsNumber()
-  cantidadProducida: number
+  cantidadProducida?: number
 
-  @IsString()
-  @IsIn(['pendiente', 'en_progreso', 'completado'])
-  estado: EstadoPaso;
+  @IsOptional()
+  @IsEnum(EstadoPasoOrden)
+  estado?: EstadoPasoOrden
 }

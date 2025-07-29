@@ -1,4 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+export enum EstadoOrdenProduccion {
+  PENDIENTE = 'pendiente',
+  ACTIVA = 'activa',
+  PAUSADA = 'pausada',
+  FINALIZADA = 'finalizada',
+}
 
 @Entity()
 export class OrdenProduccion {
@@ -20,8 +33,12 @@ export class OrdenProduccion {
   @Column({ type: 'date' })
   fechaVencimiento: Date;
 
-  @Column()
-  estado: string;
+  @Column({
+    type: 'enum',
+    enum: EstadoOrdenProduccion,
+    default: EstadoOrdenProduccion.PENDIENTE,
+  })
+  estado: EstadoOrdenProduccion;
 
   @CreateDateColumn()
   createdAt: Date;

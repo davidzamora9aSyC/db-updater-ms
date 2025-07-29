@@ -37,7 +37,7 @@ export class SesionTrabajoPaso extends BaseEntity {
   @Column({
     type: 'enum',
     enum: EstadoSesionTrabajoPaso,
-    default: EstadoSesionTrabajoPaso.PAUSADO,
+    default: EstadoSesionTrabajoPaso.ACTIVO,
   })
   estado: EstadoSesionTrabajoPaso;
 }

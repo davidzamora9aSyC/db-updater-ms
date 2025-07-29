@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SesionTrabajo, EstadoSesionTrabajo } from './sesion-trabajo.entity';
+import {
+  SesionTrabajo,
+  EstadoSesionTrabajo,
+} from './sesion-trabajo.entity';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { DateTime } from 'luxon';
+import { EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -22,15 +26,13 @@ export class SesionTrabajoService {
   async create(dto: CreateSesionTrabajoDto) {
     await this.finalizarSesionesPrevias(dto.trabajador);
     const sesion = this.repo.create({
-      ...dto,
-      fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
-      fechaFin: dto.fechaFin
-
-        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
-
-        : undefined,
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
+      fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
+      fechaFin: dto.fechaFin
+        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
+        : undefined,
+      estado: EstadoSesionTrabajo.ACTIVA,
     });
     return this.repo.save(sesion);
   }
@@ -62,8 +64,45 @@ export class SesionTrabajoService {
     if (dto.fechaFin)
       sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate();
 
+    if (dto.estado === EstadoSesionTrabajo.FINALIZADA) {
+      return this.finalizar(id);
+    }
+    if (dto.estado === EstadoSesionTrabajo.PAUSADA) {
+      return this.pausar(id);
+    }
+
     Object.assign(sesion, dto);
     return this.repo.save(sesion);
+  }
+
+  async finalizar(id: string) {
+    const sesion = await this.repo.findOne({ where: { id } });
+    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    sesion.estado = EstadoSesionTrabajo.FINALIZADA;
+    sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
+    await this.repo.save(sesion);
+    const pasos = await this.repo.manager.getRepository('sesion_trabajo_paso').find({ where: { sesionTrabajo: { id } } });
+    for (const p of pasos) {
+      p.estado = EstadoSesionTrabajoPaso.FINALIZADO;
+      await this.repo.manager.getRepository('sesion_trabajo_paso').save(p);
+    }
+    return sesion;
+  }
+
+  async pausar(id: string) {
+    const sesion = await this.repo.findOne({ where: { id } });
+    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    sesion.estado = EstadoSesionTrabajo.PAUSADA;
+    await this.repo.save(sesion);
+    const repoPaso = this.repo.manager.getRepository('sesion_trabajo_paso');
+    const pasos = await repoPaso.find({ where: { sesionTrabajo: { id } } });
+    for (const p of pasos) {
+      if (p.estado !== EstadoSesionTrabajoPaso.FINALIZADO) {
+        p.estado = EstadoSesionTrabajoPaso.PAUSADO;
+        await repoPaso.save(p);
+      }
+    }
+    return sesion;
   }
 
   async remove(id: string) {

@@ -9,6 +9,13 @@ import {
 } from 'typeorm';
 import { OrdenProduccion } from '../orden-produccion/entity';
 
+export enum EstadoPasoOrden {
+  PENDIENTE = 'pendiente',
+  ACTIVO = 'activo',
+  PAUSADO = 'pausado',
+  FINALIZADO = 'finalizado',
+}
+
 @Entity()
 export class PasoProduccion {
   @PrimaryGeneratedColumn('uuid')
@@ -30,8 +37,8 @@ export class PasoProduccion {
   @Column('int')
   cantidadProducida: number;
 
-  @Column({ type: 'enum', enum: ['pendiente', 'en_progreso', 'completado'] })
-  estado: 'pendiente' | 'en_progreso' | 'completado';
+  @Column({ type: 'enum', enum: EstadoPasoOrden, default: EstadoPasoOrden.PENDIENTE })
+  estado: EstadoPasoOrden;
 
   @CreateDateColumn()
   createdAt: Date;

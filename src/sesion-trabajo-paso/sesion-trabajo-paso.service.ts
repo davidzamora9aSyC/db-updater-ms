@@ -5,6 +5,8 @@ import {
   SesionTrabajoPaso,
   EstadoSesionTrabajoPaso,
 } from './sesion-trabajo-paso.entity';
+import { PasoProduccion, EstadoPasoOrden } from '../paso-produccion/paso-produccion.entity';
+import { OrdenProduccion, EstadoOrdenProduccion } from '../orden-produccion/entity';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
 
@@ -15,15 +17,38 @@ export class SesionTrabajoPasoService {
     private readonly repo: Repository<SesionTrabajoPaso>,
   ) {}
 
-  create(dto: CreateSesionTrabajoPasoDto) {
+  async create(dto: CreateSesionTrabajoPasoDto) {
+    const activos = await this.repo.find({
+      where: { sesionTrabajo: { id: dto.sesionTrabajo }, estado: EstadoSesionTrabajoPaso.ACTIVO },
+    });
+    for (const a of activos) {
+      a.estado = EstadoSesionTrabajoPaso.PAUSADO;
+      await this.repo.save(a);
+    }
+
     const entity = this.repo.create({
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
       pasoOrden: { id: dto.pasoOrden } as any,
       cantidadAsignada: dto.cantidadAsignada,
       cantidadProducida: dto.cantidadProducida ?? 0,
-      estado: dto.estado ?? EstadoSesionTrabajoPaso.PAUSADO,
+      estado: EstadoSesionTrabajoPaso.ACTIVO,
     });
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+
+    const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
+    const ordenRepo = this.repo.manager.getRepository(OrdenProduccion);
+    const paso = await pasoRepo.findOne({ where: { id: dto.pasoOrden }, relations: ['orden'] });
+    if (paso && paso.estado === EstadoPasoOrden.PENDIENTE) {
+      paso.estado = EstadoPasoOrden.ACTIVO;
+      await pasoRepo.save(paso);
+      const orden = await ordenRepo.findOne({ where: { id: paso.orden.id } });
+      if (orden && orden.estado === EstadoOrdenProduccion.PENDIENTE) {
+        orden.estado = EstadoOrdenProduccion.ACTIVA;
+        await ordenRepo.save(orden);
+      }
+    }
+
+    return saved;
   }
 
   findAll() {
@@ -50,6 +75,12 @@ export class SesionTrabajoPasoService {
     if (dto.cantidadProducida !== undefined)
       entity.cantidadProducida = dto.cantidadProducida;
     if (dto.estado) entity.estado = dto.estado;
+    if (
+      entity.cantidadProducida >= entity.cantidadAsignada &&
+      entity.estado !== EstadoSesionTrabajoPaso.FINALIZADO
+    ) {
+      entity.estado = EstadoSesionTrabajoPaso.FINALIZADO;
+    }
     return this.repo.save(entity);
   }
 
