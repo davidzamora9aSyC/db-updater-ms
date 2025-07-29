@@ -32,19 +32,11 @@ export class OrdenProduccionService {
   ) {}
 
   async crear(dto: CrearOrdenDto) {
-    const { pasos, maquina, numero, ...datosOrden } = dto;
+    const { pasos, numero, ...datosOrden } = dto;
 
     const existente = await this.repo.findOne({ where: { numero } });
     if (existente) throw new NotFoundException('Ya existe una orden con ese número');
 
-    const maquinaEntity = await this.maquinaRepo.findOne({ where: { id: maquina } });
-    if (!maquinaEntity) throw new NotFoundException('Máquina no encontrada');
-
-    const sesion = await this.sesionRepo.findOne({
-      where: { maquina: { id: maquina }, estado: EstadoSesionTrabajo.ACTIVA },
-    });
-    if (!sesion)
-      throw new NotFoundException('No existe una sesión activa para esa máquina');
 
     const nueva = this.repo.create({ ...datosOrden, numero });
     const orden = await this.repo.save(nueva);
@@ -57,16 +49,7 @@ export class OrdenProduccionService {
           estado: (pasoDto.estado as any) ?? 'pendiente',
           orden,
         });
-        const pasoGuardado = await this.pasoRepo.save(paso);
-
-        const relacion = this.stpRepo.create({
-          sesionTrabajo: sesion,
-          pasoOrden: pasoGuardado,
-          cantidadAsignada: pasoGuardado.cantidadRequerida,
-          cantidadProducida: 0,
-          estado: EstadoSesionTrabajoPaso.ACTIVO,
-        });
-        await this.stpRepo.save(relacion);
+        await this.pasoRepo.save(paso);
       }
     }
 

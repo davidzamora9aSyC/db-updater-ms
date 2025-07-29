@@ -63,7 +63,7 @@ export class RegistroMinutoService {
           sesionTrabajo,
           minutoInicio: DateTime.fromISO(minutoInicio, {
             zone: 'America/Bogota',
-          }).toISO(),
+          }).toISO() as string,
           ...data,
         });
       }
