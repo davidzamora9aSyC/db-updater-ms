@@ -83,11 +83,14 @@ export class SesionTrabajoService {
     await this.repo.save(sesion);
     const pasos = await this.repo.manager.getRepository('sesion_trabajo_paso').find({ where: { sesionTrabajo: { id } } });
     for (const p of pasos) {
+
       p.estado = EstadoSesionTrabajoPaso.FINALIZADO;
+
       await this.repo.manager.getRepository('sesion_trabajo_paso').save(p);
     }
     return sesion;
   }
+
 
   async pausar(id: string) {
     const sesion = await this.repo.findOne({ where: { id } });
@@ -104,6 +107,7 @@ export class SesionTrabajoService {
     }
     return sesion;
   }
+
 
   async remove(id: string) {
     const sesion = await this.repo.findOne({ where: { id } });
