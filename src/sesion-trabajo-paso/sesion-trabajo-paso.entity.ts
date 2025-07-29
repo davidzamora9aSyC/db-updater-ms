@@ -28,7 +28,7 @@ export class SesionTrabajoPaso extends BaseEntity {
   @JoinColumn({ name: 'pasoOrdenId' })
   pasoOrden: PasoProduccion;
 
-  @Column('int')
+  @Column('int', { default: 0 })
   cantidadAsignada: number;
 
   @Column('int', { default: 0 })
