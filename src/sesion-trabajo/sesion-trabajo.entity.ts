@@ -4,6 +4,7 @@ import { Maquina } from '../maquina/maquina.entity';
 
 export enum EstadoSesionTrabajo {
   ACTIVA = 'activa',
+  PAUSADA = 'pausada',
   FINALIZADA = 'finalizada',
 }
 

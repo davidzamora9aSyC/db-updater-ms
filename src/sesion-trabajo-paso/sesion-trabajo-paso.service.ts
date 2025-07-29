@@ -5,6 +5,8 @@ import {
   SesionTrabajoPaso,
   EstadoSesionTrabajoPaso,
 } from './sesion-trabajo-paso.entity';
+import { PasoProduccion, EstadoPasoOrden } from '../paso-produccion/paso-produccion.entity';
+import { OrdenProduccion, EstadoOrdenProduccion } from '../orden-produccion/entity';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
 
@@ -31,7 +33,22 @@ export class SesionTrabajoPasoService {
       cantidadProducida: dto.cantidadProducida ?? 0,
       estado: EstadoSesionTrabajoPaso.ACTIVO,
     });
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+
+    const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
+    const ordenRepo = this.repo.manager.getRepository(OrdenProduccion);
+    const paso = await pasoRepo.findOne({ where: { id: dto.pasoOrden }, relations: ['orden'] });
+    if (paso && paso.estado === EstadoPasoOrden.PENDIENTE) {
+      paso.estado = EstadoPasoOrden.ACTIVO;
+      await pasoRepo.save(paso);
+      const orden = await ordenRepo.findOne({ where: { id: paso.orden.id } });
+      if (orden && orden.estado === EstadoOrdenProduccion.PENDIENTE) {
+        orden.estado = EstadoOrdenProduccion.ACTIVA;
+        await ordenRepo.save(orden);
+      }
+    }
+
+    return saved;
   }
 
   findAll() {
