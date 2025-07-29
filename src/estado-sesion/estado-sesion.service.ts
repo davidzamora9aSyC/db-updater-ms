@@ -16,7 +16,9 @@ export class EstadoSesionService {
   async create(dto: CreateEstadoSesionDto) {
     const nuevo = this.repo.create({
       ...dto,
+
       inicio: DateTime.fromJSDate(dto.inicio, { zone: 'America/Bogota' }).toJSDate(),
+
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
     });
     return this.repo.save(nuevo);
@@ -42,7 +44,9 @@ export class EstadoSesionService {
     if (dto.sesionTrabajo)
       estado.sesionTrabajo = { id: dto.sesionTrabajo } as any;
     if (dto.inicio)
+
       estado.inicio = DateTime.fromJSDate(dto.inicio, { zone: 'America/Bogota' }).toJSDate();
+
     Object.assign(estado, dto);
     return this.repo.save(estado);
   }
