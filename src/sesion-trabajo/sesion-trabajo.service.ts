@@ -7,6 +7,7 @@ import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
+import { DateTime } from 'luxon';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -21,8 +22,10 @@ export class SesionTrabajoService {
   async create(dto: CreateSesionTrabajoDto) {
     const sesion = this.repo.create({
       ...dto,
-      fechaInicio: new Date(),
-      fechaFin: dto.fechaFin ? new Date(dto.fechaFin) : undefined,
+      fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
+      fechaFin: dto.fechaFin
+        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
+        : undefined,
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
     });
@@ -50,8 +53,10 @@ export class SesionTrabajoService {
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     if (dto.trabajador) sesion.trabajador = { id: dto.trabajador } as any;
     if (dto.maquina) sesion.maquina = { id: dto.maquina } as any;
-    if (dto.fechaInicio) sesion.fechaInicio = new Date(dto.fechaInicio);
-    if (dto.fechaFin) sesion.fechaFin = new Date(dto.fechaFin);
+    if (dto.fechaInicio)
+      sesion.fechaInicio = DateTime.fromJSDate(dto.fechaInicio, { zone: 'America/Bogota' }).toJSDate();
+    if (dto.fechaFin)
+      sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate();
     Object.assign(sesion, dto);
     return this.repo.save(sesion);
   }
@@ -87,14 +92,13 @@ export class SesionTrabajoService {
       let nptPorInactividad = 0;
       const ordenados = [...registros].sort(
         (a, b) =>
-          new Date(a.minutoInicio).getTime() -
-          new Date(b.minutoInicio).getTime(),
+          DateTime.fromJSDate(a.minutoInicio, { zone: 'America/Bogota' }).toMillis() -
+          DateTime.fromJSDate(b.minutoInicio, { zone: 'America/Bogota' }).toMillis(),
       );
       for (let i = 1; i < ordenados.length; i++) {
         const diff =
-          (new Date(ordenados[i].minutoInicio).getTime() -
-            new Date(ordenados[i - 1].minutoInicio).getTime()) /
-          60000;
+          DateTime.fromJSDate(ordenados[i].minutoInicio, { zone: 'America/Bogota' })
+            .diff(DateTime.fromJSDate(ordenados[i - 1].minutoInicio, { zone: 'America/Bogota' }), 'minutes').minutes;
         if (diff > minutosInactividadParaNPT)
           nptPorInactividad += diff - minutosInactividadParaNPT;
       }
@@ -102,21 +106,22 @@ export class SesionTrabajoService {
       const tieneRegistros = registrosOrdenados.length > 0;
       const start = tieneRegistros
         ? Math.max(
-            new Date(sesion.fechaInicio).getTime(),
-            new Date(registrosOrdenados[0].minutoInicio).getTime(),
+            DateTime.fromJSDate(sesion.fechaInicio, { zone: 'America/Bogota' }).toMillis(),
+            DateTime.fromJSDate(registrosOrdenados[0].minutoInicio, { zone: 'America/Bogota' }).toMillis(),
           )
-        : new Date(sesion.fechaInicio).getTime();
+        : DateTime.fromJSDate(sesion.fechaInicio, { zone: 'America/Bogota' }).toMillis();
       const lastSlot = tieneRegistros
-        ? new Date(
+        ? DateTime.fromJSDate(
             registrosOrdenados[registrosOrdenados.length - 1].minutoInicio,
-          ).getTime() + 60000
+            { zone: 'America/Bogota' },
+          ).plus({ minutes: 1 }).toMillis()
         : 0;
       const end =
         sesion.estado === EstadoSesionTrabajo.ACTIVA
-          ? Date.now()
+          ? DateTime.now().setZone('America/Bogota').toMillis()
           : sesion.fechaFin
-          ? new Date(sesion.fechaFin).getTime()
-          : Date.now();
+          ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis()
+          : DateTime.now().setZone('America/Bogota').toMillis();
       const fin = Math.max(end, lastSlot || end);
       const totalMin = Math.max(Number.EPSILON, (fin - start) / 60000);
       const nptTotal = Math.min(nptMinRegistro + nptPorInactividad, totalMin);
@@ -126,7 +131,8 @@ export class SesionTrabajoService {
       const ventanaMin = 10;
       const corte = fin - ventanaMin * 60000;
       const regsVentana = registrosOrdenados.filter(
-        (r) => new Date(r.minutoInicio).getTime() >= corte,
+        (r) =>
+          DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toMillis() >= corte,
       );
       const piezasVentana = regsVentana.reduce((a, b) => a + b.piezasContadas, 0);
       const nptVentanaReg = regsVentana.filter(
@@ -135,9 +141,11 @@ export class SesionTrabajoService {
       let nptVentanaGap = 0;
       for (let i = 1; i < regsVentana.length; i++) {
         const d =
-          (new Date(regsVentana[i].minutoInicio).getTime() -
-            new Date(regsVentana[i - 1].minutoInicio).getTime()) /
-          60000;
+          DateTime.fromJSDate(regsVentana[i].minutoInicio, { zone: 'America/Bogota' })
+            .diff(
+              DateTime.fromJSDate(regsVentana[i - 1].minutoInicio, { zone: 'America/Bogota' }),
+              'minutes',
+            ).minutes;
         if (d > minutosInactividadParaNPT) nptVentanaGap += d - minutosInactividadParaNPT;
       }
       const minVentana = Math.max(Number.EPSILON, (fin - Math.max(corte, start)) / 60000);
