@@ -3,15 +3,57 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { OrdenProduccion } from './entity'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
-import { CrearOrdenDto as UpdateOrdenDto } from './dto/crear-orden.dto'
+import { ActualizarOrdenDto } from './dto/actualizar-orden.dto'
+import { PasoOrdenDto } from './dto/paso-orden.dto'
+import { PasoProduccion } from '../paso-produccion/paso-produccion.entity'
+import { SesionTrabajo, EstadoSesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity'
+import { SesionTrabajoPaso, EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
 
 @Injectable()
 export class OrdenProduccionService {
-  constructor(@InjectRepository(OrdenProduccion) private readonly repo: Repository<OrdenProduccion>) {}
+  constructor(
+    @InjectRepository(OrdenProduccion)
+    private readonly repo: Repository<OrdenProduccion>,
+    @InjectRepository(PasoProduccion)
+    private readonly pasoRepo: Repository<PasoProduccion>,
+    @InjectRepository(SesionTrabajo)
+    private readonly sesionRepo: Repository<SesionTrabajo>,
+    @InjectRepository(SesionTrabajoPaso)
+    private readonly stpRepo: Repository<SesionTrabajoPaso>,
+  ) {}
 
-  crear(dto: CrearOrdenDto) {
-    const nueva = this.repo.create(dto)
-    return this.repo.save(nueva)
+  async crear(dto: CrearOrdenDto) {
+    const { pasos, maquina, ...datosOrden } = dto;
+    const nueva = this.repo.create(datosOrden);
+    const orden = await this.repo.save(nueva);
+
+    if (pasos?.length) {
+      const sesion = await this.sesionRepo.findOne({
+        where: { maquina: { id: maquina }, estado: EstadoSesionTrabajo.ACTIVA },
+      });
+      for (const pasoDto of pasos) {
+        const paso = this.pasoRepo.create({
+          ...pasoDto,
+          cantidadProducida: pasoDto.cantidadProducida ?? 0,
+          estado: (pasoDto.estado as any) ?? 'pendiente',
+          orden,
+        });
+        const pasoGuardado = await this.pasoRepo.save(paso);
+
+        if (sesion) {
+          const relacion = this.stpRepo.create({
+            sesionTrabajo: sesion,
+            pasoOrden: pasoGuardado,
+            cantidadAsignada: pasoGuardado.cantidadRequerida,
+            cantidadProducida: 0,
+            estado: EstadoSesionTrabajoPaso.ACTIVO,
+          });
+          await this.stpRepo.save(relacion);
+        }
+      }
+    }
+
+    return orden;
   }
 
   obtenerTodas() {
@@ -24,10 +66,51 @@ export class OrdenProduccionService {
     return orden
   }
 
-  async actualizar(id: string, dto: UpdateOrdenDto) {
-    const orden = await this.repo.preload({ id, ...dto })
-    if (!orden) throw new NotFoundException('Orden no encontrada')
-    return this.repo.save(orden)
+  async actualizar(id: string, dto: ActualizarOrdenDto) {
+    const { pasos, maquina, ...datosOrden } = dto;
+    const orden = await this.repo.preload({ id, ...datosOrden });
+    if (!orden) throw new NotFoundException('Orden no encontrada');
+    await this.repo.save(orden);
+
+    if (pasos) {
+      const antiguos = await this.pasoRepo.find({ where: { orden: { id } } });
+      for (const p of antiguos) {
+        await this.stpRepo.delete({ pasoOrden: { id: p.id } });
+      }
+      await this.pasoRepo.remove(antiguos);
+
+      const sesion = maquina
+        ? await this.sesionRepo.findOne({
+            where: {
+              maquina: { id: maquina },
+              estado: EstadoSesionTrabajo.ACTIVA,
+            },
+          })
+        : undefined;
+
+      for (const pasoDto of pasos) {
+        const paso = this.pasoRepo.create({
+          ...pasoDto,
+          cantidadProducida: pasoDto.cantidadProducida ?? 0,
+          estado: (pasoDto.estado as any) ?? 'pendiente',
+          orden,
+        });
+        const pasoGuardado = await this.pasoRepo.save(paso);
+
+        if (sesion) {
+          const relacion = this.stpRepo.create({
+            sesionTrabajo: sesion,
+            pasoOrden: pasoGuardado,
+            cantidadAsignada: pasoGuardado.cantidadRequerida,
+            cantidadProducida: 0,
+            estado: EstadoSesionTrabajoPaso.ACTIVO,
+          });
+          await this.stpRepo.save(relacion);
+        }
+      }
+    }
+
+    return orden;
   }
 
   async eliminar(id: string) {
