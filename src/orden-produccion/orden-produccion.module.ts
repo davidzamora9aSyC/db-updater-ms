@@ -6,6 +6,7 @@ import { OrdenProduccionService } from './orden-produccion.service';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { Maquina } from '../maquina/maquina.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.en
       PasoProduccion,
       SesionTrabajo,
       SesionTrabajoPaso,
+      Maquina,
     ]),
   ],
   controllers: [OrdenProduccionController],
