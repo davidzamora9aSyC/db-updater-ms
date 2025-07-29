@@ -61,14 +61,18 @@ export class RegistroMinutoService {
         const [sesionTrabajo, minutoInicio] = clave.split('_');
         registros.push({
           sesionTrabajo,
-          minutoInicio: new Date(minutoInicio).toISOString(),
+          minutoInicio: DateTime.fromISO(minutoInicio, {
+            zone: 'America/Bogota',
+          }).toISO(),
           ...data,
         });
       }
 
       for (const dto of registros) {
         const sesionTrabajoId = dto.sesionTrabajo;
-        const minutoInicio = new Date(dto.minutoInicio);
+        const minutoInicio = DateTime.fromISO(dto.minutoInicio, {
+          zone: 'America/Bogota',
+        }).toJSDate();
 
         const existente = await this.repo.findOne({
           where: {
