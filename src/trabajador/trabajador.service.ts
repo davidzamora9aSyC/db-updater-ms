@@ -1,5 +1,5 @@
 import { EstadoTrabajador } from './dto/update-trabajador.dto'
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto'
@@ -14,6 +14,13 @@ export class TrabajadorService {
   ) {}
 
   async crear(data: CreateTrabajadorDto) {
+    const existente = await this.repo.findOne({
+      where: { identificacion: data.identificacion },
+    })
+    if (existente)
+      throw new BadRequestException(
+        'No se puede crear un trabajador con un id que ya existe',
+      )
     const nuevoTrabajador = this.repo.create(data)
     await this.repo.save(nuevoTrabajador)
     return { mensaje: 'Trabajador creado', data: nuevoTrabajador }
