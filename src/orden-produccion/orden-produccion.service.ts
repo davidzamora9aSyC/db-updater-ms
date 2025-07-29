@@ -100,12 +100,14 @@ export class OrdenProduccionService {
         });
         if (!maquinaEntity) throw new NotFoundException('Máquina no encontrada');
 
-        sesion = await this.sesionRepo.findOne({
+        let sesion: SesionTrabajo | null = await this.sesionRepo.findOne({
           where: {
             maquina: { id: maquina },
             estado: EstadoSesionTrabajo.ACTIVA,
           },
         });
+        if (!sesion) throw new NotFoundException('No existe una sesión activa para esa máquina');
+        
         if (!sesion)
           throw new NotFoundException('No existe una sesión activa para esa máquina');
       }
