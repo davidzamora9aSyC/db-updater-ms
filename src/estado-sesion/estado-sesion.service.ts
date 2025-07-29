@@ -1,23 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { DateTime } from 'luxon';
 import { EstadoSesion } from './estado-sesion.entity';
 import { CreateEstadoSesionDto } from './dto/create-estado-sesion.dto';
 import { UpdateEstadoSesionDto } from './dto/update-estado-sesion.dto';
-import { TimezoneService } from '../common/timezone.service';
 
 @Injectable()
 export class EstadoSesionService {
   constructor(
     @InjectRepository(EstadoSesion)
     private readonly repo: Repository<EstadoSesion>,
-    private readonly tzService: TimezoneService,
   ) {}
 
   async create(dto: CreateEstadoSesionDto) {
     const nuevo = this.repo.create({
       ...dto,
-      inicio: await this.tzService.toUTC(new Date(dto.inicio)),
+      inicio: DateTime.fromISO(dto.inicio, { zone: 'America/Bogota' }).toJSDate(),
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
     });
     return this.repo.save(nuevo);
@@ -25,9 +24,6 @@ export class EstadoSesionService {
 
   async findAll() {
     const estados = await this.repo.find({ relations: ['sesionTrabajo'] });
-    for (const e of estados) {
-      e.inicio = await this.tzService.fromUTC(e.inicio);
-    }
     return estados;
   }
 
@@ -37,7 +33,6 @@ export class EstadoSesionService {
       relations: ['sesionTrabajo'],
     });
     if (!estado) throw new NotFoundException('Estado de sesión no encontrado');
-    estado.inicio = await this.tzService.fromUTC(estado.inicio);
     return estado;
   }
 
@@ -47,7 +42,7 @@ export class EstadoSesionService {
     if (dto.sesionTrabajo)
       estado.sesionTrabajo = { id: dto.sesionTrabajo } as any;
     if (dto.inicio)
-      estado.inicio = await this.tzService.toUTC(new Date(dto.inicio));
+      estado.inicio = DateTime.fromISO(dto.inicio, { zone: 'America/Bogota' }).toJSDate();
     Object.assign(estado, dto);
     return this.repo.save(estado);
   }
@@ -65,9 +60,6 @@ export class EstadoSesionService {
       relations: ['sesionTrabajo'],
       order: { inicio: 'DESC' },
     });
-    for (const e of estados) {
-      e.inicio = await this.tzService.fromUTC(e.inicio);
-    }
     return estados;
   }
 

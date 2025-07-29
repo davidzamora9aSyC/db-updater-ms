@@ -9,7 +9,7 @@ import {
 } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
-import { TimezoneService } from '../common/timezone.service';
+import { DateTime } from 'luxon';
 
 @Injectable()
 export class RegistroMinutoService {
@@ -22,7 +22,6 @@ export class RegistroMinutoService {
     private readonly repo: Repository<RegistroMinuto>,
     @InjectRepository(SesionTrabajoPaso)
     private readonly stpRepo: Repository<SesionTrabajoPaso>,
-    private readonly tzService: TimezoneService,
   ) {}
 
   async acumular(
@@ -40,8 +39,8 @@ export class RegistroMinutoService {
     if (!existe) return;
 
     await this.mutex.runExclusive(async () => {
-      const fechaUTC = await this.tzService.toUTC(new Date(minutoInicio));
-      const clave = `${sesionTrabajoId}_${fechaUTC.toISOString()}`;
+      const fecha = DateTime.fromISO(minutoInicio, { zone: 'America/Bogota' }).toJSDate();
+      const clave = `${sesionTrabajoId}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
         piezasContadas: 0,
@@ -115,9 +114,6 @@ export class RegistroMinutoService {
       where: { sesionTrabajo: { id: sesionTrabajoId } },
       order: { minutoInicio: 'ASC' },
     });
-    for (const r of registros) {
-      r.minutoInicio = await this.tzService.fromUTC(r.minutoInicio);
-    }
     return registros;
   }
 }
