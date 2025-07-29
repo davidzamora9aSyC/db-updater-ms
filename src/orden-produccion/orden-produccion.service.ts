@@ -6,8 +6,15 @@ import { CrearOrdenDto } from './dto/crear-orden.dto'
 import { ActualizarOrdenDto } from './dto/actualizar-orden.dto'
 import { PasoOrdenDto } from './dto/paso-orden.dto'
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity'
-import { SesionTrabajo, EstadoSesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity'
-import { SesionTrabajoPaso, EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
+import {
+  SesionTrabajo,
+  EstadoSesionTrabajo,
+} from '../sesion-trabajo/sesion-trabajo.entity'
+import {
+  SesionTrabajoPaso,
+  EstadoSesionTrabajoPaso,
+} from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
+import { Maquina } from '../maquina/maquina.entity'
 
 @Injectable()
 export class OrdenProduccionService {
@@ -20,17 +27,26 @@ export class OrdenProduccionService {
     private readonly sesionRepo: Repository<SesionTrabajo>,
     @InjectRepository(SesionTrabajoPaso)
     private readonly stpRepo: Repository<SesionTrabajoPaso>,
+    @InjectRepository(Maquina)
+    private readonly maquinaRepo: Repository<Maquina>,
   ) {}
 
   async crear(dto: CrearOrdenDto) {
     const { pasos, maquina, ...datosOrden } = dto;
+
+    const maquinaEntity = await this.maquinaRepo.findOne({ where: { id: maquina } });
+    if (!maquinaEntity) throw new NotFoundException('Máquina no encontrada');
+
+    const sesion = await this.sesionRepo.findOne({
+      where: { maquina: { id: maquina }, estado: EstadoSesionTrabajo.ACTIVA },
+    });
+    if (!sesion)
+      throw new NotFoundException('No existe una sesión activa para esa máquina');
+
     const nueva = this.repo.create(datosOrden);
     const orden = await this.repo.save(nueva);
 
     if (pasos?.length) {
-      const sesion = await this.sesionRepo.findOne({
-        where: { maquina: { id: maquina }, estado: EstadoSesionTrabajo.ACTIVA },
-      });
       for (const pasoDto of pasos) {
         const paso = this.pasoRepo.create({
           ...pasoDto,
@@ -40,16 +56,14 @@ export class OrdenProduccionService {
         });
         const pasoGuardado = await this.pasoRepo.save(paso);
 
-        if (sesion) {
-          const relacion = this.stpRepo.create({
-            sesionTrabajo: sesion,
-            pasoOrden: pasoGuardado,
-            cantidadAsignada: pasoGuardado.cantidadRequerida,
-            cantidadProducida: 0,
-            estado: EstadoSesionTrabajoPaso.ACTIVO,
-          });
-          await this.stpRepo.save(relacion);
-        }
+        const relacion = this.stpRepo.create({
+          sesionTrabajo: sesion,
+          pasoOrden: pasoGuardado,
+          cantidadAsignada: pasoGuardado.cantidadRequerida,
+          cantidadProducida: 0,
+          estado: EstadoSesionTrabajoPaso.ACTIVO,
+        });
+        await this.stpRepo.save(relacion);
       }
     }
 
@@ -79,14 +93,22 @@ export class OrdenProduccionService {
       }
       await this.pasoRepo.remove(antiguos);
 
-      const sesion = maquina
-        ? await this.sesionRepo.findOne({
-            where: {
-              maquina: { id: maquina },
-              estado: EstadoSesionTrabajo.ACTIVA,
-            },
-          })
-        : undefined;
+      let sesion: SesionTrabajo | undefined = undefined;
+      if (maquina) {
+        const maquinaEntity = await this.maquinaRepo.findOne({
+          where: { id: maquina },
+        });
+        if (!maquinaEntity) throw new NotFoundException('Máquina no encontrada');
+
+        sesion = await this.sesionRepo.findOne({
+          where: {
+            maquina: { id: maquina },
+            estado: EstadoSesionTrabajo.ACTIVA,
+          },
+        });
+        if (!sesion)
+          throw new NotFoundException('No existe una sesión activa para esa máquina');
+      }
 
       for (const pasoDto of pasos) {
         const paso = this.pasoRepo.create({
