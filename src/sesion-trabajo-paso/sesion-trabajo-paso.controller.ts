@@ -5,7 +5,7 @@ import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto
 
 @Controller('sesion-trabajo-pasos')
 export class SesionTrabajoPasoController {
-  constructor(private readonly service: SesionTrabajoPasoService) {}
+  constructor(private readonly service: SesionTrabajoPasoService) { }
 
   @Post()
   create(@Body() dto: CreateSesionTrabajoPasoDto) {
@@ -36,6 +36,12 @@ export class SesionTrabajoPasoController {
   update(@Param('id') id: string, @Body() dto: UpdateSesionTrabajoPasoDto) {
     return this.service.update(id, dto);
   }
+
+  @Put('batch')
+  updateBatch(@Body() updates: { id: string; data: UpdateSesionTrabajoPasoDto }[]) {
+    return Promise.all(updates.map(({ id, data }) => this.service.update(id, data)));
+  }
+
 
   @Delete(':id')
   remove(@Param('id') id: string) {
