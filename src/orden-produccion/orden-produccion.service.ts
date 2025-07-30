@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { OrdenProduccion } from './entity'
+import { OrdenProduccion, EstadoOrdenProduccion } from './entity'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
 import { ActualizarOrdenDto } from './dto/actualizar-orden.dto'
 import { PasoOrdenDto } from './dto/paso-orden.dto'
-import { PasoProduccion } from '../paso-produccion/paso-produccion.entity'
+import { PasoProduccion, EstadoPasoOrden } from '../paso-produccion/paso-produccion.entity'
 import {
   SesionTrabajo,
   EstadoSesionTrabajo,
@@ -46,7 +46,7 @@ export class OrdenProduccionService {
         const paso = this.pasoRepo.create({
           ...pasoDto,
           cantidadProducida: pasoDto.cantidadProducida ?? 0,
-          estado: (pasoDto.estado as any) ?? 'pendiente',
+          estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
           orden,
         });
         await this.pasoRepo.save(paso);
@@ -102,7 +102,7 @@ export class OrdenProduccionService {
         const paso = this.pasoRepo.create({
           ...pasoDto,
           cantidadProducida: pasoDto.cantidadProducida ?? 0,
-          estado: (pasoDto.estado as any) ?? 'pendiente',
+          estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
           orden,
         });
         const pasoGuardado = await this.pasoRepo.save(paso);
