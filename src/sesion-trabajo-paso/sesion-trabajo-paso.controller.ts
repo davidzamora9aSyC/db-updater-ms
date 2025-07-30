@@ -12,6 +12,11 @@ export class SesionTrabajoPasoController {
     return this.service.create(dto);
   }
 
+  @Post('batch')
+  createBatch(@Body() dtos: CreateSesionTrabajoPasoDto[]) {
+    return Promise.all(dtos.map(dto => this.service.create(dto)));
+  }
+
   @Get()
   findAll() {
     return this.service.findAll();
