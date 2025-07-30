@@ -52,7 +52,9 @@ export class SesionTrabajoPasoService {
     });
     if (sesion) {
       entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
+      if (!entity.nombreTrabajador) console.warn('⚠️ nombreTrabajador no encontrado para sesión', dto.sesionTrabajo);
       entity.nombreMaquina = sesion.maquina?.nombre ?? '';
+      if (!entity.nombreMaquina) console.warn('⚠️ nombreMaquina no encontrado para sesión', dto.sesionTrabajo);
     }
 
     const saved = await this.repo.save(entity);
@@ -101,7 +103,9 @@ export class SesionTrabajoPasoService {
       });
       if (sesion) {
         entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
+        if (!entity.nombreTrabajador) console.warn('⚠️ nombreTrabajador no encontrado al actualizar sesión', dto.sesionTrabajo);
         entity.nombreMaquina = sesion.maquina?.nombre ?? '';
+        if (!entity.nombreMaquina) console.warn('⚠️ nombreMaquina no encontrado al actualizar sesión', dto.sesionTrabajo);
       }
     }
     if (dto.pasoOrden) entity.pasoOrden = { id: dto.pasoOrden } as any;
