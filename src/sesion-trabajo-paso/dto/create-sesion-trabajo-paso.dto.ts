@@ -1,4 +1,5 @@
-import { IsUUID, IsNumber, IsOptional } from 'class-validator';
+import { IsUUID, IsNumber, IsOptional, IsEnum } from 'class-validator';
+import { EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso.entity';
 
 export class CreateSesionTrabajoPasoDto {
   @IsUUID()
@@ -18,5 +19,7 @@ export class CreateSesionTrabajoPasoDto {
   @IsNumber()
   cantidadPedaleos?: number;
 
-  // estado siempre inicia activo
+  @IsOptional()
+  @IsEnum(EstadoSesionTrabajoPaso)
+  estado?: EstadoSesionTrabajoPaso;
 }
