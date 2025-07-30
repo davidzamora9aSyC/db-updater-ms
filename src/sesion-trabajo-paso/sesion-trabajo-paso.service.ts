@@ -42,7 +42,7 @@ export class SesionTrabajoPasoService {
       cantidadAsignada: dto.cantidadAsignada,
       cantidadProducida: dto.cantidadProducida ?? 0,
       cantidadPedaleos: dto.cantidadPedaleos ?? 0,
-      estado: EstadoSesionTrabajoPaso.ACTIVO,
+      estado: dto.estado ?? EstadoSesionTrabajoPaso.ACTIVO,
     });
 
     const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
