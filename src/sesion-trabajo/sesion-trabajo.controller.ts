@@ -22,6 +22,11 @@ export class SesionTrabajoController {
     return this.service.findActuales();
   }
 
+  @Get('activas')
+  findActivas() {
+    return this.service.findActivas();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

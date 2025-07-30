@@ -234,6 +234,13 @@ export class SesionTrabajoService {
     return resultado;
   }
 
+  async findActivas() {
+    return this.repo.find({
+      where: { estado: EstadoSesionTrabajo.ACTIVA },
+      relations: ['trabajador', 'maquina'],
+    });
+  }
+
   private async finalizarSesionesPrevias(trabajadorId: string) {
     const activas = await this.repo.find({
       where: {
