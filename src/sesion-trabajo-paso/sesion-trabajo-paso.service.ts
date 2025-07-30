@@ -48,10 +48,11 @@ export class SesionTrabajoPasoService {
     const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
     const sesion = await sesionRepo.findOne({
       where: { id: dto.sesionTrabajo },
-      relations: ['trabajador'],
+      relations: ['trabajador', 'maquina'],
     });
     if (sesion) {
       entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
+      entity.nombreMaquina = sesion.maquina?.nombre ?? '';
     }
 
     const saved = await this.repo.save(entity);
@@ -96,10 +97,11 @@ export class SesionTrabajoPasoService {
       const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
       const sesion = await sesionRepo.findOne({
         where: { id: dto.sesionTrabajo },
-        relations: ['trabajador'],
+        relations: ['trabajador', 'maquina'],
       });
       if (sesion) {
         entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
+        entity.nombreMaquina = sesion.maquina?.nombre ?? '';
       }
     }
     if (dto.pasoOrden) entity.pasoOrden = { id: dto.pasoOrden } as any;

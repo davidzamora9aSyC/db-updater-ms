@@ -40,6 +40,9 @@ export class SesionTrabajoPaso extends BaseEntity {
   @Column({ default: 'Desconocido' })
   nombreTrabajador: string;
 
+  @Column({ default: 'Desconocido' })
+  nombreMaquina: string;
+
   @Column({
     type: 'enum',
     enum: EstadoSesionTrabajoPaso,
