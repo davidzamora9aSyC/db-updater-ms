@@ -1,4 +1,4 @@
-import { IsUUID, IsDateString, IsOptional } from 'class-validator';
+import { IsUUID, IsDateString, IsOptional, IsNumber } from 'class-validator';
 
 export class CreateSesionTrabajoDto {
   @IsUUID()
@@ -10,5 +10,13 @@ export class CreateSesionTrabajoDto {
   @IsOptional()
   @IsDateString()
   fechaFin?: Date;
+
+  @IsOptional()
+  @IsNumber()
+  cantidadProducida?: number;
+
+  @IsOptional()
+  @IsNumber()
+  cantidadPedaleos?: number;
 
 }

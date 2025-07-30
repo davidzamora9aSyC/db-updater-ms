@@ -41,6 +41,7 @@ export class SesionTrabajoPasoService {
       pasoOrden: { id: dto.pasoOrden } as any,
       cantidadAsignada: dto.cantidadAsignada,
       cantidadProducida: dto.cantidadProducida ?? 0,
+      cantidadPedaleos: dto.cantidadPedaleos ?? 0,
       estado: EstadoSesionTrabajoPaso.ACTIVO,
     });
 
@@ -106,6 +107,8 @@ export class SesionTrabajoPasoService {
       entity.cantidadAsignada = dto.cantidadAsignada;
     if (dto.cantidadProducida !== undefined)
       entity.cantidadProducida = dto.cantidadProducida;
+    if (dto.cantidadPedaleos !== undefined)
+      entity.cantidadPedaleos = dto.cantidadPedaleos;
     if (dto.estado) entity.estado = dto.estado;
     if (
       entity.cantidadProducida >= entity.cantidadAsignada &&

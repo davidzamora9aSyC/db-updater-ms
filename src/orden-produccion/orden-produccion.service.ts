@@ -46,6 +46,7 @@ export class OrdenProduccionService {
         const paso = this.pasoRepo.create({
           ...pasoDto,
           cantidadProducida: pasoDto.cantidadProducida ?? 0,
+          cantidadPedaleos: pasoDto.cantidadPedaleos ?? 0,
           estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
           orden,
         });
@@ -102,6 +103,7 @@ export class OrdenProduccionService {
         const paso = this.pasoRepo.create({
           ...pasoDto,
           cantidadProducida: pasoDto.cantidadProducida ?? 0,
+          cantidadPedaleos: pasoDto.cantidadPedaleos ?? 0,
           estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
           orden,
         });
@@ -113,6 +115,7 @@ export class OrdenProduccionService {
             pasoOrden: pasoGuardado,
             cantidadAsignada: pasoGuardado.cantidadRequerida,
             cantidadProducida: 0,
+            cantidadPedaleos: 0,
             estado: EstadoSesionTrabajoPaso.ACTIVO,
           });
           await this.stpRepo.save(relacion);
