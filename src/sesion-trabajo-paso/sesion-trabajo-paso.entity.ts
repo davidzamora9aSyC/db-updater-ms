@@ -13,6 +13,7 @@ export enum EstadoSesionTrabajoPaso {
   ACTIVO = 'activo',
   PAUSADO = 'pausado',
   FINALIZADO = 'finalizado',
+  PENDIENTE = 'pendiente',
 }
 
 @Entity('sesion_trabajo_paso')
