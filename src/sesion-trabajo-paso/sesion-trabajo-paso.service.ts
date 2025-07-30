@@ -52,9 +52,17 @@ export class SesionTrabajoPasoService {
     });
     if (sesion) {
       entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
-      if (!entity.nombreTrabajador) console.warn('⚠️ nombreTrabajador no encontrado para sesión', dto.sesionTrabajo);
+      if (!entity.nombreTrabajador)
+        console.warn(
+          '⚠️ nombreTrabajador no encontrado para sesión',
+          dto.sesionTrabajo,
+        );
       entity.nombreMaquina = sesion.maquina?.nombre ?? '';
-      if (!entity.nombreMaquina) console.warn('⚠️ nombreMaquina no encontrado para sesión', dto.sesionTrabajo);
+      if (!entity.nombreMaquina)
+        console.warn(
+          '⚠️ nombreMaquina no encontrado para sesión',
+          dto.sesionTrabajo,
+        );
     }
 
     const saved = await this.repo.save(entity);
@@ -95,17 +103,19 @@ export class SesionTrabajoPasoService {
     const entity = await this.repo.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Relación no encontrada');
     if (dto.sesionTrabajo) {
-      entity.sesionTrabajo = { id: dto.sesionTrabajo } as any;
       const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
       const sesion = await sesionRepo.findOne({
         where: { id: dto.sesionTrabajo },
         relations: ['trabajador', 'maquina'],
       });
       if (sesion) {
-        entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
-        if (!entity.nombreTrabajador) console.warn('⚠️ nombreTrabajador no encontrado al actualizar sesión', dto.sesionTrabajo);
-        entity.nombreMaquina = sesion.maquina?.nombre ?? '';
-        if (!entity.nombreMaquina) console.warn('⚠️ nombreMaquina no encontrado al actualizar sesión', dto.sesionTrabajo);
+        entity.sesionTrabajo = sesion;
+        entity.nombreTrabajador = sesion.trabajador?.nombre || 'Desconocido';
+        entity.nombreMaquina = sesion.maquina?.nombre || 'Desconocido';
+      } else {
+        entity.sesionTrabajo = { id: dto.sesionTrabajo } as any;
+        entity.nombreTrabajador = 'Desconocido';
+        entity.nombreMaquina = 'Desconocido';
       }
     }
     if (dto.pasoOrden) entity.pasoOrden = { id: dto.pasoOrden } as any;
