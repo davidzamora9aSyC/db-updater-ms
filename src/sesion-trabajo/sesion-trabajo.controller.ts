@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Put, Delete } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Put, Delete, Patch } from '@nestjs/common';
 import { SesionTrabajoService } from './sesion-trabajo.service';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
@@ -30,6 +30,16 @@ export class SesionTrabajoController {
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: UpdateSesionTrabajoDto) {
     return this.service.update(id, dto);
+  }
+
+  @Patch(':id/finalizar')
+  finalizar(@Param('id') id: string) {
+    return this.service.finalizar(id);
+  }
+
+  @Patch(':id/pausar')
+  pausar(@Param('id') id: string) {
+    return this.service.pausar(id);
   }
 
   @Delete(':id')

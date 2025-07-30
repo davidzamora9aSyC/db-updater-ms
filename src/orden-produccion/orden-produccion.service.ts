@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { OrdenProduccion } from './entity'
+import { OrdenProduccion, EstadoOrdenProduccion } from './entity'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
 import { ActualizarOrdenDto } from './dto/actualizar-orden.dto'
 import { PasoOrdenDto } from './dto/paso-orden.dto'
-import { PasoProduccion } from '../paso-produccion/paso-produccion.entity'
+import { PasoProduccion, EstadoPasoOrden } from '../paso-produccion/paso-produccion.entity'
 import {
   SesionTrabajo,
   EstadoSesionTrabajo,
@@ -38,7 +38,11 @@ export class OrdenProduccionService {
     if (existente) throw new NotFoundException('Ya existe una orden con ese número');
 
 
-    const nueva = this.repo.create({ ...datosOrden, numero });
+    const nueva = this.repo.create({
+      ...datosOrden,
+      numero,
+      estado: EstadoOrdenProduccion.PENDIENTE,
+    });
     const orden = await this.repo.save(nueva);
 
     if (pasos?.length) {
@@ -46,7 +50,7 @@ export class OrdenProduccionService {
         const paso = this.pasoRepo.create({
           ...pasoDto,
           cantidadProducida: pasoDto.cantidadProducida ?? 0,
-          estado: (pasoDto.estado as any) ?? 'pendiente',
+          estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
           orden,
         });
         await this.pasoRepo.save(paso);
@@ -102,7 +106,7 @@ export class OrdenProduccionService {
         const paso = this.pasoRepo.create({
           ...pasoDto,
           cantidadProducida: pasoDto.cantidadProducida ?? 0,
-          estado: (pasoDto.estado as any) ?? 'pendiente',
+          estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
           orden,
         });
         const pasoGuardado = await this.pasoRepo.save(paso);

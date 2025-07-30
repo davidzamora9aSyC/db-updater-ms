@@ -26,8 +26,6 @@ export class CrearOrdenDto {
   @IsDate()
   fechaVencimiento: Date
 
-  @IsString()
-  estado: string
 
   @IsArray()
   @ValidateNested({ each: true })

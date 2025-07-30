@@ -8,5 +8,6 @@ import { SesionTrabajoPasoController } from './sesion-trabajo-paso.controller';
   imports: [TypeOrmModule.forFeature([SesionTrabajoPaso])],
   providers: [SesionTrabajoPasoService],
   controllers: [SesionTrabajoPasoController],
+  exports: [SesionTrabajoPasoService],
 })
 export class SesionTrabajoPasoModule {}
