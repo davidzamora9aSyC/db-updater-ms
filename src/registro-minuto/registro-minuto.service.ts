@@ -7,6 +7,8 @@ import {
   SesionTrabajoPaso,
   EstadoSesionTrabajoPaso,
 } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
 import { DateTime } from 'luxon';
@@ -22,6 +24,10 @@ export class RegistroMinutoService {
     private readonly repo: Repository<RegistroMinuto>,
     @InjectRepository(SesionTrabajoPaso)
     private readonly stpRepo: Repository<SesionTrabajoPaso>,
+    @InjectRepository(SesionTrabajo)
+    private readonly sesionRepo: Repository<SesionTrabajo>,
+    @InjectRepository(PasoProduccion)
+    private readonly pasoRepo: Repository<PasoProduccion>,
   ) {}
 
   async acumular(
@@ -91,16 +97,32 @@ export class RegistroMinutoService {
         await this.repo.save(nuevoRegistro);
         if (existente) await this.repo.remove(existente);
 
-        if (dto.piezasContadas > 0) {
+        const sesion = await this.sesionRepo.findOne({ where: { id: sesionTrabajoId } });
+        if (sesion) {
+          sesion.cantidadProducida += dto.piezasContadas;
+          sesion.cantidadPedaleos += dto.pedaleadas;
+          await this.sesionRepo.save(sesion);
+        }
+
+        if (dto.pedaleadas > 0 || dto.piezasContadas > 0) {
           const activo = await this.stpRepo.findOne({
             where: {
               sesionTrabajo: { id: sesionTrabajoId },
               estado: EstadoSesionTrabajoPaso.ACTIVO,
             },
+            relations: ['pasoOrden'],
           });
           if (activo) {
             activo.cantidadProducida += dto.piezasContadas;
+            activo.cantidadPedaleos += dto.pedaleadas;
             await this.stpRepo.save(activo);
+
+            const paso = await this.pasoRepo.findOne({ where: { id: activo.pasoOrden.id } });
+            if (paso) {
+              paso.cantidadProducida += dto.piezasContadas;
+              paso.cantidadPedaleos += dto.pedaleadas;
+              await this.pasoRepo.save(paso);
+            }
           }
         }
       }

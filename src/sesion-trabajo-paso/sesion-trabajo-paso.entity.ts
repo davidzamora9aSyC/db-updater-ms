@@ -34,6 +34,9 @@ export class SesionTrabajoPaso extends BaseEntity {
   @Column('int', { default: 0 })
   cantidadProducida: number;
 
+  @Column('int', { default: 0 })
+  cantidadPedaleos: number;
+
   @Column({ default: 'Desconocido' })
   nombreTrabajador: string;
 

@@ -33,6 +33,8 @@ export class SesionTrabajoService {
         ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
         : undefined,
       estado: EstadoSesionTrabajo.ACTIVA,
+      cantidadProducida: dto.cantidadProducida ?? 0,
+      cantidadPedaleos: dto.cantidadPedaleos ?? 0,
     });
     return this.repo.save(sesion);
   }
@@ -70,6 +72,11 @@ export class SesionTrabajoService {
     if (dto.estado === EstadoSesionTrabajo.PAUSADA) {
       return this.pausar(id);
     }
+
+    if (dto.cantidadProducida !== undefined)
+      sesion.cantidadProducida = dto.cantidadProducida;
+    if (dto.cantidadPedaleos !== undefined)
+      sesion.cantidadPedaleos = dto.cantidadPedaleos;
 
     Object.assign(sesion, dto);
     return this.repo.save(sesion);

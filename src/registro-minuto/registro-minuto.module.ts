@@ -3,10 +3,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RegistroMinutoService } from './registro-minuto.service';
 import { RegistroMinuto } from './registro-minuto.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { RegistroMinutoController } from './registro-minuto.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RegistroMinuto, SesionTrabajoPaso])],
+  imports: [
+    TypeOrmModule.forFeature([
+      RegistroMinuto,
+      SesionTrabajoPaso,
+      SesionTrabajo,
+      PasoProduccion,
+    ]),
+  ],
   providers: [RegistroMinutoService],
   controllers: [RegistroMinutoController],
   exports: [RegistroMinutoService],

@@ -27,6 +27,12 @@ export class SesionTrabajo extends BaseEntity {
   @Column({ type: 'timestamp', nullable: true })
   fechaFin: Date;
 
+  @Column('int', { default: 0 })
+  cantidadProducida: number;
+
+  @Column('int', { default: 0 })
+  cantidadPedaleos: number;
+
   @Column({ type: 'enum', enum: EstadoSesionTrabajo, default: EstadoSesionTrabajo.ACTIVA })
   estado: EstadoSesionTrabajo;
 }

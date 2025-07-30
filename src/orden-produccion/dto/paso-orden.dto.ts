@@ -23,6 +23,10 @@ export class PasoOrdenDto {
   cantidadProducida?: number;
 
   @IsOptional()
+  @IsNumber()
+  cantidadPedaleos?: number;
+
+  @IsOptional()
   @IsEnum(EstadoPasoOrden)
   estado?: EstadoPasoOrden;
 }

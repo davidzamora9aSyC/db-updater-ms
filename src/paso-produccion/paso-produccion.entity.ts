@@ -37,6 +37,9 @@ export class PasoProduccion {
   @Column('int')
   cantidadProducida: number;
 
+  @Column('int', { default: 0 })
+  cantidadPedaleos: number;
+
   @Column({ type: 'enum', enum: EstadoPasoOrden, default: EstadoPasoOrden.PENDIENTE })
   estado: EstadoPasoOrden;
 

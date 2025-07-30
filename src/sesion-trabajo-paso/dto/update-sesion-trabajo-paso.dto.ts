@@ -19,6 +19,10 @@ export class UpdateSesionTrabajoPasoDto {
   cantidadProducida?: number;
 
   @IsOptional()
+  @IsNumber()
+  cantidadPedaleos?: number;
+
+  @IsOptional()
   @IsEnum(EstadoSesionTrabajoPaso)
   estado?: EstadoSesionTrabajoPaso;
 }

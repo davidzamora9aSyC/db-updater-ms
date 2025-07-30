@@ -14,5 +14,9 @@ export class CreateSesionTrabajoPasoDto {
   @IsNumber()
   cantidadProducida?: number;
 
+  @IsOptional()
+  @IsNumber()
+  cantidadPedaleos?: number;
+
   // estado siempre inicia activo
 }
