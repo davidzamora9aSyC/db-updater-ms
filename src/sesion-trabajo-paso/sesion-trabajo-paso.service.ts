@@ -5,8 +5,15 @@ import {
   SesionTrabajoPaso,
   EstadoSesionTrabajoPaso,
 } from './sesion-trabajo-paso.entity';
-import { PasoProduccion, EstadoPasoOrden } from '../paso-produccion/paso-produccion.entity';
-import { OrdenProduccion, EstadoOrdenProduccion } from '../orden-produccion/entity';
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import {
+  PasoProduccion,
+  EstadoPasoOrden,
+} from '../paso-produccion/paso-produccion.entity';
+import {
+  OrdenProduccion,
+  EstadoOrdenProduccion,
+} from '../orden-produccion/entity';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
 
@@ -19,7 +26,10 @@ export class SesionTrabajoPasoService {
 
   async create(dto: CreateSesionTrabajoPasoDto) {
     const activos = await this.repo.find({
-      where: { sesionTrabajo: { id: dto.sesionTrabajo }, estado: EstadoSesionTrabajoPaso.ACTIVO },
+      where: {
+        sesionTrabajo: { id: dto.sesionTrabajo },
+        estado: EstadoSesionTrabajoPaso.ACTIVO,
+      },
     });
     for (const a of activos) {
       a.estado = EstadoSesionTrabajoPaso.PAUSADO;
@@ -33,11 +43,24 @@ export class SesionTrabajoPasoService {
       cantidadProducida: dto.cantidadProducida ?? 0,
       estado: EstadoSesionTrabajoPaso.ACTIVO,
     });
+
+    const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
+    const sesion = await sesionRepo.findOne({
+      where: { id: dto.sesionTrabajo },
+      relations: ['trabajador'],
+    });
+    if (sesion) {
+      entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
+    }
+
     const saved = await this.repo.save(entity);
 
     const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
     const ordenRepo = this.repo.manager.getRepository(OrdenProduccion);
-    const paso = await pasoRepo.findOne({ where: { id: dto.pasoOrden }, relations: ['orden'] });
+    const paso = await pasoRepo.findOne({
+      where: { id: dto.pasoOrden },
+      relations: ['orden'],
+    });
     if (paso && paso.estado === EstadoPasoOrden.PENDIENTE) {
       paso.estado = EstadoPasoOrden.ACTIVO;
       await pasoRepo.save(paso);
@@ -67,8 +90,17 @@ export class SesionTrabajoPasoService {
   async update(id: string, dto: UpdateSesionTrabajoPasoDto) {
     const entity = await this.repo.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Relación no encontrada');
-    if (dto.sesionTrabajo)
+    if (dto.sesionTrabajo) {
       entity.sesionTrabajo = { id: dto.sesionTrabajo } as any;
+      const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
+      const sesion = await sesionRepo.findOne({
+        where: { id: dto.sesionTrabajo },
+        relations: ['trabajador'],
+      });
+      if (sesion) {
+        entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
+      }
+    }
     if (dto.pasoOrden) entity.pasoOrden = { id: dto.pasoOrden } as any;
     if (dto.cantidadAsignada !== undefined)
       entity.cantidadAsignada = dto.cantidadAsignada;
