@@ -21,6 +21,9 @@ export class TrabajadorService {
       throw new BadRequestException(
         'No se puede crear un trabajador con un id que ya existe',
       )
+    const mismoNombre = await this.repo.findOne({ where: { nombre: data.nombre } })
+    if (mismoNombre)
+      throw new BadRequestException('Ya existe un trabajador con ese nombre')
     const nuevoTrabajador = this.repo.create(data)
     await this.repo.save(nuevoTrabajador)
     return { mensaje: 'Trabajador creado', data: nuevoTrabajador }
@@ -39,7 +42,15 @@ export class TrabajadorService {
   async actualizar(id: string, data: UpdateTrabajadorDto) {
     const trabajador = await this.repo.preload({ id, ...data })
     if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
-    await this.repo.save(trabajador)
+    const mismoNombre = await this.repo.findOne({ where: { nombre: data.nombre } })
+    if (mismoNombre && mismoNombre.id !== id)
+      throw new BadRequestException('Ya existe un trabajador con ese nombre')
+    try {
+      await this.repo.save(trabajador)
+    } catch (e) {
+      if (e?.code === '23505') throw new BadRequestException('Identificación duplicada')
+      throw e
+    }
     return { mensaje: `Trabajador ${id} actualizado`, data: trabajador }
   }
 
