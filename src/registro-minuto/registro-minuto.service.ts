@@ -8,7 +8,14 @@ import {
   EstadoSesionTrabajoPaso,
 } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
-import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
+import {
+  PasoProduccion,
+  EstadoPasoOrden,
+} from '../paso-produccion/paso-produccion.entity';
+import {
+  OrdenProduccion,
+  EstadoOrdenProduccion,
+} from '../orden-produccion/entity';
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
 import { DateTime } from 'luxon';
@@ -45,7 +52,9 @@ export class RegistroMinutoService {
     if (!existe) return;
 
     await this.mutex.runExclusive(async () => {
-      const fecha = DateTime.fromISO(minutoInicio, { zone: 'America/Bogota' }).toJSDate();
+      const fecha = DateTime.fromISO(minutoInicio, {
+        zone: 'America/Bogota',
+      }).toJSDate();
       const clave = `${sesionTrabajoId}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
@@ -97,7 +106,9 @@ export class RegistroMinutoService {
         await this.repo.save(nuevoRegistro);
         if (existente) await this.repo.remove(existente);
 
-        const sesion = await this.sesionRepo.findOne({ where: { id: sesionTrabajoId } });
+        const sesion = await this.sesionRepo.findOne({
+          where: { id: sesionTrabajoId },
+        });
         if (sesion) {
           sesion.cantidadProducida += dto.piezasContadas;
           sesion.cantidadPedaleos += dto.pedaleadas;
@@ -123,13 +134,60 @@ export class RegistroMinutoService {
 
             activo.cantidadProducida += dto.piezasContadas;
             activo.cantidadPedaleos += dto.pedaleadas;
+            if (
+              activo.cantidadPedaleos >= activo.cantidadAsignada &&
+              activo.estado !== EstadoSesionTrabajoPaso.FINALIZADO
+            ) {
+              activo.estado = EstadoSesionTrabajoPaso.FINALIZADO;
+            }
             await this.stpRepo.save(activo);
 
-            const paso = await this.pasoRepo.findOne({ where: { id: activo.pasoOrden.id } });
+            const paso = await this.pasoRepo.findOne({
+              where: { id: activo.pasoOrden.id },
+              relations: ['orden'],
+            });
             if (paso) {
               paso.cantidadProducida += dto.piezasContadas;
               paso.cantidadPedaleos += dto.pedaleadas;
+              let finalizaPaso = false;
+              if (
+                paso.cantidadPedaleos >= paso.cantidadRequerida &&
+                paso.estado !== EstadoPasoOrden.FINALIZADO
+              ) {
+                paso.estado = EstadoPasoOrden.FINALIZADO;
+                finalizaPaso = true;
+              }
               await this.pasoRepo.save(paso);
+
+              if (finalizaPaso) {
+                await this.stpRepo.update(
+                  { pasoOrden: { id: paso.id } },
+                  { estado: EstadoSesionTrabajoPaso.FINALIZADO },
+                );
+
+                const pasos = await this.pasoRepo.find({
+                  where: { orden: { id: paso.orden.id } },
+                });
+                const allFin = pasos.every(
+                  (p) => p.estado === EstadoPasoOrden.FINALIZADO,
+                );
+                const anyPause = pasos.some(
+                  (p) => p.estado === EstadoPasoOrden.PAUSADO,
+                );
+                const ordenRepo =
+                  this.pasoRepo.manager.getRepository(OrdenProduccion);
+                const orden = await ordenRepo.findOne({
+                  where: { id: paso.orden.id },
+                });
+                if (orden) {
+                  if (allFin) {
+                    orden.estado = EstadoOrdenProduccion.FINALIZADA;
+                  } else if (anyPause) {
+                    orden.estado = EstadoOrdenProduccion.PAUSADA;
+                  }
+                  await ordenRepo.save(orden);
+                }
+              }
             }
           }
         }
