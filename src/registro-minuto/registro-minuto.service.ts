@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { RegistroMinuto } from './registro-minuto.entity';
 import {
   SesionTrabajoPaso,
@@ -108,11 +108,19 @@ export class RegistroMinutoService {
           const activo = await this.stpRepo.findOne({
             where: {
               sesionTrabajo: { id: sesionTrabajoId },
-              estado: EstadoSesionTrabajoPaso.ACTIVO,
+              estado: In([
+                EstadoSesionTrabajoPaso.ACTIVO,
+                EstadoSesionTrabajoPaso.PENDIENTE,
+              ]),
             },
             relations: ['pasoOrden'],
           });
+
           if (activo) {
+            if (activo.estado === EstadoSesionTrabajoPaso.PENDIENTE) {
+              activo.estado = EstadoSesionTrabajoPaso.ACTIVO;
+            }
+
             activo.cantidadProducida += dto.piezasContadas;
             activo.cantidadPedaleos += dto.pedaleadas;
             await this.stpRepo.save(activo);
