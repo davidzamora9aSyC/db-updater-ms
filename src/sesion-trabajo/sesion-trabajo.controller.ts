@@ -27,6 +27,11 @@ export class SesionTrabajoController {
     return this.service.findActivas();
   }
 
+  @Get('activas/resumen')
+  findActivasResumen() {
+    return this.service.findActivasResumen();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
