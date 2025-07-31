@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -24,6 +24,16 @@ export class SesionTrabajoService {
   ) {}
 
   async create(dto: CreateSesionTrabajoDto) {
+
+    const sesionMaquinaActiva = await this.repo.findOne({
+      where: {
+        maquina: { id: dto.maquina },
+        estado: EstadoSesionTrabajo.ACTIVA,
+      },
+    });
+    if (sesionMaquinaActiva) {
+      throw new BadRequestException('La máquina ya tiene una sesión activa');
+    }
     await this.finalizarSesionesPrevias(dto.trabajador);
     const sesion = this.repo.create({
       trabajador: { id: dto.trabajador } as any,
