@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Not, IsNull } from 'typeorm';
 import { RegistroMinuto } from './registro-minuto.entity';
 import {
   SesionTrabajoPaso,
@@ -149,14 +149,29 @@ export class RegistroMinutoService {
             if (paso) {
               paso.cantidadProducida += dto.piezasContadas;
               paso.cantidadPedaleos += dto.pedaleadas;
+
               let finalizaPaso = false;
-              if (
-                paso.cantidadPedaleos >= paso.cantidadRequerida &&
-                paso.estado !== EstadoPasoOrden.FINALIZADO
-              ) {
-                paso.estado = EstadoPasoOrden.FINALIZADO;
-                finalizaPaso = true;
+
+              if (paso.cantidadPedaleos >= paso.cantidadRequerida) {
+                if (!paso.fechaMetaAlcanzada)
+                  paso.fechaMetaAlcanzada = DateTime.now()
+                    .setZone('America/Bogota')
+                    .toJSDate();
+
+                const diff = DateTime.now()
+                  .setZone('America/Bogota')
+                  .diff(DateTime.fromJSDate(paso.fechaMetaAlcanzada), 'minutes')
+                  .minutes;
+
+                if (
+                  diff >= 5 &&
+                  paso.estado !== EstadoPasoOrden.FINALIZADO
+                ) {
+                  paso.estado = EstadoPasoOrden.FINALIZADO;
+                  finalizaPaso = true;
+                }
               }
+
               await this.pasoRepo.save(paso);
 
               if (finalizaPaso) {
@@ -194,7 +209,55 @@ export class RegistroMinutoService {
       }
 
       this.memoria.clear();
+      await this.finalizarPasosPendientes();
     });
+  }
+
+  private async finalizarPasosPendientes() {
+    const pendientes = await this.pasoRepo.find({
+      where: {
+        fechaMetaAlcanzada: Not(IsNull()),
+        estado: Not(EstadoPasoOrden.FINALIZADO),
+      },
+      relations: ['orden'],
+    });
+
+    for (const paso of pendientes) {
+      const diff = DateTime.now()
+        .setZone('America/Bogota')
+        .diff(DateTime.fromJSDate(paso.fechaMetaAlcanzada as Date), 'minutes')
+        .minutes;
+
+      if (diff >= 5) {
+        paso.estado = EstadoPasoOrden.FINALIZADO;
+        await this.pasoRepo.save(paso);
+
+        await this.stpRepo.update(
+          { pasoOrden: { id: paso.id } },
+          { estado: EstadoSesionTrabajoPaso.FINALIZADO },
+        );
+
+        const pasos = await this.pasoRepo.find({
+          where: { orden: { id: paso.orden.id } },
+        });
+        const allFin = pasos.every(
+          (p) => p.estado === EstadoPasoOrden.FINALIZADO,
+        );
+        const anyPause = pasos.some(
+          (p) => p.estado === EstadoPasoOrden.PAUSADO,
+        );
+        const ordenRepo = this.pasoRepo.manager.getRepository(OrdenProduccion);
+        const orden = await ordenRepo.findOne({ where: { id: paso.orden.id } });
+        if (orden) {
+          if (allFin) {
+            orden.estado = EstadoOrdenProduccion.FINALIZADA;
+          } else if (anyPause) {
+            orden.estado = EstadoOrdenProduccion.PAUSADA;
+          }
+          await ordenRepo.save(orden);
+        }
+      }
+    }
   }
   @Cron('* * * * *')
   handleCron() {

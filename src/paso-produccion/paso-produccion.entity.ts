@@ -40,6 +40,9 @@ export class PasoProduccion {
   @Column('int', { default: 0 })
   cantidadPedaleos: number;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  fechaMetaAlcanzada: Date | null;
+
   @Column({ type: 'enum', enum: EstadoPasoOrden, default: EstadoPasoOrden.PENDIENTE })
   estado: EstadoPasoOrden;
 
