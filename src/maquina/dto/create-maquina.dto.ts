@@ -18,6 +18,10 @@ export class CreateMaquinaDto {
   @Length(1, 50)
   nombre: string
 
+  @IsString()
+  @Length(1, 50)
+  codigo: string
+
   @IsEnum(EstadoMaquina)
   estado: EstadoMaquina
 

@@ -20,6 +20,9 @@ export class Maquina {
   @Column()
   nombre: string;
 
+  @Column({ default: '' })
+  codigo: string;
+
   @Column({ length: 100, nullable: true })
   ubicacion: string;
 
