@@ -241,6 +241,18 @@ export class SesionTrabajoService {
     });
   }
 
+  async findActivasResumen() {
+    return this.repo
+      .createQueryBuilder('s')
+      .leftJoin('s.trabajador', 't')
+      .leftJoin('s.maquina', 'm')
+      .select(['s.id', 's.fechaInicio'])
+      .addSelect(['t.id', 't.nombre'])
+      .addSelect(['m.id', 'm.nombre'])
+      .where('s.estado = :estado', { estado: EstadoSesionTrabajo.ACTIVA })
+      .getMany();
+  }
+
   private async finalizarSesionesPrevias(trabajadorId: string) {
     const activas = await this.repo.find({
       where: {
