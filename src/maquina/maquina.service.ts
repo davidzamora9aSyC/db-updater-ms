@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateEstadoDto } from './dto/update-estado.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
@@ -11,6 +11,9 @@ export class MaquinaService {
   constructor(@InjectRepository(Maquina) private readonly repo: Repository<Maquina>) {}
 
   async create(dto: CreateMaquinaDto) {
+    const existente = await this.repo.findOne({ where: { codigo: dto.codigo } });
+    if (existente)
+      throw new BadRequestException('No se puede repetir el codigo de equipo');
     const nueva = this.repo.create(dto);
     return this.repo.save(nueva);
   }
