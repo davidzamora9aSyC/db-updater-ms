@@ -1,10 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
-import { UpdateEstadoDto } from './dto/update-estado.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Maquina, EstadoMaquina } from './maquina.entity';
+import { Maquina } from './maquina.entity';
 
 @Injectable()
 export class MaquinaService {
@@ -26,13 +25,6 @@ export class MaquinaService {
     const maquina = await this.repo.findOne({ where: { id } });
     if (!maquina) throw new NotFoundException('Máquina no encontrada');
     return maquina;
-  }
-
-  async updateEstado(id: string, dto: UpdateEstadoDto) {
-    const maquina = await this.repo.findOne({ where: { id } });
-    if (!maquina) throw new NotFoundException('Máquina no encontrada');
-    maquina.estado = dto.estado as EstadoMaquina;
-    return this.repo.save(maquina);
   }
 
   async update(id: string, dto: UpdateMaquinaDto) {

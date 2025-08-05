@@ -1,8 +1,3 @@
-export enum EstadoMaquina {
-  ACTIVA = 'activa',
-  NO_ACTIVA = 'no activa'
-}
-
 export enum TipoMaquina {
   TROQUELADORA = 'troqueladora',
   TALADRO = 'taladro',
@@ -31,9 +26,6 @@ export class Maquina {
 
   @Column({ type: 'enum', enum: TipoMaquina, nullable: true })
   tipo: TipoMaquina;
-
-  @Column({ type: 'enum', enum: EstadoMaquina, default: EstadoMaquina.ACTIVA })
-  estado: EstadoMaquina;
 
   @Column({ length: 255, nullable: true })
   observaciones: string;

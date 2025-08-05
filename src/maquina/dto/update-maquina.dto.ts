@@ -1,5 +1,5 @@
 import { IsString, Length, IsISO8601, IsEnum, IsOptional } from 'class-validator'
-import { EstadoMaquina, TipoMaquina } from './create-maquina.dto'
+import { TipoMaquina } from './create-maquina.dto'
 
 export class UpdateMaquinaDto {
 
@@ -7,10 +7,6 @@ export class UpdateMaquinaDto {
   @IsString()
   @Length(1, 50)
   nombre?: string
-
-  @IsOptional()
-  @IsEnum(EstadoMaquina)
-  estado?: EstadoMaquina
 
   @IsOptional()
   @IsString()
