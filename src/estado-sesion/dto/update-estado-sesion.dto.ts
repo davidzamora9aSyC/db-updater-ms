@@ -13,4 +13,8 @@ export class UpdateEstadoSesionDto {
   @IsOptional()
   @IsDate()
   inicio?: Date;
+
+  @IsOptional()
+  @IsDate()
+  fin?: Date;
 }

@@ -2,9 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEnti
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 
 export enum TipoEstadoSesion {
-  DESCANSO = 'descanso',
-  MANTENIMIENTO = 'mantenimiento',
   PRODUCCION = 'produccion',
+  INACTIVO = 'inactivo',
+  OTRO = 'otro',
 }
 
 @Entity('estado_sesion')
@@ -21,4 +21,7 @@ export class EstadoSesion extends BaseEntity {
 
   @Column({ type: 'timestamp' })
   inicio: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  fin: Date | null;
 }
