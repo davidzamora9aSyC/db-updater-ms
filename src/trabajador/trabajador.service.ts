@@ -1,4 +1,3 @@
-import { EstadoTrabajador } from './dto/update-trabajador.dto'
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -54,13 +53,6 @@ export class TrabajadorService {
     return { mensaje: `Trabajador ${id} actualizado`, data: trabajador }
   }
 
-  async cambiarEstado(id: string, estado: EstadoTrabajador) {
-    const trabajador = await this.repo.findOneBy({ id })
-    if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
-    trabajador.estado = estado
-    await this.repo.save(trabajador)
-    return { mensaje: `Estado de trabajador ${id} cambiado a ${estado}` }
-  }
   async eliminar(id: string) {
     const trabajador = await this.repo.findOneBy({ id })
     if (!trabajador) throw new NotFoundException('Trabajador no encontrado')

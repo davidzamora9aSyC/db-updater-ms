@@ -1,10 +1,5 @@
 import { IsString, Length, IsISO8601, IsEnum } from 'class-validator'
 
-export enum EstadoMaquina {
-  ACTIVA = 'activa',
-  NO_ACTIVA = 'no activa'
-}
-
 export enum TipoMaquina {
   TROQUELADORA = 'troqueladora',
   TALADRO = 'taladro',
@@ -21,9 +16,6 @@ export class CreateMaquinaDto {
   @IsString()
   @Length(1, 50)
   codigo: string
-
-  @IsEnum(EstadoMaquina)
-  estado: EstadoMaquina
 
   @IsString()
   @Length(1, 100)

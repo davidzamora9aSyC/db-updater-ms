@@ -1,7 +1,6 @@
-import { Controller, Post, Get, Put,Patch, Param, Body, Delete } from '@nestjs/common';
+import { Controller, Post, Get, Put, Param, Body, Delete } from '@nestjs/common';
 import { MaquinaService } from './maquina.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
-import { UpdateEstadoDto } from './dto/update-estado.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
 
 @Controller('maquinas')
@@ -21,11 +20,6 @@ export class MaquinaController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.maquinaService.findOne(id);
-  }
-
-  @Patch(':id/estado')
-  updateEstado(@Param('id') id: string, @Body() dto: UpdateEstadoDto) {
-    return this.maquinaService.updateEstado(id, dto);
   }
 
   @Put(':id')

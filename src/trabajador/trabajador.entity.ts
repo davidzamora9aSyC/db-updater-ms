@@ -1,5 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, BaseEntity } from 'typeorm'
-import { EstadoTrabajador, GrupoTrabajador, TurnoTrabajador } from '../trabajador/dto/update-trabajador.dto'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BaseEntity,
+} from 'typeorm'
+import { GrupoTrabajador, TurnoTrabajador } from './dto/update-trabajador.dto'
 
 @Entity('trabajador')
 export class Trabajador extends BaseEntity {
@@ -11,9 +18,6 @@ export class Trabajador extends BaseEntity {
 
   @Column({ unique: true })
   identificacion: string
-
-  @Column({ type: 'enum', enum: EstadoTrabajador, default: EstadoTrabajador.CREADO })
-  estado: EstadoTrabajador
 
   @Column({ type: 'enum', enum: GrupoTrabajador })
   grupo: GrupoTrabajador
