@@ -1,4 +1,4 @@
-import { IsEnum, IsUUID, IsDate } from 'class-validator';
+import { IsEnum, IsUUID, IsDate, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoEstadoSesion } from '../estado-sesion.entity';
 
@@ -12,4 +12,9 @@ export class CreateEstadoSesionDto {
   @Type(() => Date)
   @IsDate()
   inicio: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  fin?: Date;
 }
