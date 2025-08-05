@@ -3,6 +3,7 @@ import { SesionTrabajoService } from './sesion-trabajo.service';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 
+
 @Controller('sesiones-trabajo')
 export class SesionTrabajoController {
   constructor(private readonly service: SesionTrabajoService) {}
