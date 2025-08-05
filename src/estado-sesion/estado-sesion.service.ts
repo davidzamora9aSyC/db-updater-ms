@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { DateTime } from 'luxon';
 import { EstadoSesion } from './estado-sesion.entity';
 import { CreateEstadoSesionDto } from './dto/create-estado-sesion.dto';
 import { UpdateEstadoSesionDto } from './dto/update-estado-sesion.dto';
 import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+
 
 @Injectable()
 export class EstadoSesionService {
@@ -16,9 +22,17 @@ export class EstadoSesionService {
   ) {}
 
   async create(dto: CreateEstadoSesionDto) {
+    const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
+    const sesion = await sesionRepo.findOne({
+      where: { id: dto.sesionTrabajo },
+    });
+    if (sesion?.fechaFin)
+      throw new BadRequestException('La sesión ya finalizó');
     const nuevo = this.repo.create({
       ...dto,
-      inicio: DateTime.fromJSDate(dto.inicio, { zone: 'America/Bogota' }).toJSDate(),
+      inicio: DateTime.fromJSDate(dto.inicio, {
+        zone: 'America/Bogota',
+      }).toJSDate(),
       fin: dto.fin
         ? DateTime.fromJSDate(dto.fin, { zone: 'America/Bogota' }).toJSDate()
         : null,
@@ -30,7 +44,10 @@ export class EstadoSesionService {
   }
 
   async findAll() {
-    const estados = await this.repo.find({ relations: ['sesionTrabajo'] });
+    const estados = await this.repo.find({
+      relations: ['sesionTrabajo'],
+      where: { fin: IsNull(), sesionTrabajo: { fechaFin: IsNull() } },
+    });
     return estados;
   }
 
@@ -52,9 +69,13 @@ export class EstadoSesionService {
     if (dto.sesionTrabajo)
       estado.sesionTrabajo = { id: dto.sesionTrabajo } as any;
     if (dto.inicio)
-      estado.inicio = DateTime.fromJSDate(dto.inicio, { zone: 'America/Bogota' }).toJSDate();
+      estado.inicio = DateTime.fromJSDate(dto.inicio, {
+        zone: 'America/Bogota',
+      }).toJSDate();
     if (dto.fin)
-      estado.fin = DateTime.fromJSDate(dto.fin, { zone: 'America/Bogota' }).toJSDate();
+      estado.fin = DateTime.fromJSDate(dto.fin, {
+        zone: 'America/Bogota',
+      }).toJSDate();
     Object.assign(estado, dto);
     const saved = await this.repo.save(estado);
     await this.pasoService.actualizarEstadoPorSesion(
@@ -72,7 +93,10 @@ export class EstadoSesionService {
 
   async findBySesion(sesionTrabajoId: string) {
     const estados = await this.repo.find({
-      where: { sesionTrabajo: { id: sesionTrabajoId } },
+      where: {
+        sesionTrabajo: { id: sesionTrabajoId, fechaFin: IsNull() },
+        fin: IsNull(),
+      },
       relations: ['sesionTrabajo'],
       order: { inicio: 'DESC' },
     });
