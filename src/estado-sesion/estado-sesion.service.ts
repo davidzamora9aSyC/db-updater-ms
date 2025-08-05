@@ -9,13 +9,16 @@ import { DateTime } from 'luxon';
 import { EstadoSesion } from './estado-sesion.entity';
 import { CreateEstadoSesionDto } from './dto/create-estado-sesion.dto';
 import { UpdateEstadoSesionDto } from './dto/update-estado-sesion.dto';
+import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+
 
 @Injectable()
 export class EstadoSesionService {
   constructor(
     @InjectRepository(EstadoSesion)
     private readonly repo: Repository<EstadoSesion>,
+    private readonly pasoService: PasoProduccionService,
   ) {}
 
   async create(dto: CreateEstadoSesionDto) {
@@ -35,7 +38,9 @@ export class EstadoSesionService {
         : null,
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
     });
-    return this.repo.save(nuevo);
+    const saved = await this.repo.save(nuevo);
+    await this.pasoService.actualizarEstadoPorSesion(dto.sesionTrabajo);
+    return saved;
   }
 
   async findAll() {
@@ -56,7 +61,10 @@ export class EstadoSesionService {
   }
 
   async update(id: string, dto: UpdateEstadoSesionDto) {
-    const estado = await this.repo.findOne({ where: { id } });
+    const estado = await this.repo.findOne({
+      where: { id },
+      relations: ['sesionTrabajo'],
+    });
     if (!estado) throw new NotFoundException('Estado de sesión no encontrado');
     if (dto.sesionTrabajo)
       estado.sesionTrabajo = { id: dto.sesionTrabajo } as any;
@@ -69,7 +77,11 @@ export class EstadoSesionService {
         zone: 'America/Bogota',
       }).toJSDate();
     Object.assign(estado, dto);
-    return this.repo.save(estado);
+    const saved = await this.repo.save(estado);
+    await this.pasoService.actualizarEstadoPorSesion(
+      dto.sesionTrabajo ?? estado.sesionTrabajo.id,
+    );
+    return saved;
   }
 
   async remove(id: string) {
@@ -99,3 +111,4 @@ export class EstadoSesionService {
     return { deleted: true, count: estados.length };
   }
 }
+

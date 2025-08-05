@@ -7,6 +7,7 @@ import { PasoProduccionService } from './paso-produccion.service';
 @Module({
   imports: [TypeOrmModule.forFeature([PasoProduccion])],
   controllers: [PasoProduccionController],
-  providers: [PasoProduccionService]
+  providers: [PasoProduccionService],
+  exports: [PasoProduccionService],
 })
 export class PasoProduccionModule {}
