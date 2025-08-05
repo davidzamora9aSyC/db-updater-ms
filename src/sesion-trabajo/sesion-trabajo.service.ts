@@ -70,9 +70,11 @@ export class SesionTrabajoService {
         zone: 'America/Bogota',
       }).toJSDate();
     if (dto.fechaFin)
+
       sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, {
         zone: 'America/Bogota',
       }).toJSDate();
+
 
     if (dto.cantidadProducida !== undefined)
       sesion.cantidadProducida = dto.cantidadProducida;
