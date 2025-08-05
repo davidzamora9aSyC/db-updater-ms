@@ -10,10 +10,7 @@ import {
   SesionTrabajo,
   EstadoSesionTrabajo,
 } from '../sesion-trabajo/sesion-trabajo.entity'
-import {
-  SesionTrabajoPaso,
-  EstadoSesionTrabajoPaso,
-} from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
 import { Maquina } from '../maquina/maquina.entity'
 
 @Injectable()
@@ -116,7 +113,6 @@ export class OrdenProduccionService {
             cantidadAsignada: pasoGuardado.cantidadRequerida,
             cantidadProducida: 0,
             cantidadPedaleos: 0,
-            estado: EstadoSesionTrabajoPaso.ACTIVO,
           });
           await this.stpRepo.save(relacion);
         }

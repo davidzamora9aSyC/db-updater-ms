@@ -1,10 +1,7 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  SesionTrabajoPaso,
-  EstadoSesionTrabajoPaso,
-} from './sesion-trabajo-paso.entity';
+import { SesionTrabajoPaso } from './sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import {
   PasoProduccion,
@@ -25,42 +22,12 @@ export class SesionTrabajoPasoService {
   ) {}
 
   async create(dto: CreateSesionTrabajoPasoDto) {
-    const existente = await this.repo.findOne({
-      where: {
-        sesionTrabajo: { id: dto.sesionTrabajo },
-        pasoOrden: { id: dto.pasoOrden },
-      },
-    });
-
-    if (existente) {
-      if (existente.estado === EstadoSesionTrabajoPaso.ACTIVO) {
-        throw new ConflictException('Ya existe una relación ACTIVA para esta sesión y paso');
-      }
-      if (existente.estado === EstadoSesionTrabajoPaso.PENDIENTE) {
-        existente.estado = EstadoSesionTrabajoPaso.ACTIVO;
-        await this.repo.save(existente);
-        return existente;
-      }
-    }
-
-    const activos = await this.repo.find({
-      where: {
-        sesionTrabajo: { id: dto.sesionTrabajo },
-        estado: EstadoSesionTrabajoPaso.ACTIVO,
-      },
-    });
-    for (const a of activos) {
-      a.estado = EstadoSesionTrabajoPaso.PAUSADO;
-      await this.repo.save(a);
-    }
-
     const entity = this.repo.create({
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
       pasoOrden: { id: dto.pasoOrden } as any,
       cantidadAsignada: dto.cantidadAsignada,
       cantidadProducida: dto.cantidadProducida ?? 0,
       cantidadPedaleos: dto.cantidadPedaleos ?? 0,
-      estado: dto.estado ?? EstadoSesionTrabajoPaso.ACTIVO,
     });
 
     const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
@@ -143,13 +110,6 @@ export class SesionTrabajoPasoService {
       entity.cantidadProducida = dto.cantidadProducida;
     if (dto.cantidadPedaleos !== undefined)
       entity.cantidadPedaleos = dto.cantidadPedaleos;
-    if (dto.estado) entity.estado = dto.estado;
-    if (
-      entity.cantidadProducida >= entity.cantidadAsignada &&
-      entity.estado !== EstadoSesionTrabajoPaso.FINALIZADO
-    ) {
-      entity.estado = EstadoSesionTrabajoPaso.FINALIZADO;
-    }
     return this.repo.save(entity);
   }
 

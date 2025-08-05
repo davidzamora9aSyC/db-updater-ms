@@ -9,13 +9,6 @@ import {
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 
-export enum EstadoSesionTrabajoPaso {
-  ACTIVO = 'activo',
-  PAUSADO = 'en descanso',
-  FINALIZADO = 'finalizado',
-  PENDIENTE = 'pendiente',
-}
-
 @Entity('sesion_trabajo_paso')
 export class SesionTrabajoPaso extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -43,11 +36,4 @@ export class SesionTrabajoPaso extends BaseEntity {
 
   @Column({ default: 'Desconocido' })
   nombreMaquina: string;
-
-  @Column({
-    type: 'enum',
-    enum: EstadoSesionTrabajoPaso,
-    default: EstadoSesionTrabajoPaso.ACTIVO,
-  })
-  estado: EstadoSesionTrabajoPaso;
 }

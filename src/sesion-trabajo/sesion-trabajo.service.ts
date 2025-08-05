@@ -11,7 +11,6 @@ import { RegistroMinutoService } from '../registro-minuto/registro-minuto.servic
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { DateTime } from 'luxon';
-import { EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -79,9 +78,6 @@ export class SesionTrabajoService {
     if (dto.estado === EstadoSesionTrabajo.FINALIZADA) {
       return this.finalizar(id);
     }
-    if (dto.estado === EstadoSesionTrabajo.PAUSADA) {
-      return this.pausar(id);
-    }
 
     if (dto.cantidadProducida !== undefined)
       sesion.cantidadProducida = dto.cantidadProducida;
@@ -98,30 +94,6 @@ export class SesionTrabajoService {
     sesion.estado = EstadoSesionTrabajo.FINALIZADA;
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
-    const pasos = await this.repo.manager.getRepository('sesion_trabajo_paso').find({ where: { sesionTrabajo: { id } } });
-    for (const p of pasos) {
-
-      p.estado = EstadoSesionTrabajoPaso.FINALIZADO;
-
-      await this.repo.manager.getRepository('sesion_trabajo_paso').save(p);
-    }
-    return sesion;
-  }
-
-
-  async pausar(id: string) {
-    const sesion = await this.repo.findOne({ where: { id } });
-    if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    sesion.estado = EstadoSesionTrabajo.PAUSADA;
-    await this.repo.save(sesion);
-    const repoPaso = this.repo.manager.getRepository('sesion_trabajo_paso');
-    const pasos = await repoPaso.find({ where: { sesionTrabajo: { id } } });
-    for (const p of pasos) {
-      if (p.estado !== EstadoSesionTrabajoPaso.FINALIZADO) {
-        p.estado = EstadoSesionTrabajoPaso.PAUSADO;
-        await repoPaso.save(p);
-      }
-    }
     return sesion;
   }
 
