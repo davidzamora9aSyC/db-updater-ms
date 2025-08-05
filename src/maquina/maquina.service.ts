@@ -2,12 +2,23 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Maquina } from './maquina.entity';
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
+import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 
 @Injectable()
 export class MaquinaService {
-  constructor(@InjectRepository(Maquina) private readonly repo: Repository<Maquina>) {}
+  constructor(
+    @InjectRepository(Maquina) private readonly repo: Repository<Maquina>,
+    @InjectRepository(SesionTrabajo)
+    private readonly sesionRepo: Repository<SesionTrabajo>,
+    @InjectRepository(EstadoSesion)
+    private readonly estadoSesionRepo: Repository<EstadoSesion>,
+    @InjectRepository(EstadoMaquina)
+    private readonly estadoMaqRepo: Repository<EstadoMaquina>,
+  ) {}
 
   async create(dto: CreateMaquinaDto) {
     const existente = await this.repo.findOne({ where: { codigo: dto.codigo } });
@@ -18,13 +29,20 @@ export class MaquinaService {
   }
 
   async findAll() {
-    return this.repo.find();
+    const maquinas = await this.repo.find();
+    return Promise.all(
+      maquinas.map(async (m) => ({
+        ...m,
+        estado: await this.getEstado(m.id),
+      })),
+    );
   }
 
   async findOne(id: string) {
     const maquina = await this.repo.findOne({ where: { id } });
     if (!maquina) throw new NotFoundException('Máquina no encontrada');
-    return maquina;
+    const estado = await this.getEstado(id);
+    return { ...maquina, estado };
   }
 
   async update(id: string, dto: UpdateMaquinaDto) {
@@ -38,5 +56,28 @@ export class MaquinaService {
     const maquina = await this.repo.findOne({ where: { id } });
     if (!maquina) throw new NotFoundException('Máquina no encontrada');
     return this.repo.remove(maquina);
+  }
+
+  private async getEstado(maquinaId: string): Promise<string> {
+    const sesion = await this.sesionRepo.findOne({
+      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
+      order: { fechaInicio: 'DESC' },
+    });
+    if (sesion) {
+      const estadoSesion = await this.estadoSesionRepo.findOne({
+        where: { sesionTrabajo: { id: sesion.id } },
+        order: { inicio: 'DESC' },
+      });
+      return estadoSesion?.estado ?? 'inactivo';
+    }
+    const estadoMaq = await this.estadoMaqRepo.findOne({
+      where: {
+        maquina: { id: maquinaId },
+        fin: IsNull(),
+        mantenimiento: true,
+      },
+    });
+    if (estadoMaq) return 'mantenimiento';
+    return 'inactivo';
   }
 }

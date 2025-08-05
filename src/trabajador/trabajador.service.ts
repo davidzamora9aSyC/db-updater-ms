@@ -1,15 +1,24 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, IsNull } from 'typeorm'
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto'
 import { UpdateTrabajadorDto } from './dto/update-trabajador.dto'
 import { Trabajador } from './trabajador.entity'
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity'
+import { EstadoSesion } from '../estado-sesion/estado-sesion.entity'
+import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity'
 
 @Injectable()
 export class TrabajadorService {
   constructor(
     @InjectRepository(Trabajador)
     private readonly repo: Repository<Trabajador>,
+    @InjectRepository(SesionTrabajo)
+    private readonly sesionRepo: Repository<SesionTrabajo>,
+    @InjectRepository(EstadoSesion)
+    private readonly estadoSesionRepo: Repository<EstadoSesion>,
+    @InjectRepository(EstadoTrabajador)
+    private readonly estadoTrabRepo: Repository<EstadoTrabajador>,
   ) {}
 
   async crear(data: CreateTrabajadorDto) {
@@ -29,13 +38,20 @@ export class TrabajadorService {
   }
 
   async listar() {
-    return this.repo.find()
+    const trabajadores = await this.repo.find()
+    return Promise.all(
+      trabajadores.map(async (t) => ({
+        ...t,
+        estado: await this.obtenerEstado(t.id),
+      })),
+    )
   }
 
   async obtener(id: string) {
     const trabajador = await this.repo.findOneBy({ id })
     if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
-    return trabajador
+    const estado = await this.obtenerEstado(id)
+    return { ...trabajador, estado }
   }
 
   async actualizar(id: string, data: UpdateTrabajadorDto) {
@@ -58,5 +74,28 @@ export class TrabajadorService {
     if (!trabajador) throw new NotFoundException('Trabajador no encontrado')
     await this.repo.remove(trabajador)
     return { mensaje: `Trabajador ${id} eliminado` }
+  }
+
+  private async obtenerEstado(trabajadorId: string): Promise<string> {
+    const sesion = await this.sesionRepo.findOne({
+      where: { trabajador: { id: trabajadorId }, fechaFin: IsNull() },
+      order: { fechaInicio: 'DESC' },
+    })
+    if (sesion) {
+      const estadoSesion = await this.estadoSesionRepo.findOne({
+        where: { sesionTrabajo: { id: sesion.id } },
+        order: { inicio: 'DESC' },
+      })
+      return estadoSesion?.estado ?? 'inactivo'
+    }
+    const estadoTrab = await this.estadoTrabRepo.findOne({
+      where: {
+        trabajador: { id: trabajadorId },
+        fin: IsNull(),
+        descanso: true,
+      },
+    })
+    if (estadoTrab) return 'descanso'
+    return 'inactivo'
   }
 }
