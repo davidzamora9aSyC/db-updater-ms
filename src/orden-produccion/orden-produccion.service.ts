@@ -6,10 +6,8 @@ import { CrearOrdenDto } from './dto/crear-orden.dto'
 import { ActualizarOrdenDto } from './dto/actualizar-orden.dto'
 import { PasoOrdenDto } from './dto/paso-orden.dto'
 import { PasoProduccion, EstadoPasoOrden } from '../paso-produccion/paso-produccion.entity'
-import {
-  SesionTrabajo,
-  EstadoSesionTrabajo,
-} from '../sesion-trabajo/sesion-trabajo.entity'
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity'
+
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
 import { Maquina } from '../maquina/maquina.entity'
 
@@ -87,7 +85,7 @@ export class OrdenProduccionService {
         let sesion: SesionTrabajo | null = await this.sesionRepo.findOne({
           where: {
             maquina: { id: maquina },
-            estado: EstadoSesionTrabajo.ACTIVA,
+            fechaFin: null,
           },
         });
         if (!sesion) throw new NotFoundException('No existe una sesión activa para esa máquina');

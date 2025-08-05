@@ -1,5 +1,4 @@
-import { IsUUID, IsEnum, IsDate, IsOptional, IsDateString, IsNumber } from 'class-validator';
-import { EstadoSesionTrabajo } from '../sesion-trabajo.entity';
+import { IsUUID, IsOptional, IsDateString, IsNumber } from 'class-validator';
 
 export class UpdateSesionTrabajoDto {
   @IsOptional()
@@ -18,10 +17,6 @@ export class UpdateSesionTrabajoDto {
   @IsDateString()
   fechaFin?: Date;
   
-  @IsOptional()
-  @IsEnum(EstadoSesionTrabajo)
-  estado?: EstadoSesionTrabajo;
-
   @IsOptional()
   @IsNumber()
   cantidadProducida?: number;
