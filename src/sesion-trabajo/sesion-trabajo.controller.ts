@@ -48,12 +48,6 @@ export class SesionTrabajoController {
   }
 
 
-  @Patch(':id/pausar')
-  pausar(@Param('id') id: string) {
-    return this.service.pausar(id);
-  }
-
-
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(id);

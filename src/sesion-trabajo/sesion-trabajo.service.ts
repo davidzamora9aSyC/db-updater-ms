@@ -1,17 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  SesionTrabajo,
-  EstadoSesionTrabajo,
-} from './sesion-trabajo.entity';
+import { Repository, IsNull } from 'typeorm';
+import { SesionTrabajo } from './sesion-trabajo.entity';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { DateTime } from 'luxon';
-import { EstadoSesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -28,7 +24,7 @@ export class SesionTrabajoService {
     const sesionMaquinaActiva = await this.repo.findOne({
       where: {
         maquina: { id: dto.maquina },
-        estado: EstadoSesionTrabajo.ACTIVA,
+        fechaFin: IsNull(),
       },
     });
     if (sesionMaquinaActiva) {
@@ -42,7 +38,6 @@ export class SesionTrabajoService {
       fechaFin: dto.fechaFin
         ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
         : undefined,
-      estado: EstadoSesionTrabajo.ACTIVA,
       cantidadProducida: dto.cantidadProducida ?? 0,
       cantidadPedaleos: dto.cantidadPedaleos ?? 0,
     });
@@ -71,17 +66,13 @@ export class SesionTrabajoService {
     if (dto.trabajador) sesion.trabajador = { id: dto.trabajador } as any;
     if (dto.maquina) sesion.maquina = { id: dto.maquina } as any;
     if (dto.fechaInicio)
-
-      sesion.fechaInicio = DateTime.fromJSDate(dto.fechaInicio, { zone: 'America/Bogota' }).toJSDate();
+      sesion.fechaInicio = DateTime.fromJSDate(dto.fechaInicio, {
+        zone: 'America/Bogota',
+      }).toJSDate();
     if (dto.fechaFin)
-      sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate();
-
-    if (dto.estado === EstadoSesionTrabajo.FINALIZADA) {
-      return this.finalizar(id);
-    }
-    if (dto.estado === EstadoSesionTrabajo.PAUSADA) {
-      return this.pausar(id);
-    }
+      sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, {
+        zone: 'America/Bogota',
+      }).toJSDate();
 
     if (dto.cantidadProducida !== undefined)
       sesion.cantidadProducida = dto.cantidadProducida;
@@ -95,33 +86,8 @@ export class SesionTrabajoService {
   async finalizar(id: string) {
     const sesion = await this.repo.findOne({ where: { id } });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    sesion.estado = EstadoSesionTrabajo.FINALIZADA;
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
-    const pasos = await this.repo.manager.getRepository('sesion_trabajo_paso').find({ where: { sesionTrabajo: { id } } });
-    for (const p of pasos) {
-
-      p.estado = EstadoSesionTrabajoPaso.FINALIZADO;
-
-      await this.repo.manager.getRepository('sesion_trabajo_paso').save(p);
-    }
-    return sesion;
-  }
-
-
-  async pausar(id: string) {
-    const sesion = await this.repo.findOne({ where: { id } });
-    if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    sesion.estado = EstadoSesionTrabajo.PAUSADA;
-    await this.repo.save(sesion);
-    const repoPaso = this.repo.manager.getRepository('sesion_trabajo_paso');
-    const pasos = await repoPaso.find({ where: { sesionTrabajo: { id } } });
-    for (const p of pasos) {
-      if (p.estado !== EstadoSesionTrabajoPaso.FINALIZADO) {
-        p.estado = EstadoSesionTrabajoPaso.PAUSADO;
-        await repoPaso.save(p);
-      }
-    }
     return sesion;
   }
 
@@ -135,7 +101,7 @@ export class SesionTrabajoService {
 
   async findActuales() {
     const sesiones = await this.repo.find({
-      where: { estado: EstadoSesionTrabajo.ACTIVA },
+      where: { fechaFin: IsNull() },
       relations: ['trabajador', 'maquina'],
     });
 
@@ -181,12 +147,9 @@ export class SesionTrabajoService {
             { zone: 'America/Bogota' },
           ).plus({ minutes: 1 }).toMillis()
         : 0;
-      const end =
-        sesion.estado === EstadoSesionTrabajo.ACTIVA
-          ? DateTime.now().setZone('America/Bogota').toMillis()
-          : sesion.fechaFin
-          ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis()
-          : DateTime.now().setZone('America/Bogota').toMillis();
+      const end = sesion.fechaFin
+        ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis()
+        : DateTime.now().setZone('America/Bogota').toMillis();
       const fin = Math.max(end, lastSlot || end);
       const totalMin = Math.max(Number.EPSILON, (fin - start) / 60000);
       const nptTotal = Math.min(nptMinRegistro + nptPorInactividad, totalMin);
@@ -246,7 +209,7 @@ export class SesionTrabajoService {
 
   async findActivas() {
     return this.repo.find({
-      where: { estado: EstadoSesionTrabajo.ACTIVA },
+      where: { fechaFin: IsNull() },
       relations: ['trabajador', 'maquina'],
     });
   }
@@ -259,20 +222,19 @@ export class SesionTrabajoService {
       .select(['s.id', 's.fechaInicio'])
       .addSelect(['t.id', 't.nombre'])
       .addSelect(['m.id', 'm.nombre'])
-      .where('s.estado = :estado', { estado: EstadoSesionTrabajo.ACTIVA })
+      .where('s.fechaFin IS NULL')
       .getMany();
   }
 
   private async finalizarSesionesPrevias(trabajadorId: string) {
     const activas = await this.repo.find({
       where: {
-        estado: EstadoSesionTrabajo.ACTIVA,
+        fechaFin: IsNull(),
         trabajador: { id: trabajadorId },
       },
     });
 
     for (const sesion of activas) {
-      sesion.estado = EstadoSesionTrabajo.FINALIZADA;
       sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
       await this.repo.save(sesion);
     }
