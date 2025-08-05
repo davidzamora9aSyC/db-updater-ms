@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { SesionTrabajoPaso } from './sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import {
@@ -13,6 +13,10 @@ import {
 } from '../orden-produccion/entity';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
+import { EstadoSesion, TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
+import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
+import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
+import { SesionTrabajoPasoDto } from './dto/sesion-trabajo-paso.dto';
 
 @Injectable()
 export class SesionTrabajoPasoService {
@@ -71,17 +75,70 @@ export class SesionTrabajoPasoService {
     return saved;
   }
 
-  findAll() {
-    return this.repo.find({ relations: ['sesionTrabajo', 'pasoOrden'] });
+  async findAll(): Promise<SesionTrabajoPasoDto[]> {
+    const entities = await this.repo.find({
+      relations: [
+        'sesionTrabajo',
+        'sesionTrabajo.trabajador',
+        'sesionTrabajo.maquina',
+        'pasoOrden',
+      ],
+    });
+    return Promise.all(entities.map((e) => this.mapEstado(e)));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<SesionTrabajoPasoDto> {
     const entity = await this.repo.findOne({
       where: { id },
-      relations: ['sesionTrabajo', 'pasoOrden'],
+      relations: [
+        'sesionTrabajo',
+        'sesionTrabajo.trabajador',
+        'sesionTrabajo.maquina',
+        'pasoOrden',
+      ],
     });
     if (!entity) throw new NotFoundException('Relación no encontrada');
-    return entity;
+    return this.mapEstado(entity);
+  }
+
+  private async mapEstado(
+    entity: SesionTrabajoPaso,
+  ): Promise<SesionTrabajoPasoDto> {
+    const estadoSesionRepo = this.repo.manager.getRepository(EstadoSesion);
+    const estadoSesion = await estadoSesionRepo.findOne({
+      where: { sesionTrabajo: { id: entity.sesionTrabajo.id }, fin: IsNull() },
+      order: { inicio: 'DESC' },
+    });
+
+    let estado: string = estadoSesion?.estado || TipoEstadoSesion.OTRO;
+
+    if (estadoSesion?.estado === TipoEstadoSesion.OTRO) {
+      const estadoTrabRepo = this.repo.manager.getRepository(EstadoTrabajador);
+      const estadoTrab = await estadoTrabRepo.findOne({
+        where: {
+          trabajador: { id: entity.sesionTrabajo.trabajador?.id },
+          fin: IsNull(),
+        },
+        order: { inicio: 'DESC' },
+      });
+      if (estadoTrab?.descanso) {
+        estado = 'descanso';
+      } else {
+        const estadoMaqRepo = this.repo.manager.getRepository(EstadoMaquina);
+        const estadoMaq = await estadoMaqRepo.findOne({
+          where: {
+            maquina: { id: entity.sesionTrabajo.maquina?.id },
+            fin: IsNull(),
+          },
+          order: { inicio: 'DESC' },
+        });
+        if (estadoMaq?.mantenimiento) {
+          estado = 'mantenimiento';
+        }
+      }
+    }
+
+    return { ...entity, estado };
   }
 
   async update(id: string, dto: UpdateSesionTrabajoPasoDto) {
