@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -25,6 +25,24 @@ export class SesionTrabajoPasoService {
   ) {}
 
   async create(dto: CreateSesionTrabajoPasoDto) {
+    const existente = await this.repo.findOne({
+      where: {
+        sesionTrabajo: { id: dto.sesionTrabajo },
+        pasoOrden: { id: dto.pasoOrden },
+      },
+    });
+
+    if (existente) {
+      if (existente.estado === EstadoSesionTrabajoPaso.ACTIVO) {
+        throw new ConflictException('Ya existe una relación ACTIVA para esta sesión y paso');
+      }
+      if (existente.estado === EstadoSesionTrabajoPaso.PENDIENTE) {
+        existente.estado = EstadoSesionTrabajoPaso.ACTIVO;
+        await this.repo.save(existente);
+        return existente;
+      }
+    }
+
     const activos = await this.repo.find({
       where: {
         sesionTrabajo: { id: dto.sesionTrabajo },

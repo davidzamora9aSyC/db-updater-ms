@@ -11,7 +11,7 @@ import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 
 export enum EstadoSesionTrabajoPaso {
   ACTIVO = 'activo',
-  PAUSADO = 'pausado',
+  PAUSADO = 'en descanso',
   FINALIZADO = 'finalizado',
   PENDIENTE = 'pendiente',
 }
