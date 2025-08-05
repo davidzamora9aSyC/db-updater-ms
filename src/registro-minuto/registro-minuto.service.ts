@@ -1,12 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, Not, IsNull } from 'typeorm';
+import { Repository, Not, IsNull } from 'typeorm';
 import { RegistroMinuto } from './registro-minuto.entity';
-import {
-  SesionTrabajoPaso,
-  EstadoSesionTrabajoPaso,
-} from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import {
   PasoProduccion,
@@ -117,29 +114,13 @@ export class RegistroMinutoService {
 
         if (dto.pedaleadas > 0 || dto.piezasContadas > 0) {
           const activo = await this.stpRepo.findOne({
-            where: {
-              sesionTrabajo: { id: sesionTrabajoId },
-              estado: In([
-                EstadoSesionTrabajoPaso.ACTIVO,
-                EstadoSesionTrabajoPaso.PENDIENTE,
-              ]),
-            },
+            where: { sesionTrabajo: { id: sesionTrabajoId } },
             relations: ['pasoOrden'],
           });
 
           if (activo) {
-            if (activo.estado === EstadoSesionTrabajoPaso.PENDIENTE) {
-              activo.estado = EstadoSesionTrabajoPaso.ACTIVO;
-            }
-
             activo.cantidadProducida += dto.piezasContadas;
             activo.cantidadPedaleos += dto.pedaleadas;
-            if (
-              activo.cantidadPedaleos >= activo.cantidadAsignada &&
-              activo.estado !== EstadoSesionTrabajoPaso.FINALIZADO
-            ) {
-              activo.estado = EstadoSesionTrabajoPaso.FINALIZADO;
-            }
             await this.stpRepo.save(activo);
 
             const paso = await this.pasoRepo.findOne({
@@ -149,8 +130,6 @@ export class RegistroMinutoService {
             if (paso) {
               paso.cantidadProducida += dto.piezasContadas;
               paso.cantidadPedaleos += dto.pedaleadas;
-
-              let finalizaPaso = false;
 
               if (paso.cantidadPedaleos >= paso.cantidadRequerida) {
                 if (!paso.fechaMetaAlcanzada)
@@ -163,46 +142,35 @@ export class RegistroMinutoService {
                   .diff(DateTime.fromJSDate(paso.fechaMetaAlcanzada), 'minutes')
                   .minutes;
 
-                if (
-                  diff >= 5 &&
-                  paso.estado !== EstadoPasoOrden.FINALIZADO
-                ) {
+                if (diff >= 5 && paso.estado !== EstadoPasoOrden.FINALIZADO) {
                   paso.estado = EstadoPasoOrden.FINALIZADO;
-                  finalizaPaso = true;
+
+                  const pasos = await this.pasoRepo.find({
+                    where: { orden: { id: paso.orden.id } },
+                  });
+                  const allFin = pasos.every(
+                    (p) => p.estado === EstadoPasoOrden.FINALIZADO,
+                  );
+                  const anyPause = pasos.some(
+                    (p) => p.estado === EstadoPasoOrden.PAUSADO,
+                  );
+                  const ordenRepo =
+                    this.pasoRepo.manager.getRepository(OrdenProduccion);
+                  const orden = await ordenRepo.findOne({
+                    where: { id: paso.orden.id },
+                  });
+                  if (orden) {
+                    if (allFin) {
+                      orden.estado = EstadoOrdenProduccion.FINALIZADA;
+                    } else if (anyPause) {
+                      orden.estado = EstadoOrdenProduccion.PAUSADA;
+                    }
+                    await ordenRepo.save(orden);
+                  }
                 }
               }
 
               await this.pasoRepo.save(paso);
-
-              if (finalizaPaso) {
-                await this.stpRepo.update(
-                  { pasoOrden: { id: paso.id } },
-                  { estado: EstadoSesionTrabajoPaso.FINALIZADO },
-                );
-
-                const pasos = await this.pasoRepo.find({
-                  where: { orden: { id: paso.orden.id } },
-                });
-                const allFin = pasos.every(
-                  (p) => p.estado === EstadoPasoOrden.FINALIZADO,
-                );
-                const anyPause = pasos.some(
-                  (p) => p.estado === EstadoPasoOrden.PAUSADO,
-                );
-                const ordenRepo =
-                  this.pasoRepo.manager.getRepository(OrdenProduccion);
-                const orden = await ordenRepo.findOne({
-                  where: { id: paso.orden.id },
-                });
-                if (orden) {
-                  if (allFin) {
-                    orden.estado = EstadoOrdenProduccion.FINALIZADA;
-                  } else if (anyPause) {
-                    orden.estado = EstadoOrdenProduccion.PAUSADA;
-                  }
-                  await ordenRepo.save(orden);
-                }
-              }
             }
           }
         }
@@ -231,11 +199,6 @@ export class RegistroMinutoService {
       if (diff >= 5) {
         paso.estado = EstadoPasoOrden.FINALIZADO;
         await this.pasoRepo.save(paso);
-
-        await this.stpRepo.update(
-          { pasoOrden: { id: paso.id } },
-          { estado: EstadoSesionTrabajoPaso.FINALIZADO },
-        );
 
         const pasos = await this.pasoRepo.find({
           where: { orden: { id: paso.orden.id } },
