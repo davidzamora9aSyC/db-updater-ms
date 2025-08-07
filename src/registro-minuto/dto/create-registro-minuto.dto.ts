@@ -4,6 +4,9 @@ export class CreateRegistroMinutoDto {
   @IsUUID()
   sesionTrabajo: string
 
+  @IsUUID()
+  pasoSesionTrabajo: string
+
   @IsDateString()
   minutoInicio: string
 

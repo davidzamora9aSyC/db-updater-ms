@@ -2,7 +2,10 @@ import { IsUUID, IsIn, IsDateString } from 'class-validator'
 
 export class AcumuladorDto {
   @IsUUID()
-  sesionTrabajo: string
+  maquina: string
+
+  @IsUUID()
+  pasoSesionTrabajo: string
 
   @IsIn(['pedal', 'pieza'])
   tipo: 'pedal' | 'pieza'

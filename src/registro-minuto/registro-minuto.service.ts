@@ -11,6 +11,7 @@ import {
 } from '../paso-produccion/paso-produccion.entity';
 import {
   OrdenProduccion,
+  EstadoOrdenProduccion,
 } from '../orden-produccion/entity';
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
@@ -34,24 +35,22 @@ export class RegistroMinutoService {
   ) {}
 
   async acumular(
-    sesionTrabajoId: string,
+    maquinaId: string,
+    pasoSesionTrabajoId: string,
     tipo: 'pedal' | 'pieza',
     minutoInicio: string,
   ) {
-    const existe = await this.repo.manager
-      .getRepository('sesion_trabajo')
-      .createQueryBuilder('s')
-      .select('s.id')
-      .where('s.id = :id', { id: sesionTrabajoId })
-      .getOne();
+    const sesion = await this.sesionRepo.findOne({
+      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
+    });
 
-    if (!existe) return;
+    if (!sesion) return;
 
     await this.mutex.runExclusive(async () => {
       const fecha = DateTime.fromISO(minutoInicio, {
         zone: 'America/Bogota',
       }).toJSDate();
-      const clave = `${sesionTrabajoId}_${fecha.toISOString()}`;
+      const clave = `${sesion.id}_${pasoSesionTrabajoId}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
         piezasContadas: 0,
@@ -69,9 +68,10 @@ export class RegistroMinutoService {
       const registros: CreateRegistroMinutoDto[] = [];
 
       for (const [clave, data] of this.memoria.entries()) {
-        const [sesionTrabajo, minutoInicio] = clave.split('_');
+        const [sesionTrabajo, pasoSesionTrabajo, minutoInicio] = clave.split('_');
         registros.push({
           sesionTrabajo,
+          pasoSesionTrabajo,
           minutoInicio: DateTime.fromISO(minutoInicio, {
             zone: 'America/Bogota',
           }).toISO() as string,
@@ -81,6 +81,7 @@ export class RegistroMinutoService {
 
       for (const dto of registros) {
         const sesionTrabajoId = dto.sesionTrabajo;
+        const pasoSesionTrabajoId = dto.pasoSesionTrabajo;
         const minutoInicio = DateTime.fromISO(dto.minutoInicio, {
           zone: 'America/Bogota',
         }).toJSDate();
@@ -88,12 +89,14 @@ export class RegistroMinutoService {
         const existente = await this.repo.findOne({
           where: {
             sesionTrabajo: { id: sesionTrabajoId },
+            pasoSesionTrabajo: { id: pasoSesionTrabajoId },
             minutoInicio,
           },
         });
 
         const nuevoRegistro = this.repo.create({
-          sesionTrabajo: { id: sesionTrabajoId },
+          sesionTrabajo: { id: sesionTrabajoId } as any,
+          pasoSesionTrabajo: { id: pasoSesionTrabajoId } as any,
           minutoInicio,
           pedaleadas: (existente?.pedaleadas || 0) + dto.pedaleadas,
           piezasContadas: (existente?.piezasContadas || 0) + dto.piezasContadas,
@@ -112,18 +115,18 @@ export class RegistroMinutoService {
         }
 
         if (dto.pedaleadas > 0 || dto.piezasContadas > 0) {
-          const activo = await this.stpRepo.findOne({
-            where: { sesionTrabajo: { id: sesionTrabajoId } },
+          const pasoSesion = await this.stpRepo.findOne({
+            where: { id: pasoSesionTrabajoId },
             relations: ['pasoOrden'],
           });
 
-          if (activo) {
-            activo.cantidadProducida += dto.piezasContadas;
-            activo.cantidadPedaleos += dto.pedaleadas;
-            await this.stpRepo.save(activo);
+          if (pasoSesion) {
+            pasoSesion.cantidadProducida += dto.piezasContadas;
+            pasoSesion.cantidadPedaleos += dto.pedaleadas;
+            await this.stpRepo.save(pasoSesion);
 
             const paso = await this.pasoRepo.findOne({
-              where: { id: activo.pasoOrden.id },
+              where: { id: pasoSesion.pasoOrden.id },
               relations: ['orden'],
             });
             if (paso) {
