@@ -7,16 +7,4 @@ export class CreateSesionTrabajoDto {
   @IsUUID()
   maquina: string;
 
-  @IsOptional()
-  @IsDateString()
-  fechaFin?: Date;
-
-  @IsOptional()
-  @IsNumber()
-  cantidadProducida?: number;
-
-  @IsOptional()
-  @IsNumber()
-  cantidadPedaleos?: number;
-
 }

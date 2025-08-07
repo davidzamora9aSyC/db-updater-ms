@@ -1,3 +1,4 @@
+import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -8,15 +9,18 @@ export class PausaPasoSesionService {
   constructor(
     @InjectRepository(PausaPasoSesion)
     private readonly repo: Repository<PausaPasoSesion>,
+    private readonly pasoProduccionService: PasoProduccionService,
   ) {}
 
-  create(pasoSesionId: string, inicio: Date = new Date()) {
+  async create(pasoSesionId: string, inicio: Date = new Date()) {
     const entity = this.repo.create({
       pasoSesion: { id: pasoSesionId } as any,
       inicio,
       fin: null,
     });
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    await this.pasoProduccionService.verificarSesiones(pasoSesionId);
+    return saved;
   }
 
   findActive(pasoSesionId: string) {
@@ -30,6 +34,8 @@ export class PausaPasoSesionService {
     const active = await this.findActive(pasoSesionId);
     if (!active) return null;
     active.fin = fin;
-    return this.repo.save(active);
+    const saved = await this.repo.save(active);
+    await this.pasoProduccionService.verificarSesiones(pasoSesionId);
+    return saved;
   }
 }

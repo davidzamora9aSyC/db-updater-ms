@@ -1,21 +1,10 @@
-import { IsUUID, IsOptional, IsDateString, IsNumber } from 'class-validator';
+import { IsUUID, IsOptional, IsDateString, IsNumber, IsBoolean } from 'class-validator';
 
 export class UpdateSesionTrabajoDto {
   @IsOptional()
-  @IsUUID()
-  trabajador?: string;
+  @IsBoolean()
+  fechaFin?: boolean;
 
-  @IsOptional()
-  @IsUUID()
-  maquina?: string;
-
-  @IsOptional()
-  @IsDateString()
-  fechaInicio?: Date;
-
-  @IsOptional()
-  @IsDateString()
-  fechaFin?: Date;
   
   @IsOptional()
   @IsNumber()

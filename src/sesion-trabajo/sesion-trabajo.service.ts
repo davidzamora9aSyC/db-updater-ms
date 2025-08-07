@@ -8,6 +8,9 @@ import { RegistroMinutoService } from '../registro-minuto/registro-minuto.servic
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { DateTime } from 'luxon';
+import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
+import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
+import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -17,7 +20,37 @@ export class SesionTrabajoService {
     private readonly registroMinutoService: RegistroMinutoService,
     private readonly estadoSesionService: EstadoSesionService,
     private readonly configService: ConfiguracionService,
+    @InjectRepository(EstadoSesion)
+    private readonly estadoSesionRepo: Repository<EstadoSesion>,
+    @InjectRepository(EstadoTrabajador)
+    private readonly estadoTrabajadorRepo: Repository<EstadoTrabajador>,
+    @InjectRepository(EstadoMaquina)
+    private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
   ) {}
+
+  private async mapSesionConEstado(sesion: SesionTrabajo) {
+    const estadoSesionActivo = await this.estadoSesionRepo.findOne({
+      where: { sesion: { id: sesion.id }, fin: IsNull() },
+    });
+
+    if (estadoSesionActivo?.estado === 'OTRO') {
+      const estadoTrabajadorActivo = await this.estadoTrabajadorRepo.findOne({
+        where: { trabajador: { id: sesion.trabajador.id }, fin: IsNull() },
+      });
+      if (estadoTrabajadorActivo?.descanso === true) {
+        return { ...sesion, estadoSesion: 'descanso' };
+      }
+
+      const estadoMaquinaActivo = await this.estadoMaquinaRepo.findOne({
+        where: { maquina: { id: sesion.maquina.id }, fin: IsNull() },
+      });
+      if (estadoMaquinaActivo?.mantenimiento === true) {
+        return { ...sesion, estadoSesion: 'mantenimiento' };
+      }
+    }
+
+    return { ...sesion, estadoSesion: estadoSesionActivo?.estado };
+  }
 
   async create(dto: CreateSesionTrabajoDto) {
 
@@ -30,16 +63,13 @@ export class SesionTrabajoService {
     if (sesionMaquinaActiva) {
       throw new BadRequestException('La máquina ya tiene una sesión activa');
     }
-    await this.finalizarSesionesPrevias(dto.trabajador);
     const sesion = this.repo.create({
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
       fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
-      fechaFin: dto.fechaFin
-        ? DateTime.fromJSDate(dto.fechaFin, { zone: 'America/Bogota' }).toJSDate()
-        : undefined,
-      cantidadProducida: dto.cantidadProducida ?? 0,
-      cantidadPedaleos: dto.cantidadPedaleos ?? 0,
+      fechaFin: undefined,
+      cantidadProducida:  0,
+      cantidadPedaleos:  0,
     });
     return this.repo.save(sesion);
   }
@@ -63,25 +93,14 @@ export class SesionTrabajoService {
   async update(id: string, dto: UpdateSesionTrabajoDto) {
     const sesion = await this.repo.findOne({ where: { id } });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    if (dto.trabajador) sesion.trabajador = { id: dto.trabajador } as any;
-    if (dto.maquina) sesion.maquina = { id: dto.maquina } as any;
-    if (dto.fechaInicio)
-      sesion.fechaInicio = DateTime.fromJSDate(dto.fechaInicio, {
-        zone: 'America/Bogota',
-      }).toJSDate();
-    if (dto.fechaFin)
-
-      sesion.fechaFin = DateTime.fromJSDate(dto.fechaFin, {
-        zone: 'America/Bogota',
-      }).toJSDate();
-
+    if (dto.fechaFin === true)
+      sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
 
     if (dto.cantidadProducida !== undefined)
       sesion.cantidadProducida = dto.cantidadProducida;
     if (dto.cantidadPedaleos !== undefined)
       sesion.cantidadPedaleos = dto.cantidadPedaleos;
 
-    Object.assign(sesion, dto);
     return this.repo.save(sesion);
   }
 
@@ -112,6 +131,8 @@ export class SesionTrabajoService {
     const resultado: any[] = [];
 
     for (const sesion of sesiones) {
+      const sesionConEstado = await this.mapSesionConEstado(sesion);
+
       const registros = await this.registroMinutoService.obtenerPorSesion(
         sesion.id,
       );
@@ -190,9 +211,8 @@ export class SesionTrabajoService {
       const estadoActual = estados[0];
 
       resultado.push({
-        ...sesion,
+        ...sesionConEstado,
         grupo: sesion.maquina?.tipo,
-        estadoSesion: estadoActual?.estado,
         estadoInicio: estadoActual?.inicio,
         avgSpeed: avgProd,
         avgSpeedSesion: avgSesion,

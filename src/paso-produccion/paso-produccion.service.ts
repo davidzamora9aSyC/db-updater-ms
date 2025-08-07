@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, In, IsNull } from 'typeorm'
 import { PasoProduccion, EstadoPasoOrden } from './paso-produccion.entity'
 import { OrdenProduccion, EstadoOrdenProduccion } from '../orden-produccion/entity'
 import { CreatePasoProduccionDto } from './dto/create-paso-produccion.dto'
 import { UpdatePasoProduccionDto } from './dto/update-paso-produccion.dto'
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
+import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { EstadoSesion, TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity'
 
 @Injectable()
@@ -65,6 +66,8 @@ export class PasoProduccionService {
 
   async actualizarEstadoPorSesion(sesionId: string) {
     const stpRepo = this.repo.manager.getRepository(SesionTrabajoPaso)
+
+
     const relaciones = await stpRepo.find({
       where: { sesionTrabajo: { id: sesionId } },
       relations: ['pasoOrden'],
@@ -75,8 +78,9 @@ export class PasoProduccionService {
     }
   }
 
-  private async verificarSesiones(pasoId: string) {
+  async verificarSesiones(pasoId: string) {
     const stpRepo = this.repo.manager.getRepository(SesionTrabajoPaso)
+    const pausaRepo = this.repo.manager.getRepository(PausaPasoSesion);
     const estadoRepo = this.repo.manager.getRepository(EstadoSesion)
     const paso = await this.repo.findOne({
       where: { id: pasoId },
@@ -88,6 +92,24 @@ export class PasoProduccionService {
       where: { pasoOrden: { id: pasoId } },
       relations: ['sesionTrabajo'],
     })
+
+    const relacionesIds = relaciones.map(r => r.id);
+    const relacionesPausadas = await pausaRepo.find({
+      where: {
+        pasoSesion: { id: In(relacionesIds) },
+        fin: IsNull(),
+      },
+    });
+
+    if (relaciones.length > 0 && relacionesPausadas.length === relaciones.length) {
+      if (paso.estado !== EstadoPasoOrden.PAUSADO) {
+        paso.estado = EstadoPasoOrden.PAUSADO;
+        await this.repo.save(paso);
+        await this.actualizarEstadoOrden(paso.orden.id);
+      }
+      return;
+    }
+ 
     const sesiones = relaciones.map((r) => r.sesionTrabajo)
 
     let anyProd = false
