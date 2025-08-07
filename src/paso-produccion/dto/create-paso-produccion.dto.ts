@@ -15,15 +15,6 @@ export class CreatePasoProduccionDto {
   @IsNumber()
   cantidadRequerida: number
 
-  @IsOptional()
   @IsNumber()
-  cantidadProducida?: number
-
-  @IsOptional()
-  @IsNumber()
-  cantidadPedaleos?: number
-
-  @IsOptional()
-  @IsEnum(EstadoPasoOrden)
-  estado?: EstadoPasoOrden
+  numeroPaso: number
 }

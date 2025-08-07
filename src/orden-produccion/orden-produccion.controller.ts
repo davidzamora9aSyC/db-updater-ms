@@ -22,10 +22,6 @@ export class OrdenProduccionController {
     return this.service.obtenerPorId(id)
   }
 
-  @Put(':id')
-  actualizar(@Param('id') id: string, @Body() dto: ActualizarOrdenDto) {
-    return this.service.actualizar(id, dto)
-  }
 
   @Delete(':id')
   eliminar(@Param('id') id: string) {

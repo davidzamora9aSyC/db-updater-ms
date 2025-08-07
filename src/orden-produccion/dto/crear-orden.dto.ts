@@ -8,7 +8,7 @@ import {
 } from 'class-validator'
 import { Type } from 'class-transformer'
 import { PasoOrdenDto } from './paso-orden.dto'
-import { EstadoOrdenProduccion } from '../entity'
+
 
 export class CrearOrdenDto {
   @IsString()
@@ -28,8 +28,7 @@ export class CrearOrdenDto {
   @IsDate()
   fechaVencimiento: Date
 
-  @IsEnum(EstadoOrdenProduccion)
-  estado: EstadoOrdenProduccion
+  
 
   @IsArray()
   @ValidateNested({ each: true })

@@ -63,60 +63,13 @@ export class OrdenProduccionService {
   }
 
   async actualizar(id: string, dto: ActualizarOrdenDto) {
-    const { pasos, maquina, ...datosOrden } = dto;
-    const orden = await this.repo.preload({ id, ...datosOrden });
-    if (!orden) throw new NotFoundException('Orden no encontrada');
+    const existente = await this.repo.findOne({ where: { id } });
+    if (!existente) throw new NotFoundException('Orden no encontrada');
+  
+    const datosCompletos = { ...existente, ...dto };
+    const orden = this.repo.create({ ...datosCompletos, id }); 
     await this.repo.save(orden);
-
-    if (pasos) {
-      const antiguos = await this.pasoRepo.find({ where: { orden: { id } } });
-      for (const p of antiguos) {
-        await this.stpRepo.delete({ pasoOrden: { id: p.id } });
-      }
-      await this.pasoRepo.remove(antiguos);
-
-      let sesion: SesionTrabajo | undefined = undefined;
-      if (maquina) {
-        const maquinaEntity = await this.maquinaRepo.findOne({
-          where: { id: maquina },
-        });
-        if (!maquinaEntity) throw new NotFoundException('Máquina no encontrada');
-
-        let sesion: SesionTrabajo | null = await this.sesionRepo.findOne({
-          where: {
-            maquina: { id: maquina },
-            fechaFin: IsNull(),
-          },
-        });
-        if (!sesion) throw new NotFoundException('No existe una sesión activa para esa máquina');
-        
-        if (!sesion)
-          throw new NotFoundException('No existe una sesión activa para esa máquina');
-      }
-
-      for (const pasoDto of pasos) {
-        const paso = this.pasoRepo.create({
-          ...pasoDto,
-          cantidadProducida: pasoDto.cantidadProducida ?? 0,
-          cantidadPedaleos: pasoDto.cantidadPedaleos ?? 0,
-          estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
-          orden,
-        });
-        const pasoGuardado = await this.pasoRepo.save(paso);
-
-        if (sesion) {
-          const relacion = this.stpRepo.create({
-            sesionTrabajo: sesion,
-            pasoOrden: pasoGuardado,
-            cantidadAsignada: pasoGuardado.cantidadRequerida,
-            cantidadProducida: 0,
-            cantidadPedaleos: 0,
-          });
-          await this.stpRepo.save(relacion);
-        }
-      }
-    }
-
+  
     return orden;
   }
 

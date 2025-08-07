@@ -18,6 +18,9 @@ export class PasoProduccionService {
     const paso = this.repo.create({
       ...dto,
       orden: { id: dto.orden } as any,
+      cantidadProducida: 0,
+      cantidadPedaleos: 0,
+      estado: EstadoPasoOrden.PENDIENTE,
     });
     return this.repo.save(paso);
   }
@@ -35,30 +38,12 @@ export class PasoProduccionService {
   async update(id: string, dto: UpdatePasoProduccionDto) {
     const paso = await this.repo.findOne({ where: { id }, relations: ['orden'] });
     if (!paso) throw new NotFoundException('Paso no encontrado');
-    if (dto.orden) paso.orden = { id: dto.orden } as any;
-    const estadoPrevio = paso.estado;
-    Object.assign(paso, dto);
-    const saved = await this.repo.save(paso);
-
-    if (
-      dto.estado &&
-      dto.estado !== estadoPrevio &&
-      dto.estado === EstadoPasoOrden.FINALIZADO
-    ) {
-      const pasos = await this.repo.find({ where: { orden: { id: paso.orden.id } } });
-      const allFin = pasos.every((p) => p.estado === EstadoPasoOrden.FINALIZADO);
-      const anyPause = pasos.some((p) => p.estado === EstadoPasoOrden.PAUSADO);
-      const ordenRepo = this.repo.manager.getRepository(OrdenProduccion);
-      const orden = await ordenRepo.findOne({ where: { id: paso.orden.id } });
-      if (orden) {
-        if (allFin) {
-          orden.estado = EstadoOrdenProduccion.FINALIZADA;
-        } else if (anyPause) {
-          orden.estado = EstadoOrdenProduccion.PAUSADA;
-        }
-        await ordenRepo.save(orden);
+    for (const key of Object.keys(dto)) {
+      if (key !== 'orden' && dto[key] !== undefined) {
+        paso[key] = dto[key];
       }
     }
+    const saved = await this.repo.save(paso);
 
     return saved;
   }
@@ -74,7 +59,7 @@ export class PasoProduccionService {
     return this.repo.find({
       where: { orden: { id: ordenId } },
       relations: ['orden'],
-      order: { createdAt: 'ASC' }
+      order: { numeroPaso: 'ASC' }
     });
   }
 
@@ -131,17 +116,19 @@ export class PasoProduccionService {
 
   private async actualizarEstadoOrden(ordenId: string) {
     const pasos = await this.repo.find({ where: { orden: { id: ordenId } } })
-    const allFin = pasos.every((p) => p.estado === EstadoPasoOrden.FINALIZADO)
-    const anyPause = pasos.some((p) => p.estado === EstadoPasoOrden.PAUSADO)
+    const allFinalizado = pasos.every(p => p.estado === EstadoPasoOrden.FINALIZADO)
+    const allPausado = pasos.every(p => p.estado === EstadoPasoOrden.PAUSADO)
+    const anyActivo = pasos.some(p => p.estado === EstadoPasoOrden.ACTIVO)
+
     const ordenRepo = this.repo.manager.getRepository(OrdenProduccion)
     const orden = await ordenRepo.findOne({ where: { id: ordenId } })
     if (!orden) return
-    if (allFin) {
+    if (allFinalizado) {
       orden.estado = EstadoOrdenProduccion.FINALIZADA
-    } else if (anyPause) {
-      orden.estado = EstadoOrdenProduccion.PAUSADA
-    } else {
+    } else if (anyActivo) {
       orden.estado = EstadoOrdenProduccion.ACTIVA
+    } else if (allPausado) {
+      orden.estado = EstadoOrdenProduccion.PAUSADA
     }
     await ordenRepo.save(orden)
   }

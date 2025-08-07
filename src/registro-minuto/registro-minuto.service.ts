@@ -11,7 +11,6 @@ import {
 } from '../paso-produccion/paso-produccion.entity';
 import {
   OrdenProduccion,
-  EstadoOrdenProduccion,
 } from '../orden-produccion/entity';
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';

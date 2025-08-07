@@ -27,7 +27,8 @@ export class UpdatePasoProduccionDto {
   @IsNumber()
   cantidadPedaleos?: number
 
+
   @IsOptional()
-  @IsEnum(EstadoPasoOrden)
-  estado?: EstadoPasoOrden
+  @IsNumber()
+  numeroPaso?: number
 }

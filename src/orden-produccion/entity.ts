@@ -40,9 +40,6 @@ export class OrdenProduccion {
   })
   estado: EstadoOrdenProduccion;
 
-  @CreateDateColumn()
-  createdAt: Date;
+ 
 
-  @UpdateDateColumn()
-  updatedAt: Date;
 }
