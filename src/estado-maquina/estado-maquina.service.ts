@@ -9,6 +9,7 @@ import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
+import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
 
 @Injectable()
 export class EstadoMaquinaService {
@@ -20,6 +21,7 @@ export class EstadoMaquinaService {
     @InjectRepository(EstadoTrabajador)
     private readonly estadoTrabajadorRepo: Repository<EstadoTrabajador>,
     private readonly estadoSesionService: EstadoSesionService,
+    private readonly pasoProduccionService: PasoProduccionService,
   ) {}
 
   async create(dto: CreateEstadoMaquinaDto) {
@@ -68,12 +70,6 @@ export class EstadoMaquinaService {
       relations: ['maquina'],
     });
     if (!estado) throw new NotFoundException('Estado de máquina no encontrado');
-    if (dto.maquina) estado.maquina = { id: dto.maquina } as any;
-    if (dto.mantenimiento !== undefined) estado.mantenimiento = dto.mantenimiento;
-    if (dto.inicio)
-      estado.inicio = DateTime.fromJSDate(dto.inicio, {
-        zone: 'America/Bogota',
-      }).toJSDate();
     if (dto.fin)
       estado.fin = DateTime.fromJSDate(dto.fin, {
         zone: 'America/Bogota',
@@ -117,6 +113,7 @@ export class EstadoMaquinaService {
       estado: TipoEstadoSesion.OTRO,
       inicio: fecha,
     });
+    await this.pasoProduccionService.actualizarEstadoPorSesion(sesion.id);
   }
 
   private async restaurarSesionProduccion(
@@ -144,5 +141,6 @@ export class EstadoMaquinaService {
       estado: TipoEstadoSesion.PRODUCCION,
       inicio: fin,
     });
+    await this.pasoProduccionService.actualizarEstadoPorSesion(sesion.id);
   }
 }
