@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Get, Param } from '@nestjs/common'
 import { RegistroMinutoService } from './registro-minuto.service'
-import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto'
 import { AcumuladorDto } from './dto/acumulador.dto'
 
 @Controller('registro-minuto')
@@ -10,8 +9,8 @@ export class RegistroMinutoController {
   @Post('acumular')
   async acumular(@Body() body: AcumuladorDto) {
     
-    const { sesionTrabajo, tipo, minutoInicio } = body
-    await this.service.acumular(sesionTrabajo, tipo, minutoInicio)
+    const { maquina, pasoSesionTrabajo, tipo, minutoInicio } = body
+    await this.service.acumular(maquina, pasoSesionTrabajo, tipo, minutoInicio)
     return { ok: true }
   }
 
