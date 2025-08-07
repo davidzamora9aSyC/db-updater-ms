@@ -18,16 +18,32 @@ import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity'
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { SesionTrabajoPasoDto } from './dto/sesion-trabajo-paso.dto';
 import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
+import { PausaPasoSesionService } from '../pausa-paso-sesion/pausa-paso-sesion.service';
 
 @Injectable()
 export class SesionTrabajoPasoService {
   constructor(
     @InjectRepository(SesionTrabajoPaso)
     private readonly repo: Repository<SesionTrabajoPaso>,
-    private readonly pasoProduccionService: PasoProduccionService, 
+    private readonly pasoProduccionService: PasoProduccionService,
+    private readonly pausaPasoSesionService: PausaPasoSesionService,
   ) {}
 
   async create(dto: CreateSesionTrabajoPasoDto) {
+    // Verificar si ya existe la relación
+    const existente = await this.repo.findOne({
+      where: {
+        sesionTrabajo: { id: dto.sesionTrabajo },
+        pasoOrden: { id: dto.pasoOrden },
+      },
+    });
+
+    if (existente) {
+      // Cerrar pausa activa si existe
+      await this.pausaPasoSesionService.closeActive(existente.id);
+      return existente;
+    }
+
     // Verificar que la sesión exista y no tenga fechaFin
     const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
     const sesion = await sesionRepo.findOne({
@@ -67,6 +83,19 @@ export class SesionTrabajoPasoService {
     });
     await estadoSesionRepo.save(estadoSesion);
     await this.pasoProduccionService.actualizarEstadoPorSesion(dto.sesionTrabajo);
+
+    // Pausar otros pasos de la misma sesión
+    const otros = await this.repo.find({
+      where: { sesionTrabajo: { id: dto.sesionTrabajo } },
+    });
+    const ahora = new Date();
+    for (const otro of otros) {
+      if (otro.id === saved.id) continue;
+      const activo = await this.pausaPasoSesionService.findActive(otro.id);
+      if (!activo) {
+        await this.pausaPasoSesionService.create(otro.id, ahora);
+      }
+    }
 
     return saved;
   }

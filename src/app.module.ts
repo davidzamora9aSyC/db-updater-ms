@@ -14,6 +14,7 @@ import { EstadoSesionModule } from './estado-sesion/estado-sesion.module';
 import { EstadoTrabajadorModule } from './estado-trabajador/estado-trabajador.module';
 import { EstadoMaquinaModule } from './estado-maquina/estado-maquina.module';
 import { SesionTrabajoPasoModule } from './sesion-trabajo-paso/sesion-trabajo-paso.module';
+import { PausaPasoSesionModule } from './pausa-paso-sesion/pausa-paso-sesion.module';
 import { EmpresaModule } from './empresa/empresa.module';
 import { MaterialOrdenModule } from './material-orden/material-orden.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
@@ -63,6 +64,7 @@ import * as path from 'path';
 
     SesionTrabajoModule,
     SesionTrabajoPasoModule,
+    PausaPasoSesionModule,
 
     EstadoSesionModule,
     EstadoTrabajadorModule,
