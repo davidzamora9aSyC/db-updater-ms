@@ -9,6 +9,7 @@ import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
+import { PasoProduccionService } from 'paso-produccion/paso-produccion.service';
 
 @Injectable()
 export class EstadoTrabajadorService {
@@ -20,15 +21,14 @@ export class EstadoTrabajadorService {
     @InjectRepository(EstadoMaquina)
     private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
     private readonly estadoSesionService: EstadoSesionService,
+    private readonly pasoProduccionService: PasoProduccionService,
   ) {}
 
   async create(dto: CreateEstadoTrabajadorDto) {
     const inicio = DateTime.fromJSDate(dto.inicio, {
       zone: 'America/Bogota',
     }).toJSDate();
-    const fin = dto.fin
-      ? DateTime.fromJSDate(dto.fin, { zone: 'America/Bogota' }).toJSDate()
-      : null;
+    const fin = null;
 
     const abiertos = await this.repo.find({
       where: { trabajador: { id: dto.trabajador }, fin: IsNull() },
@@ -42,7 +42,7 @@ export class EstadoTrabajadorService {
       trabajador: { id: dto.trabajador } as any,
       descanso: dto.descanso,
       inicio,
-      fin,
+      fin: null,
     });
     const nuevo = await this.repo.save(entity);
 
@@ -70,13 +70,6 @@ export class EstadoTrabajadorService {
       relations: ['trabajador'],
     });
     if (!estado) throw new NotFoundException('Estado de trabajador no encontrado');
-    if (dto.trabajador)
-      estado.trabajador = { id: dto.trabajador } as any;
-    if (dto.descanso !== undefined) estado.descanso = dto.descanso;
-    if (dto.inicio)
-      estado.inicio = DateTime.fromJSDate(dto.inicio, {
-        zone: 'America/Bogota',
-      }).toJSDate();
     if (dto.fin)
       estado.fin = DateTime.fromJSDate(dto.fin, {
         zone: 'America/Bogota',
@@ -109,46 +102,54 @@ export class EstadoTrabajadorService {
   }
 
   private async actualizarSesionOtro(trabajadorId: string, fecha: Date) {
-    const sesion = await this.sesionRepo.findOne({
+    const sesiones = await this.sesionRepo.find({
       where: { trabajador: { id: trabajadorId }, fechaFin: IsNull() },
     });
-    if (!sesion) return;
-    const estados = await this.estadoSesionService.findBySesion(sesion.id);
-    const actual = estados.find((e) => e.fin === null);
-    if (actual?.estado === TipoEstadoSesion.OTRO) return;
-    if (actual)
-      await this.estadoSesionService.update(actual.id, { fin: fecha });
-    await this.estadoSesionService.create({
-      sesionTrabajo: sesion.id,
-      estado: TipoEstadoSesion.OTRO,
-      inicio: fecha,
-    });
+    for (const sesion of sesiones) {
+      const estados = await this.estadoSesionService.findBySesion(sesion.id);
+      const actual = estados.find((e) => e.fin === null);
+      if (actual?.estado !== TipoEstadoSesion.OTRO) {
+        if (actual) {
+          await this.estadoSesionService.update(actual.id, { fin: fecha });
+        }
+        await this.estadoSesionService.create({
+          sesionTrabajo: sesion.id,
+          estado: TipoEstadoSesion.OTRO,
+          inicio: fecha,
+        });
+      }
+      await this.pasoProduccionService.actualizarEstadoPorSesion(sesion.id);
+    }
   }
 
   private async restaurarSesionProduccion(
     trabajadorId: string,
     fin: Date | null,
   ) {
-    const sesion = await this.sesionRepo.findOne({
+    const sesiones = await this.sesionRepo.find({
       where: { trabajador: { id: trabajadorId }, fechaFin: IsNull() },
       relations: ['maquina'],
     });
-    if (!sesion || !fin) return;
+    if (!fin || sesiones.length === 0) return;
     const trabajadorActivo = await this.repo.findOne({
       where: { trabajador: { id: trabajadorId }, fin: IsNull() },
     });
-    const maquinaActiva = await this.estadoMaquinaRepo.findOne({
-      where: { maquina: { id: sesion.maquina.id }, fin: IsNull() },
-    });
-    if (trabajadorActivo || maquinaActiva) return;
-    const estados = await this.estadoSesionService.findBySesion(sesion.id);
-    const actual = estados.find((e) => e.fin === null);
-    if (!actual || actual.estado !== TipoEstadoSesion.OTRO) return;
-    await this.estadoSesionService.update(actual.id, { fin });
-    await this.estadoSesionService.create({
-      sesionTrabajo: sesion.id,
-      estado: TipoEstadoSesion.PRODUCCION,
-      inicio: fin,
-    });
+    if (trabajadorActivo) return;
+    for (const sesion of sesiones) {
+      const maquinaActiva = await this.estadoMaquinaRepo.findOne({
+        where: { maquina: { id: sesion.maquina.id }, fin: IsNull() },
+      });
+      if (maquinaActiva) continue;
+      const estados = await this.estadoSesionService.findBySesion(sesion.id);
+      const actual = estados.find((e) => e.fin === null);
+      if (!actual || actual.estado !== TipoEstadoSesion.OTRO) continue;
+      await this.estadoSesionService.update(actual.id, { fin });
+      await this.estadoSesionService.create({
+        sesionTrabajo: sesion.id,
+        estado: TipoEstadoSesion.PRODUCCION,
+        inicio: fin,
+      });
+      await this.pasoProduccionService.actualizarEstadoPorSesion(sesion.id);
+    }
   }
 }

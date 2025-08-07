@@ -8,9 +8,9 @@ import { RegistroMinutoService } from '../registro-minuto/registro-minuto.servic
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { DateTime } from 'luxon';
-import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
+import { EstadoSesion, TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -30,10 +30,10 @@ export class SesionTrabajoService {
 
   private async mapSesionConEstado(sesion: SesionTrabajo) {
     const estadoSesionActivo = await this.estadoSesionRepo.findOne({
-      where: { sesion: { id: sesion.id }, fin: IsNull() },
+      where: { sesionTrabajo: { id: sesion.id }, fin: IsNull() },
     });
 
-    if (estadoSesionActivo?.estado === 'OTRO') {
+    if (estadoSesionActivo?.estado === TipoEstadoSesion.OTRO) {
       const estadoTrabajadorActivo = await this.estadoTrabajadorRepo.findOne({
         where: { trabajador: { id: sesion.trabajador.id }, fin: IsNull() },
       });

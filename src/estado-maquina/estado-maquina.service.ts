@@ -26,9 +26,7 @@ export class EstadoMaquinaService {
     const inicio = DateTime.fromJSDate(dto.inicio, {
       zone: 'America/Bogota',
     }).toJSDate();
-    const fin = dto.fin
-      ? DateTime.fromJSDate(dto.fin, { zone: 'America/Bogota' }).toJSDate()
-      : null;
+    const fin = null;
 
     const abiertos = await this.repo.find({
       where: { maquina: { id: dto.maquina }, fin: IsNull() },
@@ -42,7 +40,7 @@ export class EstadoMaquinaService {
       maquina: { id: dto.maquina } as any,
       mantenimiento: dto.mantenimiento,
       inicio,
-      fin,
+      fin: null,
     });
     const nuevo = await this.repo.save(entity);
 
