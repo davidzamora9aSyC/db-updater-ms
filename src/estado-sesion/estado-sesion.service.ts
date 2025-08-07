@@ -103,6 +103,45 @@ export class EstadoSesionService {
     return estados;
   }
 
+  /**
+   * Devuelve **todos** los estados asociados a la sesión (incluye finalizados),
+   * ordenados por fecha de inicio ascendente.
+   */
+  async findAllBySesion(sesionTrabajoId: string) {
+    return this.repo.find({
+      where: { sesionTrabajo: { id: sesionTrabajoId } },
+      order: { inicio: 'ASC' },
+      relations: ['sesionTrabajo'],
+    });
+  }
+
+  /**
+   * Devuelve el último estado registrado para la sesión,
+   * independientemente de si ya finalizó.
+   */
+  async findLatestBySesion(sesionTrabajoId: string) {
+    return this.repo.findOne({
+      where: { sesionTrabajo: { id: sesionTrabajoId } },
+      order: { inicio: 'DESC' },
+      relations: ['sesionTrabajo'],
+    });
+  }
+
+  /**
+   * Devuelve el estado **actual** de la sesión (fin IS NULL).  
+   * Si no hay un estado abierto, retorna null.
+   */
+  async findCurrentBySesion(sesionTrabajoId: string) {
+    return this.repo.findOne({
+      where: {
+        sesionTrabajo: { id: sesionTrabajoId, fechaFin: IsNull() },
+        fin: IsNull(),
+      },
+      order: { inicio: 'DESC' },
+      relations: ['sesionTrabajo'],
+    });
+  }
+
   async removeBySesion(sesionTrabajoId: string) {
     const estados = await this.repo.find({
       where: { sesionTrabajo: { id: sesionTrabajoId } },

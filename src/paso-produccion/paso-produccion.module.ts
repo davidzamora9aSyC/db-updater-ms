@@ -8,6 +8,6 @@ import { PasoProduccionService } from './paso-produccion.service';
   imports: [TypeOrmModule.forFeature([PasoProduccion])],
   controllers: [PasoProduccionController],
   providers: [PasoProduccionService],
-  exports: [PasoProduccionService],
+  exports: [PasoProduccionService ],
 })
 export class PasoProduccionModule {}

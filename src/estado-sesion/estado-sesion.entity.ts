@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity, Index } from 'typeorm';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 
 export enum TipoEstadoSesion {
@@ -12,6 +12,7 @@ export class EstadoSesion extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => SesionTrabajo, { nullable: false })
   @JoinColumn({ name: 'sesionTrabajoId' })
   sesionTrabajo: SesionTrabajo;

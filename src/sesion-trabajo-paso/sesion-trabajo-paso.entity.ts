@@ -5,6 +5,7 @@ import {
   JoinColumn,
   BaseEntity,
   Column,
+  Index
 } from 'typeorm';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
@@ -14,10 +15,12 @@ export class SesionTrabajoPaso extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index() 
   @ManyToOne(() => SesionTrabajo, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sesionTrabajoId' })
   sesionTrabajo: SesionTrabajo;
 
+  @Index()
   @ManyToOne(() => PasoProduccion, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pasoOrdenId' })
   pasoOrden: PasoProduccion;
@@ -31,9 +34,4 @@ export class SesionTrabajoPaso extends BaseEntity {
   @Column('int', { default: 0 })
   cantidadPedaleos: number;
 
-  @Column({ default: 'Desconocido' })
-  nombreTrabajador: string;
-
-  @Column({ default: 'Desconocido' })
-  nombreMaquina: string;
 }

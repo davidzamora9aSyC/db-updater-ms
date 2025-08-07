@@ -88,12 +88,20 @@ export class PasoProduccionService {
       where: { pasoOrden: { id: pasoId } },
       relations: ['sesionTrabajo'],
     })
-    const sesiones = relaciones
-      .map((r) => r.sesionTrabajo)
-      .filter((s) => !s.fechaFin)
+    const sesiones = relaciones.map((r) => r.sesionTrabajo)
 
     let anyProd = false
-    for (const sesion of sesiones) {
+
+    const todasFinalizadas = sesiones.length > 0 && sesiones.every(s => s.fechaFin);
+    if (todasFinalizadas) {
+      paso.estado = EstadoPasoOrden.FINALIZADO;
+      await this.repo.save(paso);
+      await this.actualizarEstadoOrden(paso.orden.id);
+      return;
+    }
+
+    const sesionesNoFinalizadas = sesiones.filter((s) => !s.fechaFin)
+    for (const sesion of sesionesNoFinalizadas) {
       const ultimo = await estadoRepo.findOne({
         where: { sesionTrabajo: { id: sesion.id } },
         order: { inicio: 'DESC' },

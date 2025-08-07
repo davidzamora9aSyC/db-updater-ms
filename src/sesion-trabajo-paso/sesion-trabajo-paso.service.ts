@@ -17,60 +17,56 @@ import { EstadoSesion, TipoEstadoSesion } from '../estado-sesion/estado-sesion.e
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { SesionTrabajoPasoDto } from './dto/sesion-trabajo-paso.dto';
+import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
 
 @Injectable()
 export class SesionTrabajoPasoService {
   constructor(
     @InjectRepository(SesionTrabajoPaso)
     private readonly repo: Repository<SesionTrabajoPaso>,
+    private readonly pasoProduccionService: PasoProduccionService, 
   ) {}
 
   async create(dto: CreateSesionTrabajoPasoDto) {
+    // Verificar que la sesión exista y no tenga fechaFin
+    const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
+    const sesion = await sesionRepo.findOne({
+      where: { id: dto.sesionTrabajo },
+    });
+    if (!sesion || sesion.fechaFin) {
+      throw new NotFoundException('Sesión no encontrada o finalizada');
+    }
+
+    // Verificar que el paso de producción exista
+    const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
+    const paso = await pasoRepo.findOne({
+      where: { id: dto.pasoOrden },
+    });
+    if (!paso) {
+      throw new NotFoundException('Paso de producción no encontrado');
+    }
+
+    // Crear la relación SesionTrabajoPaso
     const entity = this.repo.create({
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
       pasoOrden: { id: dto.pasoOrden } as any,
       cantidadAsignada: dto.cantidadAsignada,
-      cantidadProducida: dto.cantidadProducida ?? 0,
-      cantidadPedaleos: dto.cantidadPedaleos ?? 0,
+      cantidadProducida: 0,
+      cantidadPedaleos: 0,
     });
 
-    const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
-    const sesion = await sesionRepo.findOne({
-      where: { id: dto.sesionTrabajo },
-      relations: ['trabajador', 'maquina'],
-    });
-    if (sesion) {
-      entity.nombreTrabajador = sesion.trabajador?.nombre ?? '';
-      if (!entity.nombreTrabajador)
-        console.warn(
-          '⚠️ nombreTrabajador no encontrado para sesión',
-          dto.sesionTrabajo,
-        );
-      entity.nombreMaquina = sesion.maquina?.nombre ?? '';
-      if (!entity.nombreMaquina)
-        console.warn(
-          '⚠️ nombreMaquina no encontrado para sesión',
-          dto.sesionTrabajo,
-        );
-    }
-
+    // Guardar la relación
     const saved = await this.repo.save(entity);
 
-    const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
-    const ordenRepo = this.repo.manager.getRepository(OrdenProduccion);
-    const paso = await pasoRepo.findOne({
-      where: { id: dto.pasoOrden },
-      relations: ['orden'],
+    // Cambiar el estado de la sesión a PRODUCCION y guardar
+    const estadoSesionRepo = this.repo.manager.getRepository(EstadoSesion);
+    const estadoSesion = estadoSesionRepo.create({
+      sesionTrabajo: sesion,
+      estado: TipoEstadoSesion.PRODUCCION,
+      inicio: new Date(),
     });
-    if (paso && paso.estado === EstadoPasoOrden.PENDIENTE) {
-      paso.estado = EstadoPasoOrden.ACTIVO;
-      await pasoRepo.save(paso);
-      const orden = await ordenRepo.findOne({ where: { id: paso.orden.id } });
-      if (orden && orden.estado === EstadoOrdenProduccion.PENDIENTE) {
-        orden.estado = EstadoOrdenProduccion.ACTIVA;
-        await ordenRepo.save(orden);
-      }
-    }
+    await estadoSesionRepo.save(estadoSesion);
+    await this.pasoProduccionService.actualizarEstadoPorSesion(dto.sesionTrabajo);
 
     return saved;
   }
@@ -101,6 +97,7 @@ export class SesionTrabajoPasoService {
     return this.mapEstado(entity);
   }
 
+  // deuvleve un dto que es igual a la entidad de la relacion mas el estado calculado desde la sesion.
   private async mapEstado(
     entity: SesionTrabajoPaso,
   ): Promise<SesionTrabajoPasoDto> {
@@ -144,29 +141,21 @@ export class SesionTrabajoPasoService {
   async update(id: string, dto: UpdateSesionTrabajoPasoDto) {
     const entity = await this.repo.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Relación no encontrada');
-    if (dto.sesionTrabajo) {
-      const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
-      const sesion = await sesionRepo.findOne({
-        where: { id: dto.sesionTrabajo },
-        relations: ['trabajador', 'maquina'],
-      });
-      if (sesion) {
-        entity.sesionTrabajo = sesion;
-        entity.nombreTrabajador = sesion.trabajador?.nombre || 'Desconocido';
-        entity.nombreMaquina = sesion.maquina?.nombre || 'Desconocido';
-      } else {
-        entity.sesionTrabajo = { id: dto.sesionTrabajo } as any;
-        entity.nombreTrabajador = 'Desconocido';
-        entity.nombreMaquina = 'Desconocido';
+    if (dto.cantidadAsignada !== undefined) {
+      if (dto.cantidadAsignada >= entity.cantidadPedaleos) {
+        entity.cantidadAsignada = dto.cantidadAsignada;
       }
     }
-    if (dto.pasoOrden) entity.pasoOrden = { id: dto.pasoOrden } as any;
-    if (dto.cantidadAsignada !== undefined)
-      entity.cantidadAsignada = dto.cantidadAsignada;
-    if (dto.cantidadProducida !== undefined)
-      entity.cantidadProducida = dto.cantidadProducida;
-    if (dto.cantidadPedaleos !== undefined)
-      entity.cantidadPedaleos = dto.cantidadPedaleos;
+    if (dto.cantidadProducida !== undefined) {
+      if (dto.cantidadProducida > entity.cantidadProducida) {
+        entity.cantidadProducida = dto.cantidadProducida;
+      }
+    }
+    if (dto.cantidadPedaleos !== undefined) {
+      if (dto.cantidadPedaleos > entity.cantidadPedaleos) {
+        entity.cantidadPedaleos = dto.cantidadPedaleos;
+      }
+    }
     return this.repo.save(entity);
   }
 

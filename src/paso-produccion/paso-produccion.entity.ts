@@ -5,6 +5,8 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
+  In,
 } from 'typeorm';
 import { OrdenProduccion } from '../orden-produccion/entity';
 
@@ -23,6 +25,7 @@ export class PasoProduccion {
   @Column()
   nombre: string;
 
+  @Index()
   @ManyToOne(() => OrdenProduccion, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'ordenId' })
   orden: OrdenProduccion;
@@ -42,6 +45,7 @@ export class PasoProduccion {
   @Column({ type: 'timestamptz', nullable: true })
   fechaMetaAlcanzada: Date | null;
 
+  @Index()
   @Column({ type: 'enum', enum: EstadoPasoOrden, default: EstadoPasoOrden.PENDIENTE })
   estado: EstadoPasoOrden;
 

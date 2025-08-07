@@ -10,12 +10,4 @@ export class CreateSesionTrabajoPasoDto {
   @IsNumber()
   cantidadAsignada: number;
 
-  @IsOptional()
-  @IsNumber()
-  cantidadProducida?: number;
-
-  @IsOptional()
-  @IsNumber()
-  cantidadPedaleos?: number;
-
 }

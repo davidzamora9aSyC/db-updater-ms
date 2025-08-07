@@ -5,7 +5,5 @@ export interface SesionTrabajoPasoDto {
   cantidadAsignada: number;
   cantidadProducida: number;
   cantidadPedaleos: number;
-  nombreTrabajador: string;
-  nombreMaquina: string;
   estado: string;
 }
