@@ -17,4 +17,10 @@ export class PausaPasoSesion extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   fin: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  maquinaId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  trabajadorId: string | null;
 }

@@ -10,6 +10,8 @@ import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity'
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
+import { PausaPasoSesionService } from '../pausa-paso-sesion/pausa-paso-sesion.service';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Injectable()
 export class EstadoMaquinaService {
@@ -22,6 +24,7 @@ export class EstadoMaquinaService {
     private readonly estadoTrabajadorRepo: Repository<EstadoTrabajador>,
     private readonly estadoSesionService: EstadoSesionService,
     private readonly pasoProduccionService: PasoProduccionService,
+    private readonly pausaPasoSesionService: PausaPasoSesionService,
   ) {}
 
   async create(dto: CreateEstadoMaquinaDto) {
@@ -45,6 +48,10 @@ export class EstadoMaquinaService {
       fin: null,
     });
     const nuevo = await this.repo.save(entity);
+
+    if (dto.mantenimiento) {
+      await this.pausarPasoSesion(dto.maquina, inicio);
+    }
 
     await this.actualizarSesionOtro(dto.maquina, inicio);
 
@@ -77,6 +84,7 @@ export class EstadoMaquinaService {
     const actualizado = await this.repo.save(estado);
 
     if (dto.fin) {
+      await this.restaurarPausasPasoSesion(estado.maquina.id, estado.fin);
       await this.restaurarSesionProduccion(estado.maquina.id, estado.fin);
     }
 
@@ -96,6 +104,26 @@ export class EstadoMaquinaService {
       relations: ['maquina'],
       order: { inicio: 'DESC' },
     });
+  }
+
+  private async pausarPasoSesion(maquinaId: string, fecha: Date) {
+    const sesion = await this.sesionRepo.findOne({
+      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
+    });
+    if (!sesion) return;
+
+    const stpRepo = this.repo.manager.getRepository(SesionTrabajoPaso);
+    const pasos = await stpRepo.find({
+      where: { sesionTrabajo: { id: sesion.id } },
+    });
+
+    for (const paso of pasos) {
+      const pausaActiva = await this.pausaPasoSesionService.findActive(paso.id);
+      if (!pausaActiva) {
+        await this.pausaPasoSesionService.create(paso.id, fecha, maquinaId);
+        break;
+      }
+    }
   }
 
   private async actualizarSesionOtro(maquinaId: string, fecha: Date) {
@@ -142,5 +170,22 @@ export class EstadoMaquinaService {
       inicio: fin,
     });
     await this.pasoProduccionService.actualizarEstadoPorSesion(sesion.id);
+  }
+
+  private async restaurarPausasPasoSesion(
+    maquinaId: string,
+    fin: Date | null,
+  ) {
+    const sesion = await this.sesionRepo.findOne({
+      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
+    });
+    if (!sesion || !fin) return;
+    const stpRepo = this.repo.manager.getRepository(SesionTrabajoPaso);
+    const pasos = await stpRepo.find({
+      where: { sesionTrabajo: { id: sesion.id } },
+    });
+    for (const paso of pasos) {
+      await this.pausaPasoSesionService.closeActive(paso.id, fin, maquinaId);
+    }
   }
 }

@@ -12,11 +12,18 @@ export class PausaPasoSesionService {
     private readonly pasoProduccionService: PasoProduccionService,
   ) {}
 
-  async create(pasoSesionId: string, inicio: Date = new Date()) {
+  async create(
+    pasoSesionId: string,
+    inicio: Date = new Date(),
+    maquinaId?: string,
+    trabajadorId?: string,
+  ) {
     const entity = this.repo.create({
       pasoSesion: { id: pasoSesionId } as any,
       inicio,
       fin: null,
+      maquinaId: maquinaId ?? null,
+      trabajadorId: trabajadorId ?? null,
     });
     const saved = await this.repo.save(entity);
     await this.pasoProduccionService.verificarSesiones(pasoSesionId);
@@ -30,9 +37,20 @@ export class PausaPasoSesionService {
     });
   }
 
-  async closeActive(pasoSesionId: string, fin: Date = new Date()) {
+  async closeActive(
+    pasoSesionId: string,
+    fin: Date = new Date(),
+    maquinaId?: string,
+    trabajadorId?: string,
+  ) {
     const active = await this.findActive(pasoSesionId);
     if (!active) return null;
+    if (
+      (maquinaId && active.maquinaId !== maquinaId) ||
+      (trabajadorId && active.trabajadorId !== trabajadorId)
+    ) {
+      return null;
+    }
     active.fin = fin;
     const saved = await this.repo.save(active);
     await this.pasoProduccionService.verificarSesiones(pasoSesionId);
