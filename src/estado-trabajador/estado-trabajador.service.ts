@@ -10,6 +10,8 @@ import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { PasoProduccionService } from 'paso-produccion/paso-produccion.service';
+import { PausaPasoSesionService } from '../pausa-paso-sesion/pausa-paso-sesion.service';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Injectable()
 export class EstadoTrabajadorService {
@@ -22,6 +24,7 @@ export class EstadoTrabajadorService {
     private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
     private readonly estadoSesionService: EstadoSesionService,
     private readonly pasoProduccionService: PasoProduccionService,
+    private readonly pausaPasoSesionService: PausaPasoSesionService,
   ) {}
 
   async create(dto: CreateEstadoTrabajadorDto) {
@@ -45,6 +48,10 @@ export class EstadoTrabajadorService {
       fin: null,
     });
     const nuevo = await this.repo.save(entity);
+
+    if (dto.descanso) {
+      await this.pausarPasoSesion(dto.trabajador, inicio);
+    }
 
     await this.actualizarSesionOtro(dto.trabajador, inicio);
 
@@ -99,6 +106,26 @@ export class EstadoTrabajadorService {
       relations: ['trabajador'],
       order: { inicio: 'DESC' },
     });
+  }
+
+  private async pausarPasoSesion(trabajadorId: string, fecha: Date) {
+    const sesiones = await this.sesionRepo.find({
+      where: { trabajador: { id: trabajadorId }, fechaFin: IsNull() },
+    });
+    const stpRepo = this.repo.manager.getRepository(SesionTrabajoPaso);
+
+    for (const sesion of sesiones) {
+      const pasos = await stpRepo.find({
+        where: { sesionTrabajo: { id: sesion.id } },
+      });
+      for (const paso of pasos) {
+        const pausaActiva = await this.pausaPasoSesionService.findActive(paso.id);
+        if (!pausaActiva) {
+          await this.pausaPasoSesionService.create(paso.id, fecha);
+          break;
+        }
+      }
+    }
   }
 
   private async actualizarSesionOtro(trabajadorId: string, fecha: Date) {
