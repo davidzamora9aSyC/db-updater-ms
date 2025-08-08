@@ -84,6 +84,7 @@ export class EstadoMaquinaService {
     const actualizado = await this.repo.save(estado);
 
     if (dto.fin) {
+      await this.restaurarPausasPasoSesion(estado.maquina.id, estado.fin);
       await this.restaurarSesionProduccion(estado.maquina.id, estado.fin);
     }
 
@@ -119,7 +120,9 @@ export class EstadoMaquinaService {
     for (const paso of pasos) {
       const pausaActiva = await this.pausaPasoSesionService.findActive(paso.id);
       if (!pausaActiva) {
-        await this.pausaPasoSesionService.create(paso.id, fecha);
+
+        await this.pausaPasoSesionService.create(paso.id, fecha, maquinaId);
+
         break;
       }
     }
@@ -169,5 +172,22 @@ export class EstadoMaquinaService {
       inicio: fin,
     });
     await this.pasoProduccionService.actualizarEstadoPorSesion(sesion.id);
+  }
+
+  private async restaurarPausasPasoSesion(
+    maquinaId: string,
+    fin: Date | null,
+  ) {
+    const sesion = await this.sesionRepo.findOne({
+      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
+    });
+    if (!sesion || !fin) return;
+    const stpRepo = this.repo.manager.getRepository(SesionTrabajoPaso);
+    const pasos = await stpRepo.find({
+      where: { sesionTrabajo: { id: sesion.id } },
+    });
+    for (const paso of pasos) {
+      await this.pausaPasoSesionService.closeActive(paso.id, fin, maquinaId);
+    }
   }
 }
