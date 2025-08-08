@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, Put, Delete } from '@nestjs/common'
+import { Controller, Get, Param, Post, Body, Put, Delete, Patch } from '@nestjs/common'
 import { PasoProduccionService } from './paso-produccion.service'
 import { CreatePasoProduccionDto } from './dto/create-paso-produccion.dto'
 import { UpdatePasoProduccionDto } from './dto/update-paso-produccion.dto'
@@ -30,6 +30,11 @@ export class PasoProduccionController {
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: UpdatePasoProduccionDto) {
     return this.pasoService.update(id, dto)
+  }
+
+  @Patch(':id/finalizar')
+  finalizar(@Param('id') id: string) {
+    return this.pasoService.finalizar(id);
   }
 
   @Delete(':id')

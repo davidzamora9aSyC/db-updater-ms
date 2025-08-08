@@ -16,6 +16,7 @@ import {
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
 import { DateTime } from 'luxon';
+import { SesionTrabajoService } from '../sesion-trabajo/sesion-trabajo.service';
 
 @Injectable()
 export class RegistroMinutoService {
@@ -32,6 +33,7 @@ export class RegistroMinutoService {
     private readonly sesionRepo: Repository<SesionTrabajo>,
     @InjectRepository(PasoProduccion)
     private readonly pasoRepo: Repository<PasoProduccion>,
+    private readonly sesionService: SesionTrabajoService,
   ) {}
 
   async acumular(
@@ -40,9 +42,7 @@ export class RegistroMinutoService {
     tipo: 'pedal' | 'pieza',
     minutoInicio: string,
   ) {
-    const sesion = await this.sesionRepo.findOne({
-      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
-    });
+    const sesion = await this.sesionService.findEnProduccionPorMaquina(maquinaId);
 
     if (!sesion) return;
 

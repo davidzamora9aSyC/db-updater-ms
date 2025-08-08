@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Column, BaseEnti
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Entity('pausa_paso_sesion')
+@Index('uq_pausa_abierta_por_paso', ['pasoSesion'], { unique: true, where: 'fin IS NULL' })
 export class PausaPasoSesion extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

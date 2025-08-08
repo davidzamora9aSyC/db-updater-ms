@@ -49,6 +49,17 @@ export class PasoProduccionService {
     return saved;
   }
 
+  async finalizar(id: string) {
+    const paso = await this.repo.findOne({ where: { id }, relations: ['orden'] });
+    if (!paso) throw new NotFoundException('Paso no encontrado');
+    if (paso.estado !== EstadoPasoOrden.FINALIZADO) {
+      paso.estado = EstadoPasoOrden.FINALIZADO;
+      await this.repo.save(paso);
+      await this.actualizarEstadoOrden(paso.orden.id);
+    }
+    return paso;
+  }
+
   async remove(id: string) {
     const paso = await this.repo.findOne({ where: { id } });
     if (!paso) throw new NotFoundException('Paso no encontrado');
@@ -92,6 +103,15 @@ export class PasoProduccionService {
       where: { pasoOrden: { id: pasoId } },
       relations: ['sesionTrabajo'],
     })
+
+    if (relaciones.length === 0) {
+      if (paso.estado !== EstadoPasoOrden.PENDIENTE) {
+        paso.estado = EstadoPasoOrden.PENDIENTE;
+        await this.repo.save(paso);
+        await this.actualizarEstadoOrden(paso.orden.id);
+      }
+      return;
+    }
 
     const relacionesIds = relaciones.map(r => r.id);
     const relacionesPausadas = await pausaRepo.find({

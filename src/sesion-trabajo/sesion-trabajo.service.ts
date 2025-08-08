@@ -90,6 +90,31 @@ export class SesionTrabajoService {
     return sesion;
   }
 
+  async findByMaquina(maquinaId: string) {
+    const sesion = await this.repo.findOne({
+      where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
+      relations: ['trabajador', 'maquina'],
+    });
+    if (!sesion) throw new NotFoundException('Sesión no encontrada para la máquina');
+    return sesion;
+  }
+
+  async findEnProduccionPorMaquina(maquinaId: string) {
+    const estado = await this.estadoSesionRepo
+      .createQueryBuilder('e')
+      .leftJoinAndSelect('e.sesionTrabajo', 's')
+      .leftJoinAndSelect('s.trabajador', 't')
+      .leftJoinAndSelect('s.maquina', 'm')
+      .where('m.id = :maquinaId', { maquinaId })
+      .andWhere('e.estado = :estado', { estado: TipoEstadoSesion.PRODUCCION })
+      .andWhere('e.fin IS NULL')
+      .andWhere('s.fechaFin IS NULL')
+      .getOne();
+
+    if (!estado) throw new NotFoundException('Sesión en producción no encontrada para la máquina');
+    return estado.sesionTrabajo;
+  }
+
   async update(id: string, dto: UpdateSesionTrabajoDto) {
     const sesion = await this.repo.findOne({ where: { id } });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
