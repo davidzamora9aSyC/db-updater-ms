@@ -122,12 +122,14 @@ export class EstadoTrabajadorService {
       for (const paso of pasos) {
         const pausaActiva = await this.pausaPasoSesionService.findActive(paso.id);
         if (!pausaActiva) {
+
           await this.pausaPasoSesionService.create(
             paso.id,
             fecha,
             undefined,
             trabajadorId,
           );
+
           break;
         }
       }
