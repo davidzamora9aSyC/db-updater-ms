@@ -6,11 +6,19 @@ import { EstadoMaquinaController } from './estado-maquina.controller';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoSesionModule } from '../estado-sesion/estado-sesion.module';
+import { PausaPasoSesionModule } from '../pausa-paso-sesion/pausa-paso-sesion.module';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EstadoMaquina, SesionTrabajo, EstadoTrabajador]),
+    TypeOrmModule.forFeature([
+      EstadoMaquina,
+      SesionTrabajo,
+      EstadoTrabajador,
+      SesionTrabajoPaso,
+    ]),
     EstadoSesionModule,
+    PausaPasoSesionModule,
   ],
   controllers: [EstadoMaquinaController],
   providers: [EstadoMaquinaService],
