@@ -5,6 +5,7 @@ import { EstadoSesionService } from './estado-sesion.service';
 import { EstadoSesion } from './estado-sesion.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { BadRequestException } from '@nestjs/common';
+import { PasoProduccionService } from '../paso-produccion/paso-produccion.service';
 
 describe('EstadoSesionService', () => {
   let service: EstadoSesionService;
@@ -16,6 +17,7 @@ describe('EstadoSesionService', () => {
       providers: [
         EstadoSesionService,
         { provide: getRepositoryToken(EstadoSesion), useClass: Repository },
+        { provide: PasoProduccionService, useValue: { actualizarEstadoPorSesion: jest.fn() } },
       ],
     }).compile();
 
