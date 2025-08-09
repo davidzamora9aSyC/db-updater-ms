@@ -116,10 +116,25 @@ export class SesionTrabajoService {
   }
 
   async update(id: string, dto: UpdateSesionTrabajoDto) {
-    const sesion = await this.repo.findOne({ where: { id } });
+    const sesion = await this.repo.findOne({
+      where: { id },
+      relations: ['trabajador'],
+    });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    if (dto.fechaFin === true)
+    if (dto.fechaFin === true) {
+      const descansoActivo = await this.estadoTrabajadorRepo.findOne({
+        where: {
+          trabajador: { id: sesion.trabajador.id },
+          fin: IsNull(),
+          descanso: true,
+        },
+      });
+      if (descansoActivo)
+        throw new BadRequestException(
+          'No se puede finalizar la sesión mientras el trabajador está en descanso. Termina el descanso antes de finalizar.',
+        );
       sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
+    }
 
     if (dto.cantidadProducida !== undefined)
       sesion.cantidadProducida = dto.cantidadProducida;
@@ -130,8 +145,22 @@ export class SesionTrabajoService {
   }
 
   async finalizar(id: string) {
-    const sesion = await this.repo.findOne({ where: { id } });
+    const sesion = await this.repo.findOne({
+      where: { id },
+      relations: ['trabajador'],
+    });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    const descansoActivo = await this.estadoTrabajadorRepo.findOne({
+      where: {
+        trabajador: { id: sesion.trabajador.id },
+        fin: IsNull(),
+        descanso: true,
+      },
+    });
+    if (descansoActivo)
+      throw new BadRequestException(
+        'No se puede finalizar la sesión mientras el trabajador está en descanso. Termina el descanso antes de finalizar.',
+      );
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
     return sesion;
