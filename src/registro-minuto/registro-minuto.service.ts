@@ -16,7 +16,7 @@ import {
 import { CreateRegistroMinutoDto } from './dto/create-registro-minuto.dto';
 import { Mutex } from 'async-mutex';
 import { DateTime } from 'luxon';
-import { SesionTrabajoService } from '../sesion-trabajo/sesion-trabajo.service';
+import { TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
 
 @Injectable()
 export class RegistroMinutoService {
@@ -33,8 +33,22 @@ export class RegistroMinutoService {
     private readonly sesionRepo: Repository<SesionTrabajo>,
     @InjectRepository(PasoProduccion)
     private readonly pasoRepo: Repository<PasoProduccion>,
-    private readonly sesionService: SesionTrabajoService,
   ) {}
+
+  private async findSesionEnProduccionPorMaquina(
+    maquinaId: string,
+  ): Promise<SesionTrabajo | null> {
+    const sesion = await this.sesionRepo
+      .createQueryBuilder('s')
+      .leftJoin('estado_sesion', 'e', 'e.sesionTrabajoId = s.id')
+      .leftJoin('s.maquina', 'm')
+      .where('m.id = :maquinaId', { maquinaId })
+      .andWhere('e.estado = :estado', { estado: TipoEstadoSesion.PRODUCCION })
+      .andWhere('e.fin IS NULL')
+      .andWhere('s.fechaFin IS NULL')
+      .getOne();
+    return sesion || null;
+  }
 
   async acumular(
     maquinaId: string,
@@ -42,7 +56,7 @@ export class RegistroMinutoService {
     tipo: 'pedal' | 'pieza',
     minutoInicio: string,
   ) {
-    const sesion = await this.sesionService.findEnProduccionPorMaquina(maquinaId);
+    const sesion = await this.findSesionEnProduccionPorMaquina(maquinaId);
 
     if (!sesion) return;
 
