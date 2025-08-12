@@ -13,6 +13,7 @@ export class ProduccionDiariaService {
   constructor(
     @InjectRepository(ProduccionDiaria)
     private readonly repo: Repository<ProduccionDiaria>,
+
     @InjectRepository(SesionTrabajo)
     private readonly sesionRepo: Repository<SesionTrabajo>,
     @InjectRepository(RegistroMinuto)
@@ -62,6 +63,7 @@ export class ProduccionDiariaService {
     sesion.agregadoEnProduccion = true;
     await this.sesionRepo.save(sesion);
   }
+
 
   async obtenerProduccionDiariaMesActual(areaId?: string) {
     const now = DateTime.now().setZone(this.zone);
@@ -119,6 +121,7 @@ export class ProduccionDiariaService {
         },
       ]),
     );
+
     const resultado: any[] = [];
     for (let d = inicio; d <= fin; d = d.plus({ days: 1 })) {
       const key = d.toISODate();
@@ -161,7 +164,9 @@ export class ProduccionDiariaService {
         },
       ]),
     );
+
     const resultado: any[] = [];
+
     for (
       let m = inicio.startOf('month');
       m <= fin.startOf('month');
