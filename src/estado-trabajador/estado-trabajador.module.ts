@@ -8,6 +8,7 @@ import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { EstadoSesionModule } from '../estado-sesion/estado-sesion.module';
 import { PausaPasoSesionModule } from '../pausa-paso-sesion/pausa-paso-sesion.module';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { PasoProduccionModule } from '../paso-produccion/paso-produccion.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.en
       EstadoMaquina,
       SesionTrabajoPaso,
     ]),
+    PasoProduccionModule,
     EstadoSesionModule,
     PausaPasoSesionModule,
   ],
