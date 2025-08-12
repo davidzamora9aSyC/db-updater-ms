@@ -28,6 +28,12 @@ export class SesionTrabajoService {
     private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
   ) {}
 
+  private toBogotaDate(input?: string | Date | null) {
+    if (!input) return DateTime.now().setZone('America/Bogota').toJSDate();
+    if (typeof input === 'string') return DateTime.fromISO(input, { zone: 'America/Bogota' }).toJSDate();
+    return DateTime.fromJSDate(input, { zone: 'America/Bogota' }).toJSDate();
+  }
+
   private async mapSesionConEstado(sesion: SesionTrabajo) {
     const estadoSesionActivo = await this.estadoSesionRepo.findOne({
       where: { sesionTrabajo: { id: sesion.id }, fin: IsNull() },
@@ -66,7 +72,7 @@ export class SesionTrabajoService {
     const sesion = this.repo.create({
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
-      fechaInicio: DateTime.now().setZone('America/Bogota').toJSDate(),
+      fechaInicio: this.toBogotaDate((dto as any).fechaInicio),
       fechaFin: undefined,
       cantidadProducida:  0,
       cantidadPedaleos:  0,
@@ -140,6 +146,13 @@ export class SesionTrabajoService {
       sesion.cantidadProducida = dto.cantidadProducida;
     if (dto.cantidadPedaleos !== undefined)
       sesion.cantidadPedaleos = dto.cantidadPedaleos;
+
+    if ((dto as any).fechaInicio && typeof (dto as any).fechaInicio === 'string') {
+      sesion.fechaInicio = this.toBogotaDate((dto as any).fechaInicio as string);
+    }
+    if (typeof (dto as any).fechaFin === 'string') {
+      sesion.fechaFin = this.toBogotaDate((dto as any).fechaFin as string);
+    }
 
     return this.repo.save(sesion);
   }
