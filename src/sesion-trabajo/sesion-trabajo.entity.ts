@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  BaseEntity,
+} from 'typeorm';
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { Maquina } from '../maquina/maquina.entity';
 
@@ -26,4 +33,7 @@ export class SesionTrabajo extends BaseEntity {
 
   @Column('int', { default: 0 })
   cantidadPedaleos: number;
+
+  @Column({ default: false })
+  agregadoEnProduccion: boolean;
 }

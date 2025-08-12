@@ -20,6 +20,8 @@ import { MaterialOrdenModule } from './material-orden/material-orden.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { TimezoneModule } from './common/timezone.module';
 import { TimezoneInterceptor } from './common/timezone.interceptor';
+import { AreaModule } from './area/area.module';
+import { ProduccionDiariaModule } from './produccion-diaria/produccion-diaria.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -73,6 +75,9 @@ import * as path from 'path';
     EmpresaModule,
 
     MaterialOrdenModule,
+
+    AreaModule,
+    ProduccionDiariaModule,
 
     AuthModule,
   ],

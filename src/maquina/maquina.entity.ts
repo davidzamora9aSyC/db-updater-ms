@@ -2,10 +2,20 @@ export enum TipoMaquina {
   TROQUELADORA = 'troqueladora',
   TALADRO = 'taladro',
   HORNO = 'horno',
-  VULCANIZADORA = 'vulcanizadora'
+  VULCANIZADORA = 'vulcanizadora',
 }
 
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
+import { Area } from '../area/area.entity';
 
 @Entity()
 export class Maquina {
@@ -29,6 +39,11 @@ export class Maquina {
 
   @Column({ length: 255, nullable: true })
   observaciones: string;
+
+  @ManyToOne(() => Area, { nullable: false })
+  @JoinColumn({ name: 'areaId' })
+  @Index()
+  area: Area;
 
   @CreateDateColumn()
   createdAt: Date;

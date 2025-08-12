@@ -9,6 +9,7 @@ import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
+import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
 
 describe('SesionTrabajoService', () => {
   let service: SesionTrabajoService;
@@ -24,6 +25,10 @@ describe('SesionTrabajoService', () => {
         { provide: RegistroMinutoService, useValue: {} },
         { provide: EstadoSesionService, useValue: {} },
         { provide: ConfiguracionService, useValue: {} },
+        {
+          provide: ProduccionDiariaService,
+          useValue: { actualizarProduccionPorSesionCerrada: jest.fn() },
+        },
       ],
     }).compile();
 

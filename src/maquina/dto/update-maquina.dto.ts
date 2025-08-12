@@ -1,4 +1,4 @@
-import { IsString, Length, IsISO8601, IsEnum, IsOptional } from 'class-validator'
+import { IsString, Length, IsISO8601, IsEnum, IsOptional, IsUUID } from 'class-validator'
 import { TipoMaquina } from './create-maquina.dto'
 
 export class UpdateMaquinaDto {
@@ -25,4 +25,8 @@ export class UpdateMaquinaDto {
   @IsString()
   @Length(0, 255)
   observaciones?: string
+
+  @IsOptional()
+  @IsUUID()
+  areaId?: string
 }

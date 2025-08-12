@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { SesionTrabajo } from './sesion-trabajo.entity';
@@ -7,10 +11,14 @@ import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
+import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
 import { DateTime } from 'luxon';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
-import { EstadoSesion, TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
+import {
+  EstadoSesion,
+  TipoEstadoSesion,
+} from '../estado-sesion/estado-sesion.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -20,6 +28,7 @@ export class SesionTrabajoService {
     private readonly registroMinutoService: RegistroMinutoService,
     private readonly estadoSesionService: EstadoSesionService,
     private readonly configService: ConfiguracionService,
+    private readonly produccionDiariaService: ProduccionDiariaService,
     @InjectRepository(EstadoSesion)
     private readonly estadoSesionRepo: Repository<EstadoSesion>,
     @InjectRepository(EstadoTrabajador)
@@ -30,14 +39,17 @@ export class SesionTrabajoService {
 
   private toBogotaDate(input?: string | Date | null) {
     if (!input) return DateTime.now().setZone('America/Bogota').toJSDate();
-    if (typeof input === 'string') return DateTime.fromISO(input, { zone: 'America/Bogota' }).toJSDate();
+    if (typeof input === 'string')
+      return DateTime.fromISO(input, { zone: 'America/Bogota' }).toJSDate();
     return DateTime.fromJSDate(input, { zone: 'America/Bogota' }).toJSDate();
   }
   private toBogotaISO(d?: Date | null) {
     if (!d) return null;
     return DateTime.fromJSDate(d, { zone: 'America/Bogota' }).toISO();
   }
-  private formatSesionForResponse<T extends { fechaInicio?: Date | null; fechaFin?: Date | null }>(s: T): T & { fechaInicio?: string | null; fechaFin?: string | null } {
+  private formatSesionForResponse<
+    T extends { fechaInicio?: Date | null; fechaFin?: Date | null },
+  >(s: T): T & { fechaInicio?: string | null; fechaFin?: string | null } {
     return {
       ...s,
       fechaInicio: this.toBogotaISO(s.fechaInicio as any),
@@ -70,7 +82,6 @@ export class SesionTrabajoService {
   }
 
   async create(dto: CreateSesionTrabajoDto) {
-
     const sesionMaquinaActiva = await this.repo.findOne({
       where: {
         maquina: { id: dto.maquina },
@@ -85,8 +96,8 @@ export class SesionTrabajoService {
       maquina: { id: dto.maquina } as any,
       fechaInicio: this.toBogotaDate((dto as any).fechaInicio),
       fechaFin: undefined,
-      cantidadProducida:  0,
-      cantidadPedaleos:  0,
+      cantidadProducida: 0,
+      cantidadPedaleos: 0,
     });
     const saved = await this.repo.save(sesion);
     return this.formatSesionForResponse(saved);
@@ -96,7 +107,7 @@ export class SesionTrabajoService {
     const sesiones = await this.repo.find({
       relations: ['trabajador', 'maquina'],
     });
-    return sesiones.map(s => this.formatSesionForResponse(s));
+    return sesiones.map((s) => this.formatSesionForResponse(s));
   }
 
   async findOne(id: string) {
@@ -113,7 +124,8 @@ export class SesionTrabajoService {
       where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
       relations: ['trabajador', 'maquina'],
     });
-    if (!sesion) throw new NotFoundException('Sesión no encontrada para la máquina');
+    if (!sesion)
+      throw new NotFoundException('Sesión no encontrada para la máquina');
     return this.formatSesionForResponse(sesion);
   }
 
@@ -129,7 +141,10 @@ export class SesionTrabajoService {
       .andWhere('s.fechaFin IS NULL')
       .getOne();
 
-    if (!estado) throw new NotFoundException('Sesión en producción no encontrada para la máquina');
+    if (!estado)
+      throw new NotFoundException(
+        'Sesión en producción no encontrada para la máquina',
+      );
     return this.formatSesionForResponse(estado.sesionTrabajo);
   }
 
@@ -139,6 +154,7 @@ export class SesionTrabajoService {
       relations: ['trabajador'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    const estabaAbierta = !sesion.fechaFin;
     if (dto.fechaFin === true) {
       const descansoActivo = await this.estadoTrabajadorRepo.findOne({
         where: {
@@ -159,14 +175,24 @@ export class SesionTrabajoService {
     if (dto.cantidadPedaleos !== undefined)
       sesion.cantidadPedaleos = dto.cantidadPedaleos;
 
-    if ((dto as any).fechaInicio && typeof (dto as any).fechaInicio === 'string') {
-      sesion.fechaInicio = this.toBogotaDate((dto as any).fechaInicio as string);
+    if (
+      (dto as any).fechaInicio &&
+      typeof (dto as any).fechaInicio === 'string'
+    ) {
+      sesion.fechaInicio = this.toBogotaDate(
+        (dto as any).fechaInicio as string,
+      );
     }
     if (typeof (dto as any).fechaFin === 'string') {
       sesion.fechaFin = this.toBogotaDate((dto as any).fechaFin as string);
     }
 
     const saved = await this.repo.save(sesion);
+    if (estabaAbierta && saved.fechaFin) {
+      await this.produccionDiariaService.actualizarProduccionPorSesionCerrada(
+        saved.id,
+      );
+    }
     return this.formatSesionForResponse(saved);
   }
 
@@ -176,6 +202,7 @@ export class SesionTrabajoService {
       relations: ['trabajador'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    const estabaAbierta = !sesion.fechaFin;
     const descansoActivo = await this.estadoTrabajadorRepo.findOne({
       where: {
         trabajador: { id: sesion.trabajador.id },
@@ -189,9 +216,13 @@ export class SesionTrabajoService {
       );
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
+    if (estabaAbierta) {
+      await this.produccionDiariaService.actualizarProduccionPorSesionCerrada(
+        sesion.id,
+      );
+    }
     return this.formatSesionForResponse(sesion);
   }
-
 
   async remove(id: string) {
     const sesion = await this.repo.findOne({ where: { id } });
@@ -207,7 +238,7 @@ export class SesionTrabajoService {
     });
 
     const minutosInactividadParaNPT =
-      await this.configService.getMinInactividad(); 
+      await this.configService.getMinInactividad();
     const resultado: any[] = [];
 
     for (const sesion of sesiones) {
@@ -226,13 +257,22 @@ export class SesionTrabajoService {
       let nptPorInactividad = 0;
       const ordenados = [...registros].sort(
         (a, b) =>
-          DateTime.fromJSDate(a.minutoInicio, { zone: 'America/Bogota' }).toMillis() -
-          DateTime.fromJSDate(b.minutoInicio, { zone: 'America/Bogota' }).toMillis(),
+          DateTime.fromJSDate(a.minutoInicio, {
+            zone: 'America/Bogota',
+          }).toMillis() -
+          DateTime.fromJSDate(b.minutoInicio, {
+            zone: 'America/Bogota',
+          }).toMillis(),
       );
       for (let i = 1; i < ordenados.length; i++) {
-        const diff =
-          DateTime.fromJSDate(ordenados[i].minutoInicio, { zone: 'America/Bogota' })
-            .diff(DateTime.fromJSDate(ordenados[i - 1].minutoInicio, { zone: 'America/Bogota' }), 'minutes').minutes;
+        const diff = DateTime.fromJSDate(ordenados[i].minutoInicio, {
+          zone: 'America/Bogota',
+        }).diff(
+          DateTime.fromJSDate(ordenados[i - 1].minutoInicio, {
+            zone: 'America/Bogota',
+          }),
+          'minutes',
+        ).minutes;
         if (diff > minutosInactividadParaNPT)
           nptPorInactividad += diff - minutosInactividadParaNPT;
       }
@@ -240,18 +280,28 @@ export class SesionTrabajoService {
       const tieneRegistros = registrosOrdenados.length > 0;
       const start = tieneRegistros
         ? Math.max(
-            DateTime.fromJSDate(sesion.fechaInicio, { zone: 'America/Bogota' }).toMillis(),
-            DateTime.fromJSDate(registrosOrdenados[0].minutoInicio, { zone: 'America/Bogota' }).toMillis(),
+            DateTime.fromJSDate(sesion.fechaInicio, {
+              zone: 'America/Bogota',
+            }).toMillis(),
+            DateTime.fromJSDate(registrosOrdenados[0].minutoInicio, {
+              zone: 'America/Bogota',
+            }).toMillis(),
           )
-        : DateTime.fromJSDate(sesion.fechaInicio, { zone: 'America/Bogota' }).toMillis();
+        : DateTime.fromJSDate(sesion.fechaInicio, {
+            zone: 'America/Bogota',
+          }).toMillis();
       const lastSlot = tieneRegistros
         ? DateTime.fromJSDate(
             registrosOrdenados[registrosOrdenados.length - 1].minutoInicio,
             { zone: 'America/Bogota' },
-          ).plus({ minutes: 1 }).toMillis()
+          )
+            .plus({ minutes: 1 })
+            .toMillis()
         : 0;
       const end = sesion.fechaFin
-        ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis()
+        ? DateTime.fromJSDate(sesion.fechaFin, {
+            zone: 'America/Bogota',
+          }).toMillis()
         : DateTime.now().setZone('America/Bogota').toMillis();
       const fin = Math.max(end, lastSlot || end);
       const totalMin = Math.max(Number.EPSILON, (fin - start) / 60000);
@@ -263,23 +313,34 @@ export class SesionTrabajoService {
       const corte = fin - ventanaMin * 60000;
       const regsVentana = registrosOrdenados.filter(
         (r) =>
-          DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toMillis() >= corte,
+          DateTime.fromJSDate(r.minutoInicio, {
+            zone: 'America/Bogota',
+          }).toMillis() >= corte,
       );
-      const piezasVentana = regsVentana.reduce((a, b) => a + b.piezasContadas, 0);
+      const piezasVentana = regsVentana.reduce(
+        (a, b) => a + b.piezasContadas,
+        0,
+      );
       const nptVentanaReg = regsVentana.filter(
         (r) => r.pedaleadas === 0 && r.piezasContadas === 0,
       ).length;
       let nptVentanaGap = 0;
       for (let i = 1; i < regsVentana.length; i++) {
-        const d =
-          DateTime.fromJSDate(regsVentana[i].minutoInicio, { zone: 'America/Bogota' })
-            .diff(
-              DateTime.fromJSDate(regsVentana[i - 1].minutoInicio, { zone: 'America/Bogota' }),
-              'minutes',
-            ).minutes;
-        if (d > minutosInactividadParaNPT) nptVentanaGap += d - minutosInactividadParaNPT;
+        const d = DateTime.fromJSDate(regsVentana[i].minutoInicio, {
+          zone: 'America/Bogota',
+        }).diff(
+          DateTime.fromJSDate(regsVentana[i - 1].minutoInicio, {
+            zone: 'America/Bogota',
+          }),
+          'minutes',
+        ).minutes;
+        if (d > minutosInactividadParaNPT)
+          nptVentanaGap += d - minutosInactividadParaNPT;
       }
-      const minVentana = Math.max(Number.EPSILON, (fin - Math.max(corte, start)) / 60000);
+      const minVentana = Math.max(
+        Number.EPSILON,
+        (fin - Math.max(corte, start)) / 60000,
+      );
       const minVentanaProd = Math.max(
         Number.EPSILON,
         minVentana - Math.min(nptVentanaReg + nptVentanaGap, minVentana),
@@ -306,7 +367,7 @@ export class SesionTrabajoService {
       });
     }
 
-    return resultado.map(r => this.formatSesionForResponse(r));
+    return resultado.map((r) => this.formatSesionForResponse(r));
   }
 
   async findActivas() {
@@ -314,7 +375,7 @@ export class SesionTrabajoService {
       where: { fechaFin: IsNull() },
       relations: ['trabajador', 'maquina'],
     });
-    return arr.map(s => this.formatSesionForResponse(s));
+    return arr.map((s) => this.formatSesionForResponse(s));
   }
 
   async findActivasResumen() {
@@ -327,7 +388,7 @@ export class SesionTrabajoService {
       .addSelect(['m.id', 'm.nombre'])
       .where('s.fechaFin IS NULL')
       .getMany();
-    return arr.map(s => this.formatSesionForResponse(s));
+    return arr.map((s) => this.formatSesionForResponse(s));
   }
 
   private async finalizarSesionesPrevias(trabajadorId: string) {

@@ -1,26 +1,35 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm'
-import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity'
-import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  BaseEntity,
+  Index,
+} from 'typeorm';
+import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Entity('registro_minuto')
+@Index(['sesionTrabajo', 'minutoInicio'])
 export class RegistroMinuto extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
-  id: string
+  id: string;
 
   @ManyToOne(() => SesionTrabajo, { nullable: false })
   @JoinColumn({ name: 'sesionTrabajoId' })
-  sesionTrabajo: SesionTrabajo
+  sesionTrabajo: SesionTrabajo;
 
   @ManyToOne(() => SesionTrabajoPaso, { nullable: false })
   @JoinColumn({ name: 'pasoSesionTrabajoId' })
-  pasoSesionTrabajo: SesionTrabajoPaso
+  pasoSesionTrabajo: SesionTrabajoPaso;
 
   @Column({ type: 'timestamp' })
-  minutoInicio: Date
+  minutoInicio: Date;
 
   @Column('int')
-  pedaleadas: number
+  pedaleadas: number;
 
   @Column('int')
-  piezasContadas: number
+  piezasContadas: number;
 }
