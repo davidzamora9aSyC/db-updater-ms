@@ -33,6 +33,17 @@ export class SesionTrabajoService {
     if (typeof input === 'string') return DateTime.fromISO(input, { zone: 'America/Bogota' }).toJSDate();
     return DateTime.fromJSDate(input, { zone: 'America/Bogota' }).toJSDate();
   }
+  private toBogotaISO(d?: Date | null) {
+    if (!d) return null;
+    return DateTime.fromJSDate(d, { zone: 'America/Bogota' }).toISO();
+  }
+  private formatSesionForResponse<T extends { fechaInicio?: Date | null; fechaFin?: Date | null }>(s: T): T & { fechaInicio?: string | null; fechaFin?: string | null } {
+    return {
+      ...s,
+      fechaInicio: this.toBogotaISO(s.fechaInicio as any),
+      fechaFin: this.toBogotaISO(s.fechaFin as any),
+    };
+  }
 
   private async mapSesionConEstado(sesion: SesionTrabajo) {
     const estadoSesionActivo = await this.estadoSesionRepo.findOne({
@@ -77,14 +88,15 @@ export class SesionTrabajoService {
       cantidadProducida:  0,
       cantidadPedaleos:  0,
     });
-    return this.repo.save(sesion);
+    const saved = await this.repo.save(sesion);
+    return this.formatSesionForResponse(saved);
   }
 
   async findAll() {
     const sesiones = await this.repo.find({
       relations: ['trabajador', 'maquina'],
     });
-    return sesiones;
+    return sesiones.map(s => this.formatSesionForResponse(s));
   }
 
   async findOne(id: string) {
@@ -93,7 +105,7 @@ export class SesionTrabajoService {
       relations: ['trabajador', 'maquina'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    return sesion;
+    return this.formatSesionForResponse(sesion);
   }
 
   async findByMaquina(maquinaId: string) {
@@ -102,7 +114,7 @@ export class SesionTrabajoService {
       relations: ['trabajador', 'maquina'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada para la máquina');
-    return sesion;
+    return this.formatSesionForResponse(sesion);
   }
 
   async findEnProduccionPorMaquina(maquinaId: string) {
@@ -118,7 +130,7 @@ export class SesionTrabajoService {
       .getOne();
 
     if (!estado) throw new NotFoundException('Sesión en producción no encontrada para la máquina');
-    return estado.sesionTrabajo;
+    return this.formatSesionForResponse(estado.sesionTrabajo);
   }
 
   async update(id: string, dto: UpdateSesionTrabajoDto) {
@@ -154,7 +166,8 @@ export class SesionTrabajoService {
       sesion.fechaFin = this.toBogotaDate((dto as any).fechaFin as string);
     }
 
-    return this.repo.save(sesion);
+    const saved = await this.repo.save(sesion);
+    return this.formatSesionForResponse(saved);
   }
 
   async finalizar(id: string) {
@@ -176,7 +189,7 @@ export class SesionTrabajoService {
       );
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
-    return sesion;
+    return this.formatSesionForResponse(sesion);
   }
 
 
@@ -293,18 +306,19 @@ export class SesionTrabajoService {
       });
     }
 
-    return resultado;
+    return resultado.map(r => this.formatSesionForResponse(r));
   }
 
   async findActivas() {
-    return this.repo.find({
+    const arr = await this.repo.find({
       where: { fechaFin: IsNull() },
       relations: ['trabajador', 'maquina'],
     });
+    return arr.map(s => this.formatSesionForResponse(s));
   }
 
   async findActivasResumen() {
-    return this.repo
+    const arr = await this.repo
       .createQueryBuilder('s')
       .leftJoin('s.trabajador', 't')
       .leftJoin('s.maquina', 'm')
@@ -313,6 +327,7 @@ export class SesionTrabajoService {
       .addSelect(['m.id', 'm.nombre'])
       .where('s.fechaFin IS NULL')
       .getMany();
+    return arr.map(s => this.formatSesionForResponse(s));
   }
 
   private async finalizarSesionesPrevias(trabajadorId: string) {
