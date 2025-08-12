@@ -4,6 +4,7 @@ import { UpdateMaquinaDto } from './dto/update-maquina.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Maquina } from './maquina.entity';
+import { Area } from '../area/area.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
@@ -24,12 +25,13 @@ export class MaquinaService {
     const existente = await this.repo.findOne({ where: { codigo: dto.codigo } });
     if (existente)
       throw new BadRequestException('No se puede repetir el codigo de equipo');
-    const nueva = this.repo.create(dto);
+    const { areaId, ...rest } = dto as any;
+    const nueva = this.repo.create({ ...rest, area: { id: areaId } as Area });
     return this.repo.save(nueva);
   }
 
   async findAll() {
-    const maquinas = await this.repo.find();
+    const maquinas = await this.repo.find({ relations: ['area'] });
     return Promise.all(
       maquinas.map(async (m) => ({
         ...m,
@@ -39,7 +41,7 @@ export class MaquinaService {
   }
 
   async findOne(id: string) {
-    const maquina = await this.repo.findOne({ where: { id } });
+    const maquina = await this.repo.findOne({ where: { id }, relations: ['area'] });
     if (!maquina) throw new NotFoundException('Máquina no encontrada');
     const estado = await this.getEstado(id);
     return { ...maquina, estado };
@@ -48,7 +50,9 @@ export class MaquinaService {
   async update(id: string, dto: UpdateMaquinaDto) {
     const maquina = await this.repo.findOne({ where: { id } });
     if (!maquina) throw new NotFoundException('Máquina no encontrada');
-    Object.assign(maquina, dto);
+    const { areaId, ...rest } = dto as any;
+    Object.assign(maquina, rest);
+    if (areaId) maquina.area = { id: areaId } as Area;
     return this.repo.save(maquina);
   }
 

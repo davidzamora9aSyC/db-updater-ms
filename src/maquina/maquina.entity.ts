@@ -5,7 +5,16 @@ export enum TipoMaquina {
   VULCANIZADORA = 'vulcanizadora'
 }
 
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { Area } from '../area/area.entity';
 
 @Entity()
 export class Maquina {
@@ -29,6 +38,10 @@ export class Maquina {
 
   @Column({ length: 255, nullable: true })
   observaciones: string;
+
+  @ManyToOne(() => Area, { nullable: false })
+  @JoinColumn({ name: 'areaId' })
+  area: Area;
 
   @CreateDateColumn()
   createdAt: Date;
