@@ -1,4 +1,4 @@
-import { IsString, Length, IsISO8601, IsEnum } from 'class-validator'
+import { IsString, Length, IsISO8601, IsEnum, IsUUID } from 'class-validator'
 
 export enum TipoMaquina {
   TROQUELADORA = 'troqueladora',
@@ -26,6 +26,9 @@ export class CreateMaquinaDto {
 
   @IsEnum(TipoMaquina)
   tipo: TipoMaquina
+
+  @IsUUID()
+  areaId: string
 
   @IsString()
   @Length(0, 255)
