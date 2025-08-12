@@ -2,7 +2,7 @@ export enum TipoMaquina {
   TROQUELADORA = 'troqueladora',
   TALADRO = 'taladro',
   HORNO = 'horno',
-  VULCANIZADORA = 'vulcanizadora'
+  VULCANIZADORA = 'vulcanizadora',
 }
 
 import {
@@ -13,6 +13,8 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
+
 } from 'typeorm';
 import { Area } from '../area/area.entity';
 
@@ -41,6 +43,7 @@ export class Maquina {
 
   @ManyToOne(() => Area, { nullable: false })
   @JoinColumn({ name: 'areaId' })
+  @Index()
   area: Area;
 
   @CreateDateColumn()

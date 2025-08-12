@@ -9,7 +9,8 @@ import {
 import { Area } from '../area/area.entity';
 
 @Entity('produccion_diaria')
-@Index(['fecha', 'areaId'])
+@Index(['fecha', 'areaId'], { unique: true })
+
 export class ProduccionDiaria {
   @PrimaryColumn({ type: 'date' })
   fecha: Date;
