@@ -66,7 +66,7 @@ export class SesionTrabajoPasoService {
     const entity = this.repo.create({
       sesionTrabajo: { id: dto.sesionTrabajo } as any,
       pasoOrden: { id: dto.pasoOrden } as any,
-      cantidadAsignada: dto.cantidadAsignada,
+      cantidadAsignada: dto.cantidadAsignada ?? paso.cantidadRequerida,
       cantidadProducida: 0,
       cantidadPedaleos: 0,
     });

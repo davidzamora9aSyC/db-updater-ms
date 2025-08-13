@@ -7,6 +7,7 @@ export class CreateSesionTrabajoPasoDto {
   @IsUUID()
   pasoOrden: string;
 
+  @IsOptional()
   @IsNumber()
   cantidadAsignada: number;
 
