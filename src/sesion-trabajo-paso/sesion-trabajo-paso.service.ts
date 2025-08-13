@@ -197,14 +197,24 @@ export class SesionTrabajoPasoService {
   findByPaso(pasoId: string) {
     return this.repo.find({
       where: { pasoOrden: { id: pasoId } },
-      relations: ['sesionTrabajo', 'pasoOrden'],
+      relations: [
+        'sesionTrabajo',
+        'sesionTrabajo.trabajador',
+        'sesionTrabajo.maquina',
+        'pasoOrden',
+      ],
     });
   }
 
   findBySesion(sesionId: string) {
     return this.repo.find({
       where: { sesionTrabajo: { id: sesionId } },
-      relations: ['sesionTrabajo', 'pasoOrden'],
+      relations: [
+        'sesionTrabajo',
+        'sesionTrabajo.trabajador',
+        'sesionTrabajo.maquina',
+        'pasoOrden',
+      ],
     });
   }
 
