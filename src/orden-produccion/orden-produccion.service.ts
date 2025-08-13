@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, Not } from 'typeorm'
 import { OrdenProduccion, EstadoOrdenProduccion } from './entity'
@@ -29,27 +29,48 @@ export class OrdenProduccionService {
   async crear(dto: CrearOrdenDto) {
     const { pasos, numero, ...datosOrden } = dto;
 
+    if (pasos?.length) {
+      pasos.forEach((p, i) => {
+        if (p == null || p.numeroPaso == null || Number.isNaN(Number(p.numeroPaso))) {
+          throw new BadRequestException(
+            `Paso ${i + 1}: 'numeroPaso' es requerido y debe ser numérico`
+          );
+        }
+      });
+    }
+
     const existente = await this.repo.findOne({ where: { numero } });
     if (existente) throw new ConflictException('Ya existe una orden con ese número');
 
+    try {
+      const nueva = this.repo.create({ ...datosOrden, numero, estado: EstadoOrdenProduccion.PENDIENTE });
+      const orden = await this.repo.save(nueva);
 
-    const nueva = this.repo.create({ ...datosOrden, numero, estado: EstadoOrdenProduccion.PENDIENTE });
-    const orden = await this.repo.save(nueva);
-
-    if (pasos?.length) {
-      for (const pasoDto of pasos) {
-        const paso = this.pasoRepo.create({
-          ...pasoDto,
-          cantidadProducida: pasoDto.cantidadProducida ?? 0,
-          cantidadPedaleos: pasoDto.cantidadPedaleos ?? 0,
-          estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
-          orden,
-        });
-        await this.pasoRepo.save(paso);
+      if (pasos?.length) {
+        for (const pasoDto of pasos) {
+          const paso = this.pasoRepo.create({
+            ...pasoDto,
+            cantidadProducida: pasoDto.cantidadProducida ?? 0,
+            cantidadPedaleos: pasoDto.cantidadPedaleos ?? 0,
+            estado: pasoDto.estado ?? EstadoPasoOrden.PENDIENTE,
+            orden,
+          });
+          await this.pasoRepo.save(paso);
+        }
       }
-    }
 
-    return orden;
+      return orden;
+    } catch (e) {
+      const code = (e as any)?.code;
+      const detail = (e as any)?.detail || (e as Error).message;
+      if (code === '23502') {
+        throw new BadRequestException(`Violación NOT NULL al crear la orden/pasos: ${detail}`);
+      }
+      if (code === '23505') {
+        throw new ConflictException(detail || 'Duplicado');
+      }
+      throw new BadRequestException(detail);
+    }
   }
 
   private async withCantidadProducida(orden: OrdenProduccion) {
