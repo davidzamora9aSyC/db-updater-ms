@@ -5,7 +5,7 @@ export class AcumuladorDto {
   maquina: string
 
   @IsUUID()
-  pasoSesionTrabajo: string
+  paso: string
 
   @IsIn(['pedal', 'pieza'])
   tipo: 'pedal' | 'pieza'
