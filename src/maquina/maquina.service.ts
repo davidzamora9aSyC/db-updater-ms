@@ -36,6 +36,7 @@ export class MaquinaService {
       maquinas.map(async (m) => ({
         ...m,
         estado: await this.getEstado(m.id),
+        areaNombre: m.area?.nombre,
       })),
     );
   }
@@ -44,7 +45,7 @@ export class MaquinaService {
     const maquina = await this.repo.findOne({ where: { id }, relations: ['area'] });
     if (!maquina) throw new NotFoundException('Máquina no encontrada');
     const estado = await this.getEstado(id);
-    return { ...maquina, estado };
+    return { ...maquina, estado, areaNombre: maquina.area?.nombre };
   }
 
   async update(id: string, dto: UpdateMaquinaDto) {
