@@ -8,7 +8,7 @@ import * as nodeCrypto from 'crypto';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: ['https://production-control.vercel.app', 'http://localhost:3000'],
+    origin: ['https://production-control.vercel.app', 'http://localhost:3000', 'http://186.29.33.99'],
     methods: 'GET,POST,PUT,PATCH,DELETE',
     credentials: true,
   });
