@@ -5,6 +5,7 @@ import { DateTime } from 'luxon';
 import { ProduccionDiaria } from './produccion-diaria.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
+import { Area } from '../area/area.entity';
 
 @Injectable()
 export class ProduccionDiariaService {
@@ -18,6 +19,8 @@ export class ProduccionDiariaService {
     private readonly sesionRepo: Repository<SesionTrabajo>,
     @InjectRepository(RegistroMinuto)
     private readonly registroRepo: Repository<RegistroMinuto>,
+    @InjectRepository(Area)
+    private readonly areaRepo: Repository<Area>,
   ) {}
 
   async actualizarProduccionPorSesionCerrada(sesionId: string) {
@@ -97,9 +100,50 @@ export class ProduccionDiariaService {
     fin: DateTime,
     areaId?: string,
   ) {
+    if (areaId) {
+      const qb = this.repo
+        .createQueryBuilder('p')
+        .select('p.fecha', 'fecha')
+        .addSelect('SUM(p.piezas)', 'piezas')
+        .addSelect('SUM(p.pedaleadas)', 'pedaleadas')
+        .addSelect('SUM(p.sesionesCerradas)', 'sesionesCerradas')
+        .where('p.fecha BETWEEN :inicio AND :fin', {
+          inicio: inicio.toISODate(),
+          fin: fin.toISODate(),
+        })
+        .andWhere('p.areaId = :areaId', { areaId })
+        .groupBy('p.fecha')
+        .orderBy('p.fecha', 'ASC');
+
+      const rows = await qb.getRawMany();
+      const map = new Map(
+        rows.map((r) => [
+          r.fecha,
+          {
+            piezas: Number(r.piezas) || 0,
+            pedaleadas: Number(r.pedaleadas) || 0,
+            sesionesCerradas: Number(r.sesionesCerradas) || 0,
+          },
+        ]),
+      );
+
+      const resultado: any[] = [];
+      for (let d = inicio; d <= fin; d = d.plus({ days: 1 })) {
+        const key = d.toISODate();
+        const totales = map.get(key) || {
+          piezas: 0,
+          pedaleadas: 0,
+          sesionesCerradas: 0,
+        };
+        resultado.push({ fecha: key, areaId, ...totales });
+      }
+      return resultado;
+    }
+
     const qb = this.repo
       .createQueryBuilder('p')
       .select('p.fecha', 'fecha')
+      .addSelect('p.areaId', 'areaId')
       .addSelect('SUM(p.piezas)', 'piezas')
       .addSelect('SUM(p.pedaleadas)', 'pedaleadas')
       .addSelect('SUM(p.sesionesCerradas)', 'sesionesCerradas')
@@ -108,12 +152,13 @@ export class ProduccionDiariaService {
         fin: fin.toISODate(),
       })
       .groupBy('p.fecha')
+      .addGroupBy('p.areaId')
       .orderBy('p.fecha', 'ASC');
-    if (areaId) qb.andWhere('p.areaId = :areaId', { areaId });
+
     const rows = await qb.getRawMany();
-    const map = new Map(
+    const byKey = new Map(
       rows.map((r) => [
-        r.fecha,
+        `${r.fecha}|${r.areaId}`,
         {
           piezas: Number(r.piezas) || 0,
           pedaleadas: Number(r.pedaleadas) || 0,
@@ -122,15 +167,19 @@ export class ProduccionDiariaService {
       ]),
     );
 
+    const areas = await this.areaRepo.find({ select: ['id'] });
     const resultado: any[] = [];
     for (let d = inicio; d <= fin; d = d.plus({ days: 1 })) {
-      const key = d.toISODate();
-      const totales = map.get(key) || {
-        piezas: 0,
-        pedaleadas: 0,
-        sesionesCerradas: 0,
-      };
-      resultado.push({ fecha: key, areaId: areaId ?? null, ...totales });
+      const fechaKey = d.toISODate();
+      for (const a of areas) {
+        const k = `${fechaKey}|${a.id}`;
+        const totales = byKey.get(k) || {
+          piezas: 0,
+          pedaleadas: 0,
+          sesionesCerradas: 0,
+        };
+        resultado.push({ fecha: fechaKey, areaId: a.id, ...totales });
+      }
     }
     return resultado;
   }
@@ -140,9 +189,54 @@ export class ProduccionDiariaService {
     fin: DateTime,
     areaId?: string,
   ) {
+    if (areaId) {
+      const qb = this.repo
+        .createQueryBuilder('p')
+        .select("DATE_TRUNC('month', p.fecha)", 'mes')
+        .addSelect('SUM(p.piezas)', 'piezas')
+        .addSelect('SUM(p.pedaleadas)', 'pedaleadas')
+        .addSelect('SUM(p.sesionesCerradas)', 'sesionesCerradas')
+        .where('p.fecha BETWEEN :inicio AND :fin', {
+          inicio: inicio.toISODate(),
+          fin: fin.toISODate(),
+        })
+        .andWhere('p.areaId = :areaId', { areaId })
+        .groupBy("DATE_TRUNC('month', p.fecha)")
+        .orderBy('mes', 'ASC');
+
+      const rows = await qb.getRawMany();
+      const map = new Map(
+        rows.map((r) => [
+          DateTime.fromJSDate(r.mes).toISODate(),
+          {
+            piezas: Number(r.piezas) || 0,
+            pedaleadas: Number(r.pedaleadas) || 0,
+            sesionesCerradas: Number(r.sesionesCerradas) || 0,
+          },
+        ]),
+      );
+
+      const resultado: any[] = [];
+      for (
+        let m = inicio.startOf('month');
+        m <= fin.startOf('month');
+        m = m.plus({ months: 1 })
+      ) {
+        const key = m.toISODate();
+        const totales = map.get(key) || {
+          piezas: 0,
+          pedaleadas: 0,
+          sesionesCerradas: 0,
+        };
+        resultado.push({ mes: key, areaId, ...totales });
+      }
+      return resultado;
+    }
+
     const qb = this.repo
       .createQueryBuilder('p')
       .select("DATE_TRUNC('month', p.fecha)", 'mes')
+      .addSelect('p.areaId', 'areaId')
       .addSelect('SUM(p.piezas)', 'piezas')
       .addSelect('SUM(p.pedaleadas)', 'pedaleadas')
       .addSelect('SUM(p.sesionesCerradas)', 'sesionesCerradas')
@@ -151,12 +245,13 @@ export class ProduccionDiariaService {
         fin: fin.toISODate(),
       })
       .groupBy("DATE_TRUNC('month', p.fecha)")
+      .addGroupBy('p.areaId')
       .orderBy('mes', 'ASC');
-    if (areaId) qb.andWhere('p.areaId = :areaId', { areaId });
+
     const rows = await qb.getRawMany();
-    const map = new Map(
+    const byKey = new Map(
       rows.map((r) => [
-        DateTime.fromJSDate(r.mes).toISODate(),
+        `${DateTime.fromJSDate(r.mes).toISODate()}|${r.areaId}`,
         {
           piezas: Number(r.piezas) || 0,
           pedaleadas: Number(r.pedaleadas) || 0,
@@ -165,20 +260,23 @@ export class ProduccionDiariaService {
       ]),
     );
 
+    const areas = await this.areaRepo.find({ select: ['id'] });
     const resultado: any[] = [];
-
     for (
       let m = inicio.startOf('month');
       m <= fin.startOf('month');
       m = m.plus({ months: 1 })
     ) {
-      const key = m.toISODate();
-      const totales = map.get(key) || {
-        piezas: 0,
-        pedaleadas: 0,
-        sesionesCerradas: 0,
-      };
-      resultado.push({ mes: key, areaId: areaId ?? null, ...totales });
+      const mesKey = m.toISODate();
+      for (const a of areas) {
+        const k = `${mesKey}|${a.id}`;
+        const totales = byKey.get(k) || {
+          piezas: 0,
+          pedaleadas: 0,
+          sesionesCerradas: 0,
+        };
+        resultado.push({ mes: mesKey, areaId: a.id, ...totales });
+      }
     }
     return resultado;
   }
