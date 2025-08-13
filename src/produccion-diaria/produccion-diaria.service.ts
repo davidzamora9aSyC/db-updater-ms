@@ -142,14 +142,19 @@ export class ProduccionDiariaService {
 
       const rows = await qb.getRawMany();
       const map = new Map(
-        rows.map((r) => [
-          r.fecha,
-          {
-            piezas: Number(r.piezas) || 0,
-            pedaleadas: Number(r.pedaleadas) || 0,
-            sesionesCerradas: Number(r.sesionesCerradas) || 0,
-          },
-        ]),
+        rows.map((r) => {
+          const dt = typeof r.fecha === 'string'
+            ? DateTime.fromISO(r.fecha, { zone: this.zone })
+            : DateTime.fromJSDate(r.fecha).setZone(this.zone);
+          return [
+            dt.toISODate(),
+            {
+              piezas: Number(r.piezas) || 0,
+              pedaleadas: Number(r.pedaleadas) || 0,
+              sesionesCerradas: Number(r.sesionesCerradas) || 0,
+            },
+          ];
+        }),
       );
 
       const resultado: any[] = [];
@@ -184,14 +189,19 @@ export class ProduccionDiariaService {
 
     const rows = await qb.getRawMany();
     const byKey = new Map(
-      rows.map((r) => [
-        `${r.fecha}|${r.areaId}`,
-        {
-          piezas: Number(r.piezas) || 0,
-          pedaleadas: Number(r.pedaleadas) || 0,
-          sesionesCerradas: Number(r.sesionesCerradas) || 0,
-        },
-      ]),
+      rows.map((r) => {
+        const dt = typeof r.fecha === 'string'
+          ? DateTime.fromISO(r.fecha, { zone: this.zone })
+          : DateTime.fromJSDate(r.fecha).setZone(this.zone);
+        return [
+          `${dt.toISODate()}|${r.areaId}`,
+          {
+            piezas: Number(r.piezas) || 0,
+            pedaleadas: Number(r.pedaleadas) || 0,
+            sesionesCerradas: Number(r.sesionesCerradas) || 0,
+          },
+        ];
+      }),
     );
 
     const areas = await this.areaRepo.find({ select: ['id'] });
