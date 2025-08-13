@@ -52,7 +52,7 @@ export class RegistroMinutoService {
 
   async acumular(
     maquinaId: string,
-    pasoSesionTrabajoId: string,
+    pasoId: string,
     tipo: 'pedal' | 'pieza',
     minutoInicio: string,
   ) {
@@ -60,11 +60,20 @@ export class RegistroMinutoService {
 
     if (!sesion) return;
 
+    const pasoSesionTrabajo = await this.stpRepo.findOne({
+      where: {
+        sesionTrabajo: { id: sesion.id },
+        pasoOrden: { id: pasoId },
+      },
+    });
+
+    if (!pasoSesionTrabajo) return;
+
     await this.mutex.runExclusive(async () => {
       const fecha = DateTime.fromISO(minutoInicio, {
         zone: 'America/Bogota',
       }).toJSDate();
-      const clave = `${sesion.id}_${pasoSesionTrabajoId}_${fecha.toISOString()}`;
+      const clave = `${sesion.id}_${pasoSesionTrabajo.id}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
         piezasContadas: 0,
