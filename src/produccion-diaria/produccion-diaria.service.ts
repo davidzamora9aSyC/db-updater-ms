@@ -23,6 +23,31 @@ export class ProduccionDiariaService {
     private readonly areaRepo: Repository<Area>,
   ) {}
 
+  async agregarProduccion(
+    areaId: string,
+    minuto: Date,
+    piezas: number,
+    pedaleadas: number,
+  ) {
+    const fechaStr = DateTime.fromJSDate(minuto, { zone: this.zone }).toISODate();
+    if (!fechaStr) return;
+    await this.repo
+      .createQueryBuilder()
+      .insert()
+      .into(ProduccionDiaria)
+      .values({
+        fecha: DateTime.fromISO(fechaStr, { zone: this.zone }).toJSDate(),
+        areaId,
+        piezas,
+        pedaleadas,
+        sesionesCerradas: 0,
+      })
+      .onConflict(
+        '("fecha","areaId") DO UPDATE SET "piezas" = "produccion_diaria"."piezas" + EXCLUDED."piezas", "pedaleadas" = "produccion_diaria"."pedaleadas" + EXCLUDED."pedaleadas"',
+      )
+      .execute();
+  }
+
   async actualizarProduccionPorSesionCerrada(sesionId: string) {
     const sesion = await this.sesionRepo.findOne({
       where: { id: sesionId },

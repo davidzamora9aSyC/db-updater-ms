@@ -9,7 +9,6 @@ import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
-import { ProduccionDiariaModule } from '../produccion-diaria/produccion-diaria.module';
 
 @Module({
   imports: [
@@ -22,7 +21,6 @@ import { ProduccionDiariaModule } from '../produccion-diaria/produccion-diaria.m
     ]),
     RegistroMinutoModule,
     EstadoSesionModule,
-    ProduccionDiariaModule,
   ],
   providers: [SesionTrabajoService],
   controllers: [SesionTrabajoController],
