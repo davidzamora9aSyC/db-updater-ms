@@ -5,7 +5,6 @@ import {
   ValidateNested,
   IsArray,
   IsEnum,
-  IsNotEmpty,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 import { PasoOrdenDto } from './paso-orden.dto'
@@ -29,14 +28,11 @@ export class CrearOrdenDto {
   @IsDate()
   fechaVencimiento: Date
 
-
+  
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PasoOrdenDto)
   pasos: PasoOrdenDto[]
-
-  @IsInt()
-  @IsNotEmpty()
-  numeroPaso: number;
+  
 }

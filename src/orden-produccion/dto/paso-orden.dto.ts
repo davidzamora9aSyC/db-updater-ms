@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsOptional,
   IsEnum,
+  IsInt,
 } from 'class-validator';
 import { EstadoPasoOrden } from '../../paso-produccion/paso-produccion.entity';
 
@@ -29,4 +30,8 @@ export class PasoOrdenDto {
   @IsOptional()
   @IsEnum(EstadoPasoOrden)
   estado?: EstadoPasoOrden;
+
+  @IsInt()
+  @IsNotEmpty()
+  numeroPaso: number;
 }
