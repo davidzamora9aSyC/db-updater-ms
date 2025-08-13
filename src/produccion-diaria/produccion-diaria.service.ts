@@ -133,8 +133,8 @@ export class ProduccionDiariaService {
         .addSelect('SUM(p.pedaleadas)', 'pedaleadas')
         .addSelect('SUM(p.sesionesCerradas)', 'sesionesCerradas')
         .where('p.fecha BETWEEN :inicio AND :fin', {
-          inicio: inicio.toISODate(),
-          fin: fin.toISODate(),
+          inicio: inicio.startOf('day').toUTC().toISO(),
+          fin: fin.endOf('day').toUTC().toISO(),
         })
         .andWhere('p.areaId = :areaId', { areaId })
         .groupBy('p.fecha')
@@ -153,6 +153,8 @@ export class ProduccionDiariaService {
       );
 
       const resultado: any[] = [];
+      inicio = inicio.setZone(this.zone);
+      fin = fin.setZone(this.zone);
       for (let d = inicio; d <= fin; d = d.plus({ days: 1 })) {
         const key = d.toISODate();
         const totales = map.get(key) || {
@@ -173,8 +175,8 @@ export class ProduccionDiariaService {
       .addSelect('SUM(p.pedaleadas)', 'pedaleadas')
       .addSelect('SUM(p.sesionesCerradas)', 'sesionesCerradas')
       .where('p.fecha BETWEEN :inicio AND :fin', {
-        inicio: inicio.toISODate(),
-        fin: fin.toISODate(),
+        inicio: inicio.startOf('day').toUTC().toISO(),
+        fin: fin.endOf('day').toUTC().toISO(),
       })
       .groupBy('p.fecha')
       .addGroupBy('p.areaId')
@@ -194,6 +196,8 @@ export class ProduccionDiariaService {
 
     const areas = await this.areaRepo.find({ select: ['id'] });
     const resultado: any[] = [];
+    inicio = inicio.setZone(this.zone);
+    fin = fin.setZone(this.zone);
     for (let d = inicio; d <= fin; d = d.plus({ days: 1 })) {
       const fechaKey = d.toISODate();
       for (const a of areas) {
