@@ -11,7 +11,6 @@ import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
 import { EstadoSesionService } from '../estado-sesion/estado-sesion.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
-import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
 import { DateTime } from 'luxon';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
@@ -28,7 +27,6 @@ export class SesionTrabajoService {
     private readonly registroMinutoService: RegistroMinutoService,
     private readonly estadoSesionService: EstadoSesionService,
     private readonly configService: ConfiguracionService,
-    private readonly produccionDiariaService: ProduccionDiariaService,
     @InjectRepository(EstadoSesion)
     private readonly estadoSesionRepo: Repository<EstadoSesion>,
     @InjectRepository(EstadoTrabajador)
@@ -154,7 +152,6 @@ export class SesionTrabajoService {
       relations: ['trabajador'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    const estabaAbierta = !sesion.fechaFin;
     if (dto.fechaFin === true) {
       const descansoActivo = await this.estadoTrabajadorRepo.findOne({
         where: {
@@ -188,11 +185,6 @@ export class SesionTrabajoService {
     }
 
     const saved = await this.repo.save(sesion);
-    if (estabaAbierta && saved.fechaFin) {
-      await this.produccionDiariaService.actualizarProduccionPorSesionCerrada(
-        saved.id,
-      );
-    }
     return this.formatSesionForResponse(saved);
   }
 
@@ -202,7 +194,6 @@ export class SesionTrabajoService {
       relations: ['trabajador'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    const estabaAbierta = !sesion.fechaFin;
     const descansoActivo = await this.estadoTrabajadorRepo.findOne({
       where: {
         trabajador: { id: sesion.trabajador.id },
@@ -216,11 +207,6 @@ export class SesionTrabajoService {
       );
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
-    if (estabaAbierta) {
-      await this.produccionDiariaService.actualizarProduccionPorSesionCerrada(
-        sesion.id,
-      );
-    }
     return this.formatSesionForResponse(sesion);
   }
 
