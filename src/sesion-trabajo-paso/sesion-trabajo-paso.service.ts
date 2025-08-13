@@ -194,8 +194,8 @@ export class SesionTrabajoPasoService {
     await this.repo.remove(entity);
     return { deleted: true };
   }
-  findByPaso(pasoId: string) {
-    return this.repo.find({
+  async findByPaso(pasoId: string): Promise<SesionTrabajoPasoDto[]> {
+    const entities = await this.repo.find({
       where: { pasoOrden: { id: pasoId } },
       relations: [
         'sesionTrabajo',
@@ -204,6 +204,7 @@ export class SesionTrabajoPasoService {
         'pasoOrden',
       ],
     });
+    return Promise.all(entities.map((e) => this.mapEstado(e)));
   }
 
   findBySesion(sesionId: string) {
