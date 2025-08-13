@@ -71,12 +71,12 @@ export class ProduccionDiariaService {
   async obtenerProduccionDiariaMesActual(areaId?: string) {
     const now = DateTime.now().setZone(this.zone);
     const inicio = now.startOf('month');
-    const fin = now.startOf('day');
+    const fin = now.endOf('day');
     return this.obtenerDiariaRango(inicio, fin, areaId);
   }
 
   async obtenerProduccionDiariaUltimos30Dias(areaId?: string) {
-    const fin = DateTime.now().setZone(this.zone).startOf('day');
+    const fin = DateTime.now().setZone(this.zone).endOf('day');
     const inicio = fin.minus({ days: 29 });
     return this.obtenerDiariaRango(inicio, fin, areaId);
   }
@@ -84,7 +84,7 @@ export class ProduccionDiariaService {
   async obtenerProduccionMensualAnoActual(areaId?: string) {
     const now = DateTime.now().setZone(this.zone);
     const inicio = now.startOf('year');
-    const fin = now.startOf('month');
+    const fin = now.endOf('day');
     return this.obtenerMensualRango(inicio, fin, areaId);
   }
 
