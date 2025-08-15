@@ -1,4 +1,4 @@
-import { IsUUID, IsNumber, IsOptional } from 'class-validator';
+import { IsUUID, IsNumber, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateSesionTrabajoPasoDto {
   @IsUUID()
@@ -11,4 +11,7 @@ export class CreateSesionTrabajoPasoDto {
   @IsNumber()
   cantidadAsignada: number;
 
+  @IsOptional()
+  @IsBoolean()
+  porAdministrador?: boolean;
 }
