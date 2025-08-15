@@ -53,4 +53,10 @@ export class SesionTrabajoController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Get('maquina/:id/activa')
+  findSesionActiva(@Param('id') id: string) {
+    return this.service.findByMaquina(id);
+  }
+
 }
