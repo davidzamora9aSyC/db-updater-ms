@@ -9,6 +9,7 @@ import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
       EstadoMaquina,
       SesionTrabajo,
       RegistroMinuto,
+      SesionTrabajoPaso,
     ]),
     RegistroMinutoModule,
     EstadoSesionModule,
