@@ -33,6 +33,11 @@ export class SesionTrabajoController {
     return this.service.findActivasResumen();
   }
 
+  @Get(':id/orden-produccion')
+  findOrdenProduccion(@Param('id') id: string) {
+    return this.service.findOrdenProduccion(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

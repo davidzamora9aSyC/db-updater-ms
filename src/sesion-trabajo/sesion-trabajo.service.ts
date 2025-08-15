@@ -18,6 +18,7 @@ import {
   EstadoSesion,
   TipoEstadoSesion,
 } from '../estado-sesion/estado-sesion.entity';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -33,6 +34,8 @@ export class SesionTrabajoService {
     private readonly estadoTrabajadorRepo: Repository<EstadoTrabajador>,
     @InjectRepository(EstadoMaquina)
     private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
+    @InjectRepository(SesionTrabajoPaso)
+    private readonly stpRepo: Repository<SesionTrabajoPaso>,
   ) {}
 
   private toBogotaDate(input?: string | Date | null) {
@@ -144,6 +147,31 @@ export class SesionTrabajoService {
         'Sesión en producción no encontrada para la máquina',
       );
     return this.formatSesionForResponse(estado.sesionTrabajo);
+  }
+
+  async findOrdenProduccion(sesionId: string) {
+    const relacion = await this.stpRepo
+      .createQueryBuilder('stp')
+      .innerJoinAndSelect('stp.pasoOrden', 'paso')
+      .innerJoinAndSelect('paso.orden', 'orden')
+      .leftJoin(
+        'pausa_paso_sesion',
+        'pausa',
+        'pausa.pasoSesionId = stp.id AND pausa.fin IS NULL',
+      )
+      .where('stp.sesionTrabajoId = :sesionId', { sesionId })
+      .andWhere('pausa.id IS NULL')
+      .getOne();
+
+    if (!relacion)
+      throw new NotFoundException(
+        'No se encontró asignación activa para la sesión',
+      );
+
+    const { pasoOrden } = relacion;
+    const orden = pasoOrden.orden;
+    delete (pasoOrden as any).orden;
+    return { orden, paso: pasoOrden };
   }
 
   async update(id: string, dto: UpdateSesionTrabajoDto) {
