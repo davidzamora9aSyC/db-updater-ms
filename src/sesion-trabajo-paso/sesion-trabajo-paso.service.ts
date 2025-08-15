@@ -3,17 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { SesionTrabajoPaso } from './sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
-import {
-  PasoProduccion,
-  EstadoPasoOrden,
-} from '../paso-produccion/paso-produccion.entity';
-import {
-  OrdenProduccion,
-  EstadoOrdenProduccion,
-} from '../orden-produccion/entity';
+import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
-import { EstadoSesion, TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
+import {
+  EstadoSesion,
+  TipoEstadoSesion,
+} from '../estado-sesion/estado-sesion.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { SesionTrabajoPasoDto } from './dto/sesion-trabajo-paso.dto';
@@ -30,18 +26,20 @@ export class SesionTrabajoPasoService {
   ) {}
 
   async create(dto: CreateSesionTrabajoPasoDto) {
-    // Verificar si ya existe la relación
-    const existente = await this.repo.findOne({
-      where: {
-        sesionTrabajo: { id: dto.sesionTrabajo },
-        pasoOrden: { id: dto.pasoOrden },
-      },
-    });
+    if (!dto.porAdministrador) {
+      // Verificar si ya existe la relación
+      const existente = await this.repo.findOne({
+        where: {
+          sesionTrabajo: { id: dto.sesionTrabajo },
+          pasoOrden: { id: dto.pasoOrden },
+        },
+      });
 
-    if (existente) {
-      // Cerrar pausa activa si existe
-      await this.pausaPasoSesionService.closeActive(existente.id);
-      return existente;
+      if (existente) {
+        // Cerrar pausa activa si existe
+        await this.pausaPasoSesionService.closeActive(existente.id);
+        return existente;
+      }
     }
 
     // Verificar que la sesión exista y no tenga fechaFin
@@ -64,8 +62,8 @@ export class SesionTrabajoPasoService {
 
     // Crear la relación SesionTrabajoPaso
     const entity = this.repo.create({
-      sesionTrabajo: { id: dto.sesionTrabajo } as any,
-      pasoOrden: { id: dto.pasoOrden } as any,
+      sesionTrabajo: { id: dto.sesionTrabajo } as SesionTrabajo,
+      pasoOrden: { id: dto.pasoOrden } as PasoProduccion,
       cantidadAsignada: dto.cantidadAsignada ?? paso.cantidadRequerida,
       cantidadProducida: 0,
       cantidadPedaleos: 0,
@@ -74,29 +72,35 @@ export class SesionTrabajoPasoService {
     // Guardar la relación
     const saved = await this.repo.save(entity);
 
-    // Cambiar el estado de la sesión a PRODUCCION y guardar
-    const estadoSesionRepo = this.repo.manager.getRepository(EstadoSesion);
-    const estadoSesion = estadoSesionRepo.create({
-      sesionTrabajo: sesion,
-      estado: TipoEstadoSesion.PRODUCCION,
-      inicio: new Date(),
-    });
-    await estadoSesionRepo.save(estadoSesion);
-    await this.pasoProduccionService.actualizarEstadoPorSesion(dto.sesionTrabajo);
+    if (dto.porAdministrador) {
+      await this.pausaPasoSesionService.create(saved.id);
+    } else {
+      // Cambiar el estado de la sesión a PRODUCCION y guardar
+      const estadoSesionRepo = this.repo.manager.getRepository(EstadoSesion);
+      const estadoSesion = estadoSesionRepo.create({
+        sesionTrabajo: sesion,
+        estado: TipoEstadoSesion.PRODUCCION,
+        inicio: new Date(),
+      });
+      await estadoSesionRepo.save(estadoSesion);
 
-    // Pausar otros pasos de la misma sesión
-    const otros = await this.repo.find({
-      where: { sesionTrabajo: { id: dto.sesionTrabajo } },
-    });
-    const ahora = new Date();
-    for (const otro of otros) {
-      if (otro.id === saved.id) continue;
-      const activo = await this.pausaPasoSesionService.findActive(otro.id);
-      if (!activo) {
-        await this.pausaPasoSesionService.create(otro.id, ahora);
+      // Pausar otros pasos de la misma sesión
+      const otros = await this.repo.find({
+        where: { sesionTrabajo: { id: dto.sesionTrabajo } },
+      });
+      const ahora = new Date();
+      for (const otro of otros) {
+        if (otro.id === saved.id) continue;
+        const activo = await this.pausaPasoSesionService.findActive(otro.id);
+        if (!activo) {
+          await this.pausaPasoSesionService.create(otro.id, ahora);
+        }
       }
     }
 
+    await this.pasoProduccionService.actualizarEstadoPorSesion(
+      dto.sesionTrabajo,
+    );
     return saved;
   }
 
