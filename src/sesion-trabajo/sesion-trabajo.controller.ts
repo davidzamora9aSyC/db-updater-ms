@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Put, Delete, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Put, Delete, Patch, Query } from '@nestjs/common';
 import { SesionTrabajoService } from './sesion-trabajo.service';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
@@ -9,8 +9,13 @@ export class SesionTrabajoController {
   constructor(private readonly service: SesionTrabajoService) {}
 
   @Post()
-  create(@Body() dto: CreateSesionTrabajoDto) {
-    return this.service.create(dto);
+  async create(
+    @Body() dto: CreateSesionTrabajoDto,
+    @Query('esp32') esp32?: string,
+  ) {
+    const sesion = await this.service.create(dto);
+    if (esp32 === 'true') return sesion.id;
+    return sesion;
   }
 
   @Get()
@@ -60,8 +65,13 @@ export class SesionTrabajoController {
   }
 
   @Get('maquina/:id/activa')
-  findSesionActiva(@Param('id') id: string) {
-    return this.service.findByMaquina(id);
+  async findSesionActiva(
+    @Param('id') id: string,
+    @Query('esp32') esp32?: string,
+  ) {
+    const sesion = await this.service.findByMaquina(id);
+    if (esp32 === 'true') return sesion.id;
+    return sesion;
   }
 
 }

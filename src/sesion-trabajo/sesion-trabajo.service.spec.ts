@@ -10,6 +10,7 @@ import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
+import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 
 describe('SesionTrabajoService', () => {
   let service: SesionTrabajoService;
@@ -22,6 +23,7 @@ describe('SesionTrabajoService', () => {
         { provide: getRepositoryToken(EstadoSesion), useClass: Repository },
         { provide: getRepositoryToken(EstadoTrabajador), useClass: Repository },
         { provide: getRepositoryToken(EstadoMaquina), useClass: Repository },
+        { provide: getRepositoryToken(SesionTrabajoPaso), useClass: Repository },
         { provide: RegistroMinutoService, useValue: {} },
         { provide: EstadoSesionService, useValue: {} },
         { provide: ConfiguracionService, useValue: {} },
