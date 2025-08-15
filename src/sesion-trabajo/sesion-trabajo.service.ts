@@ -117,7 +117,8 @@ export class SesionTrabajoService {
       relations: ['trabajador', 'maquina'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
-    return this.formatSesionForResponse(sesion);
+    const sesionConEstado = await this.mapSesionConEstado(sesion);
+    return this.formatSesionForResponse(sesionConEstado);
   }
 
   async findByMaquina(maquinaId: string) {
