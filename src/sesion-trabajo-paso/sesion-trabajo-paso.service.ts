@@ -146,6 +146,10 @@ export class SesionTrabajoPasoService {
       order: { inicio: 'DESC' },
     });
 
+    if (entity.sesionTrabajo.fechaFin) {
+      return { ...entity, estado: 'finalizada' };
+    }
+
     let estado: string = estadoSesion?.estado || TipoEstadoSesion.OTRO;
 
     if (estadoSesion?.estado === TipoEstadoSesion.OTRO) {
