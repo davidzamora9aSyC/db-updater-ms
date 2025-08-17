@@ -6,6 +6,8 @@ import {
   Body,
   Put,
   Delete,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { EstadoTrabajadorService } from './estado-trabajador.service';
 import { CreateEstadoTrabajadorDto } from './dto/create-estado-trabajador.dto';
@@ -26,8 +28,15 @@ export class EstadoTrabajadorController {
   }
 
   @Get('trabajador/:id')
-  findByTrabajador(@Param('id') id: string) {
-    return this.service.findByTrabajador(id);
+  findByTrabajador(
+    @Param('id') id: string,
+    @Query('inicio') inicio: string,
+    @Query('fin') fin: string,
+  ) {
+    if (!inicio || !fin) {
+      throw new BadRequestException('inicio y fin son requeridos');
+    }
+    return this.service.findByTrabajador(id, inicio, fin);
   }
 
   @Get(':id')

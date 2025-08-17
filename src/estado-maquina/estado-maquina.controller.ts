@@ -6,6 +6,8 @@ import {
   Body,
   Put,
   Delete,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { EstadoMaquinaService } from './estado-maquina.service';
 import { CreateEstadoMaquinaDto } from './dto/create-estado-maquina.dto';
@@ -26,8 +28,15 @@ export class EstadoMaquinaController {
   }
 
   @Get('maquina/:id')
-  findByMaquina(@Param('id') id: string) {
-    return this.service.findByMaquina(id);
+  findByMaquina(
+    @Param('id') id: string,
+    @Query('inicio') inicio: string,
+    @Query('fin') fin: string,
+  ) {
+    if (!inicio || !fin) {
+      throw new BadRequestException('inicio y fin son requeridos');
+    }
+    return this.service.findByMaquina(id, inicio, fin);
   }
 
   @Get(':id')
