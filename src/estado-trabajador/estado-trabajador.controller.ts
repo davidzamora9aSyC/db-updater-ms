@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Param, Body, Put, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Put,
+  Delete,
+} from '@nestjs/common';
 import { EstadoTrabajadorService } from './estado-trabajador.service';
 import { CreateEstadoTrabajadorDto } from './dto/create-estado-trabajador.dto';
 import { UpdateEstadoTrabajadorDto } from './dto/update-estado-trabajador.dto';
@@ -15,6 +23,11 @@ export class EstadoTrabajadorController {
   @Get()
   findAll() {
     return this.service.findAll();
+  }
+
+  @Get('trabajador/:id')
+  findByTrabajador(@Param('id') id: string) {
+    return this.service.findByTrabajador(id);
   }
 
   @Get(':id')
