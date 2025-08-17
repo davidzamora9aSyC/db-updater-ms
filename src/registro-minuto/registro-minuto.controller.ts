@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common'
-import { RegistroMinutoService } from './registro-minuto.service'
-import { AcumuladorDto } from './dto/acumulador.dto'
+import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { RegistroMinutoService } from './registro-minuto.service';
+import { AcumuladorDto } from './dto/acumulador.dto';
 
 @Controller('registro-minuto')
 export class RegistroMinutoController {
@@ -8,21 +8,26 @@ export class RegistroMinutoController {
 
   @Post('acumular')
   async acumular(@Body() body: AcumuladorDto) {
-
-    const { maquina, paso, tipo, minutoInicio } = body
-    await this.service.acumular(maquina, paso, tipo, minutoInicio)
-    return { ok: true }
+    const { maquina, paso, tipo, minutoInicio } = body;
+    await this.service.acumular(maquina, paso, tipo, minutoInicio);
+    return { ok: true };
   }
 
   @Post('guardar')
   async guardar() {
-    await this.service.guardarYLimpiar()
-    return { ok: true }
+    await this.service.guardarYLimpiar();
+    return { ok: true };
   }
 
   @Get('sesion/:id')
   async obtenerPorSesion(@Param('id') id: string) {
-    const registros = await this.service.obtenerPorSesion(id)
-    return registros
+    const registros = await this.service.obtenerPorSesion(id);
+    return registros;
+  }
+
+  @Get('sesion/:id/ultimos')
+  async obtenerUltimos(@Param('id') id: string) {
+    const registros = await this.service.obtenerUltimosMinutos(id, 120);
+    return registros;
   }
 }
