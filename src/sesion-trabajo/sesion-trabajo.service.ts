@@ -101,6 +101,13 @@ export class SesionTrabajoService {
       cantidadPedaleos: 0,
     });
     const saved = await this.repo.save(sesion);
+
+    await this.estadoSesionService.create({
+      sesionTrabajo: saved.id,
+      estado: TipoEstadoSesion.INACTIVO,
+      inicio: this.toBogotaDate((dto as any).fechaInicio),
+    });
+
     return this.formatSesionForResponse(saved);
   }
 
