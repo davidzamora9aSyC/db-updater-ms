@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, IsNull } from 'typeorm';
+import { Repository, Not, IsNull, Between } from 'typeorm';
 import { RegistroMinuto } from './registro-minuto.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
@@ -264,12 +264,108 @@ export class RegistroMinutoService {
     this.guardarYLimpiar();
   }
 
+  private completarHuecos(
+    registros: RegistroMinuto[],
+    inicio: DateTime,
+    fin: DateTime,
+  ): RegistroMinuto[] {
+    const mapa = new Map<
+      string,
+      { pedaleadas: number; piezasContadas: number }
+    >();
+    for (const r of registros) {
+      const clave = DateTime.fromJSDate(r.minutoInicio, {
+        zone: 'America/Bogota',
+      })
+        .startOf('minute')
+        .toISO();
+      if (!clave) continue;
+      const actual = mapa.get(clave) || {
+        pedaleadas: 0,
+        piezasContadas: 0,
+      };
+      actual.pedaleadas += r.pedaleadas;
+      actual.piezasContadas += r.piezasContadas;
+      mapa.set(clave, actual);
+    }
+
+    const resultado: RegistroMinuto[] = [];
+    let cursor = inicio.startOf('minute');
+    const limiteFin = fin.startOf('minute');
+    const diff = limiteFin.diff(cursor, 'minutes').minutes;
+    const max = Math.min(Math.floor(diff), 3 * 24 * 60);
+    for (let i = 0; i <= max; i++) {
+      const clave = cursor.toISO() as string;
+      const data = mapa.get(clave) || {
+        pedaleadas: 0,
+        piezasContadas: 0,
+      };
+      resultado.push({
+        minutoInicio: cursor.toJSDate(),
+        pedaleadas: data.pedaleadas,
+        piezasContadas: data.piezasContadas,
+      } as any);
+      cursor = cursor.plus({ minutes: 1 });
+    }
+    return resultado;
+  }
+
   async obtenerPorSesion(sesionTrabajoId: string): Promise<RegistroMinuto[]> {
     await this.guardarYLimpiar();
+    const sesion = await this.sesionRepo.findOne({
+      where: { id: sesionTrabajoId },
+    });
+    if (!sesion) return [];
+
+    const inicio = DateTime.fromJSDate(sesion.fechaInicio, {
+      zone: 'America/Bogota',
+    });
+    let fin = sesion.fechaFin
+      ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' })
+      : DateTime.now().setZone('America/Bogota');
+    if (fin.diff(inicio, 'days').days > 3) {
+      fin = inicio.plus({ days: 3 });
+    }
+
     const registros = await this.repo.find({
-      where: { sesionTrabajo: { id: sesionTrabajoId } },
+      where: {
+        sesionTrabajo: { id: sesionTrabajoId },
+        minutoInicio: Between(inicio.toJSDate(), fin.toJSDate()),
+      },
       order: { minutoInicio: 'ASC' },
     });
-    return registros;
+    return this.completarHuecos(registros, inicio, fin);
+  }
+
+  async obtenerUltimosMinutos(
+    sesionTrabajoId: string,
+    minutos = 120,
+  ): Promise<RegistroMinuto[]> {
+    await this.guardarYLimpiar();
+    const sesion = await this.sesionRepo.findOne({
+      where: { id: sesionTrabajoId },
+    });
+    if (!sesion) return [];
+
+    const inicioSesion = DateTime.fromJSDate(sesion.fechaInicio, {
+      zone: 'America/Bogota',
+    });
+    let fin = sesion.fechaFin
+      ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' })
+      : DateTime.now().setZone('America/Bogota');
+    const maxFin = inicioSesion.plus({ days: 3 });
+    if (fin.toMillis() > maxFin.toMillis()) fin = maxFin;
+
+    let inicio = fin.minus({ minutes: minutos });
+    if (inicio.toMillis() < inicioSesion.toMillis()) inicio = inicioSesion;
+
+    const registros = await this.repo.find({
+      where: {
+        sesionTrabajo: { id: sesionTrabajoId },
+        minutoInicio: Between(inicio.toJSDate(), fin.toJSDate()),
+      },
+      order: { minutoInicio: 'ASC' },
+    });
+    return this.completarHuecos(registros, inicio, fin);
   }
 }

@@ -101,12 +101,22 @@ export class EstadoTrabajadorService {
     return { deleted: true };
   }
 
-  findByTrabajador(trabajadorId: string) {
-    return this.repo.find({
-      where: { trabajador: { id: trabajadorId } },
-      relations: ['trabajador'],
-      order: { inicio: 'DESC' },
-    });
+  findByTrabajador(trabajadorId: string, inicioStr: string, finStr: string) {
+    const inicio = DateTime.fromISO(inicioStr, {
+      zone: 'America/Bogota',
+    }).toJSDate();
+    const fin = DateTime.fromISO(finStr, {
+      zone: 'America/Bogota',
+    }).toJSDate();
+    return this.repo
+      .createQueryBuilder('estado')
+      .leftJoinAndSelect('estado.trabajador', 'trabajador')
+      .where('trabajador.id = :trabajadorId', { trabajadorId })
+      .andWhere('estado.inicio <= :fin')
+      .andWhere('(estado.fin IS NULL OR estado.fin >= :inicio)')
+      .orderBy('estado.inicio', 'DESC')
+      .setParameters({ inicio, fin })
+      .getMany();
   }
 
   private async pausarPasoSesion(trabajadorId: string, fecha: Date) {

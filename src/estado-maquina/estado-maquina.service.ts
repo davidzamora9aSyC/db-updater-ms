@@ -98,12 +98,22 @@ export class EstadoMaquinaService {
     return { deleted: true };
   }
 
-  findByMaquina(maquinaId: string) {
-    return this.repo.find({
-      where: { maquina: { id: maquinaId } },
-      relations: ['maquina'],
-      order: { inicio: 'DESC' },
-    });
+  findByMaquina(maquinaId: string, inicioStr: string, finStr: string) {
+    const inicio = DateTime.fromISO(inicioStr, {
+      zone: 'America/Bogota',
+    }).toJSDate();
+    const fin = DateTime.fromISO(finStr, {
+      zone: 'America/Bogota',
+    }).toJSDate();
+    return this.repo
+      .createQueryBuilder('estado')
+      .leftJoinAndSelect('estado.maquina', 'maquina')
+      .where('maquina.id = :maquinaId', { maquinaId })
+      .andWhere('estado.inicio <= :fin')
+      .andWhere('(estado.fin IS NULL OR estado.fin >= :inicio)')
+      .orderBy('estado.inicio', 'DESC')
+      .setParameters({ inicio, fin })
+      .getMany();
   }
 
   private async pausarPasoSesion(maquinaId: string, fecha: Date) {
