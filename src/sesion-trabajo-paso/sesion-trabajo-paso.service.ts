@@ -77,10 +77,17 @@ export class SesionTrabajoPasoService {
     } else {
       // Cambiar el estado de la sesión a PRODUCCION y guardar
       const estadoSesionRepo = this.repo.manager.getRepository(EstadoSesion);
+      const estadoActivo = await estadoSesionRepo.findOne({
+        where: { sesionTrabajo: { id: dto.sesionTrabajo }, fin: IsNull() },
+      });
+      const ahora = new Date();
+      if (estadoActivo) {
+        await estadoSesionRepo.update(estadoActivo.id, { fin: ahora });
+      }
       const estadoSesion = estadoSesionRepo.create({
         sesionTrabajo: sesion,
         estado: TipoEstadoSesion.PRODUCCION,
-        inicio: new Date(),
+        inicio: ahora,
       });
       await estadoSesionRepo.save(estadoSesion);
 
@@ -88,7 +95,6 @@ export class SesionTrabajoPasoService {
       const otros = await this.repo.find({
         where: { sesionTrabajo: { id: dto.sesionTrabajo } },
       });
-      const ahora = new Date();
       for (const otro of otros) {
         if (otro.id === saved.id) continue;
         const activo = await this.pausaPasoSesionService.findActive(otro.id);
