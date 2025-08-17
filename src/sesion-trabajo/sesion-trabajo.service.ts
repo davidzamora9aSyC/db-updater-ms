@@ -125,7 +125,17 @@ export class SesionTrabajoService {
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     const sesionConEstado = await this.mapSesionConEstado(sesion);
-    return this.formatSesionForResponse(sesionConEstado);
+    const relaciones = await this.stpRepo.find({
+      where: { sesionTrabajo: { id } },
+      relations: ['pasoOrden'],
+    });
+    return this.formatSesionForResponse({
+      ...sesionConEstado,
+      sesionesTrabajoPaso: relaciones.map((r) => ({
+        ...r,
+        estado: sesionConEstado.estadoSesion ?? TipoEstadoSesion.OTRO,
+      })),
+    });
   }
 
   async findByMaquina(maquinaId: string) {
