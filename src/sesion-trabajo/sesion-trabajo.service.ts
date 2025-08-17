@@ -127,7 +127,9 @@ export class SesionTrabajoService {
     const sesionConEstado = await this.mapSesionConEstado(sesion);
     const relaciones = await this.stpRepo.find({
       where: { sesionTrabajo: { id } },
-      relations: ['pasoOrden'],
+
+      relations: ['pasoOrden', 'pasoOrden.orden'],
+
     });
     return this.formatSesionForResponse({
       ...sesionConEstado,

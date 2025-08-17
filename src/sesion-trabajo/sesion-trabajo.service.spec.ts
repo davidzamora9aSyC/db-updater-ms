@@ -53,10 +53,16 @@ describe('SesionTrabajoService', () => {
       maquina: {},
     } as any);
     jest.spyOn(estadoSesionRepo, 'findOne').mockResolvedValue(null);
-    const relaciones = [{ id: 'rel1' } as any];
-    jest.spyOn(stpRepo, 'find').mockResolvedValue(relaciones);
+
+    const relaciones = [{ id: 'rel1', pasoOrden: { orden: { id: 'o1' } } } as any];
+    const findSpy = jest.spyOn(stpRepo, 'find').mockResolvedValue(relaciones);
 
     const result = await service.findOne('1');
+    expect(findSpy).toHaveBeenCalledWith({
+      where: { sesionTrabajo: { id: '1' } },
+      relations: ['pasoOrden', 'pasoOrden.orden'],
+    });
+
     expect(result.sesionesTrabajoPaso).toEqual(
       relaciones.map((r) => ({ ...r, estado: TipoEstadoSesion.OTRO })),
     );
