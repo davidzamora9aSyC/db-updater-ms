@@ -7,10 +7,4 @@ export class CreateEstadoTrabajadorDto {
   @IsBoolean()
   descanso: boolean;
 
-  @IsDateString()
-  inicio: Date;
-
-  @IsOptional()
-  @IsDateString()
-  fin?: Date;
 }

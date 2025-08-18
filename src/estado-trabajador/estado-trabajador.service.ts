@@ -28,9 +28,7 @@ export class EstadoTrabajadorService {
   ) {}
 
   async create(dto: CreateEstadoTrabajadorDto) {
-    const inicio = DateTime.fromJSDate(dto.inicio, {
-      zone: 'America/Bogota',
-    }).toJSDate();
+    const inicio = new Date();
     const fin = null;
 
     const abiertos = await this.repo.find({
