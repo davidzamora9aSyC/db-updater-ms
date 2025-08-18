@@ -53,4 +53,9 @@ export class EstadoTrabajadorController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Post('trabajador/:id/finalizar-descanso')
+  finalizarDescanso(@Param('id') id: string) {
+    return this.service.finalizarDescanso(id);
+  }
 }

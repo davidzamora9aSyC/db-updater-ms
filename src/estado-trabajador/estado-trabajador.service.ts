@@ -221,4 +221,20 @@ export class EstadoTrabajadorService {
       }
     }
   }
+
+  async finalizarDescanso(trabajadorId: string) {
+    const activo = await this.repo.findOne({
+      where: { trabajador: { id: trabajadorId }, fin: IsNull(), descanso: true },
+    });
+    if (!activo) throw new NotFoundException('No hay descanso activo');
+
+    const fin = new Date();
+    activo.fin = fin;
+    const actualizado = await this.repo.save(activo);
+
+    await this.restaurarPausasPasoSesion(trabajadorId, fin);
+    await this.restaurarSesionProduccion(trabajadorId, fin);
+
+    return actualizado;
+  }
 }
