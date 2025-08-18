@@ -28,9 +28,7 @@ export class EstadoMaquinaService {
   ) {}
 
   async create(dto: CreateEstadoMaquinaDto) {
-    const inicio = DateTime.fromJSDate(dto.inicio, {
-      zone: 'America/Bogota',
-    }).toJSDate();
+    const inicio = DateTime.now().setZone('America/Bogota').toJSDate();
     const fin = null;
 
     const abiertos = await this.repo.find({

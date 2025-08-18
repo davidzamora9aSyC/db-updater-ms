@@ -7,10 +7,4 @@ export class CreateEstadoMaquinaDto {
   @IsBoolean()
   mantenimiento: boolean;
 
-  @IsDateString()
-  inicio: Date;
-
-  @IsOptional()
-  @IsDateString()
-  fin?: Date;
 }
