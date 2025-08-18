@@ -26,6 +26,7 @@ export class SesionTrabajoPasoService {
   ) {}
 
   async create(dto: CreateSesionTrabajoPasoDto) {
+    dto.porAdministrador ??= false;
     if (!dto.porAdministrador) {
       // Verificar si ya existe la relación
       const existente = await this.repo.findOne({
@@ -36,8 +37,31 @@ export class SesionTrabajoPasoService {
       });
 
       if (existente) {
-        // Cerrar pausa activa si existe
+        const ahora = new Date();
         await this.pausaPasoSesionService.closeActive(existente.id);
+        const otros = await this.repo.find({
+          where: { sesionTrabajo: { id: dto.sesionTrabajo } },
+        });
+        for (const otro of otros) {
+          if (otro.id === existente.id) continue;
+          const activo = await this.pausaPasoSesionService.findActive(otro.id);
+          if (!activo) {
+            await this.pausaPasoSesionService.create(otro.id, ahora);
+          }
+        }
+        const estadoSesionRepo = this.repo.manager.getRepository(EstadoSesion);
+        const estadoActivo = await estadoSesionRepo.findOne({
+          where: { sesionTrabajo: { id: dto.sesionTrabajo }, fin: IsNull() },
+        });
+        if (estadoActivo) {
+          await estadoSesionRepo.update(estadoActivo.id, { fin: ahora });
+        }
+        const estadoSesion = estadoSesionRepo.create({
+          sesionTrabajo: { id: dto.sesionTrabajo } as SesionTrabajo,
+          estado: TipoEstadoSesion.PRODUCCION,
+          inicio: ahora,
+        });
+        await estadoSesionRepo.save(estadoSesion);
         return existente;
       }
     }
@@ -91,7 +115,6 @@ export class SesionTrabajoPasoService {
       });
       await estadoSesionRepo.save(estadoSesion);
 
-      // Pausar otros pasos de la misma sesión
       const otros = await this.repo.find({
         where: { sesionTrabajo: { id: dto.sesionTrabajo } },
       });
@@ -102,6 +125,7 @@ export class SesionTrabajoPasoService {
           await this.pausaPasoSesionService.create(otro.id, ahora);
         }
       }
+      await this.pausaPasoSesionService.closeActive(saved.id);
     }
 
     await this.pasoProduccionService.actualizarEstadoPorSesion(
