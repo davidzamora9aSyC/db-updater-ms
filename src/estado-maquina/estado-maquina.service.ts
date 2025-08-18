@@ -198,4 +198,21 @@ export class EstadoMaquinaService {
       await this.pausaPasoSesionService.closeActive(paso.id, fin, maquinaId);
     }
   }
+
+  async finalizarMantenimiento(maquinaId: string) {
+    const estado = await this.repo.findOne({
+      where: {
+        maquina: { id: maquinaId },
+        mantenimiento: true,
+        fin: IsNull(),
+      },
+    });
+    if (!estado) throw new NotFoundException('No hay mantenimiento activo para esta máquina');
+    const fin = DateTime.now().setZone('America/Bogota').toJSDate();
+    estado.fin = fin;
+    const actualizado = await this.repo.save(estado);
+    await this.restaurarPausasPasoSesion(maquinaId, fin);
+    await this.restaurarSesionProduccion(maquinaId, fin);
+    return actualizado;
+  }
 }

@@ -49,6 +49,11 @@ export class EstadoMaquinaController {
     return this.service.update(id, dto);
   }
 
+  @Post('maquina/:id/finalizar-mantenimiento')
+  finalizarMantenimiento(@Param('id') id: string) {
+    return this.service.finalizarMantenimiento(id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
