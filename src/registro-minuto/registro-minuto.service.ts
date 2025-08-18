@@ -328,7 +328,12 @@ export class RegistroMinutoService {
       },
       order: { minutoInicio: 'ASC' },
     });
-    return this.completarHuecos(registros, inicio, fin);
+    const llenos = this.completarHuecos(registros, inicio, fin);
+    const conLocal = llenos.map((r) => ({
+      ...r,
+      minutoInicioLocal: DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toISO({ suppressMilliseconds: true }),
+    }));
+    return conLocal as any;
   }
 
   async obtenerUltimosMinutos(
@@ -360,6 +365,11 @@ export class RegistroMinutoService {
       },
       order: { minutoInicio: 'ASC' },
     });
-    return this.completarHuecos(registros, inicio, fin);
+    const llenos = this.completarHuecos(registros, inicio, fin);
+    const conLocal = llenos.map((r) => ({
+      ...r,
+      minutoInicioLocal: DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toISO({ suppressMilliseconds: true }),
+    }));
+    return conLocal as any;
   }
 }
