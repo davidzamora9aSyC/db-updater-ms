@@ -72,7 +72,7 @@ export class RegistroMinutoService {
     if (!pasoSesionTrabajo) return;
 
     await this.mutex.runExclusive(async () => {
-      const fecha = DateTime.fromISO(minutoInicio).toJSDate();
+      const fecha = DateTime.fromISO(minutoInicio, { zone: 'America/Bogota' }).toJSDate();
       const clave = `${sesion.id}_${pasoSesionTrabajo.id}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
