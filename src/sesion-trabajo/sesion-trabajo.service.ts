@@ -265,175 +265,113 @@ export class SesionTrabajoService {
     return { deleted: true };
   }
 
+  private ordenarRegistros(registros: any[]) {
+    return [...registros].sort(
+      (a, b) =>
+        DateTime.fromJSDate(a.minutoInicio, { zone: 'America/Bogota' }).toMillis() -
+        DateTime.fromJSDate(b.minutoInicio, { zone: 'America/Bogota' }).toMillis(),
+    );
+  }
+  
+  private obtenerTiemposSesion(sesion: any, registrosOrdenados: any[]) {
+    const tieneRegistros = registrosOrdenados.length > 0;
+    const sessionStart = DateTime.fromJSDate(sesion.fechaInicio, { zone: 'America/Bogota' }).toMillis();
+    const lastSlot = tieneRegistros
+      ? DateTime.fromJSDate(registrosOrdenados[registrosOrdenados.length - 1].minutoInicio, { zone: 'America/Bogota' }).plus({ minutes: 1 }).toMillis()
+      : 0;
+    const ahoraMs = DateTime.now().setZone('America/Bogota').toMillis();
+    const fechaFinMs = sesion.fechaFin ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis() : null;
+    const endRef = fechaFinMs ?? ahoraMs;
+    const fin = Math.max(endRef, lastSlot || endRef);
+    const totalMin = Math.max(Number.EPSILON, (fin - sessionStart) / 60000);
+    return { tieneRegistros, sessionStart, lastSlot, fin, totalMin };
+  }
+  
+  private aggregates(registros: any[]) {
+    const totalPiezas = registros.reduce((a, b) => a + b.piezasContadas, 0);
+    const totalPedales = registros.reduce((a, b) => a + b.pedaleadas, 0);
+    const defectos = totalPedales - totalPiezas;
+    return { totalPiezas, totalPedales, defectos };
+  }
+  
+  private promedios(totalPiezas: number, totalMin: number, nptNoProductivoTotal: number) {
+    const minProd = Math.max(Number.EPSILON, totalMin - Math.min(totalMin, nptNoProductivoTotal));
+    const avgProd = (totalPiezas / minProd) * 60;
+    const avgSesion = (totalPiezas / totalMin) * 60;
+    return { avgProd, avgSesion };
+  }
+  private construirSegmentosInactividad(registrosOrdenados: any[], sessionStart: number, fin: number) {
+    const segments: number[] = [];
+    let cursor = sessionStart;
+    let run = 0;
+    for (let i = 0; i < registrosOrdenados.length; i++) {
+      const r = registrosOrdenados[i];
+      const t = DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toMillis();
+      if (t > cursor) {
+        const miss = Math.floor((t - cursor) / 60000);
+        if (miss > 0) { run += miss; cursor += miss * 60000; }
+      }
+      const zero = r.pedaleadas === 0 && r.piezasContadas === 0;
+      if (t >= cursor) {
+        if (zero) { run += 1; cursor = t + 60000; }
+        else { if (run > 0) { segments.push(run); run = 0; } cursor = t + 60000; }
+      } else {
+        if (!zero && run > 0) { segments.push(run); run = 0; }
+      }
+    }
+    if (fin > cursor) {
+      const tail = Math.ceil((fin - cursor) / 60000);
+      if (tail > 0) run += tail;
+    }
+    if (run > 0) segments.push(run);
+    return segments;
+  }
+  
+  private nptMinUnifiedFrom(segments: number[]) {
+    return segments.reduce((a, b) => a + b, 0);
+  }
+  
+  private nptPorInactividadFromSegments(segments: number[], minutosInactividadParaNPT: number) {
+    return segments.reduce((s, g) => s + (g > minutosInactividadParaNPT ? g : 0), 0);
+  }
+
+  private ventanaMetrics(registrosOrdenados: any[], ventanaMin: number, fin: number, sessionStart: number, minutosInactividadParaNPT: number) {
+    const corte = fin - ventanaMin * 60000;
+    const startVentana = Math.max(corte, sessionStart);
+    const finVentana = fin;
+    const regsVentana = registrosOrdenados.filter(r => DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toMillis() >= startVentana);
+    const piezasVentana = regsVentana.reduce((a, b) => a + b.piezasContadas, 0);
+    const segments = this.construirSegmentosInactividad(regsVentana, startVentana, finVentana);
+    const minVentana = Math.max(Number.EPSILON, (finVentana - startVentana) / 60000);
+    const inactividadOver = segments.reduce((s, g) => s + (g > minutosInactividadParaNPT ? g : 0), 0);
+    const minVentanaProd = Math.max(Number.EPSILON, minVentana - Math.min(minVentana, inactividadOver));
+    const velocidadActual = (piezasVentana / minVentanaProd) * 60;
+    return { velocidadActual };
+  }
+  
+  private porcentajeNPTFrom(totalMin: number, nptNoProductivoTotal: number) {
+    return totalMin > 0 ? (Math.min(nptNoProductivoTotal, totalMin) / totalMin) * 100 : 0;
+  }
+  
   async findActuales() {
-    const sesiones = await this.repo.find({
-      where: { fechaFin: IsNull() },
-      relations: ['trabajador', 'maquina'],
-    });
-
-    const minutosInactividadParaNPT =
-      await this.configService.getMinInactividad();
+    const sesiones = await this.repo.find({ where: { fechaFin: IsNull() }, relations: ['trabajador', 'maquina'] });
+    const minutosInactividadParaNPT = await this.configService.getMinInactividad();
     const resultado: any[] = [];
-
     for (const sesion of sesiones) {
       const sesionConEstado = await this.mapSesionConEstado(sesion);
-
-      const registros = await this.registroMinutoService.obtenerPorSesion(
-        sesion.id,
-      );
-      const totalPiezas = registros.reduce((a, b) => a + b.piezasContadas, 0);
-      const totalPedales = registros.reduce((a, b) => a + b.pedaleadas, 0);
-
-      const defectos = totalPedales - totalPiezas;
-
-      const ordenados = [...registros].sort(
-        (a, b) =>
-          DateTime.fromJSDate(a.minutoInicio, { zone: 'America/Bogota' }).toMillis() -
-          DateTime.fromJSDate(b.minutoInicio, { zone: 'America/Bogota' }).toMillis(),
-      );
-      const registrosOrdenados = [...ordenados];
-      const tieneRegistros = registrosOrdenados.length > 0;
-
-      const sessionStart = DateTime.fromJSDate(sesion.fechaInicio, { zone: 'America/Bogota' }).toMillis();
-      const lastSlot = tieneRegistros
-        ? DateTime.fromJSDate(
-            registrosOrdenados[registrosOrdenados.length - 1].minutoInicio,
-            { zone: 'America/Bogota' },
-          )
-            .plus({ minutes: 1 })
-            .toMillis()
-        : 0;
-      const ahoraMs = DateTime.now().setZone('America/Bogota').toMillis();
-      const fechaFinMs = sesion.fechaFin
-        ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis()
-        : null;
-      const endRef = fechaFinMs ?? ahoraMs;
-      const fin = Math.max(endRef, lastSlot || endRef);
-      const totalMin = Math.max(Number.EPSILON, (fin - sessionStart) / 60000);
-
-      const gapSegments: number[] = [];
-      if (!tieneRegistros) {
-        gapSegments.push(totalMin);
-      } else {
-        const firstMs = DateTime.fromJSDate(registrosOrdenados[0].minutoInicio, { zone: 'America/Bogota' }).toMillis();
-        const preGap = Math.max(0, (firstMs - sessionStart) / 60000);
-        if (preGap > 0) gapSegments.push(preGap);
-        for (let i = 1; i < registrosOrdenados.length; i++) {
-          const prevMs = DateTime.fromJSDate(registrosOrdenados[i - 1].minutoInicio, { zone: 'America/Bogota' }).toMillis();
-          const currMs = DateTime.fromJSDate(registrosOrdenados[i].minutoInicio, { zone: 'America/Bogota' }).toMillis();
-          const diffMin = (currMs - prevMs) / 60000;
-          const gapLen = Math.max(0, diffMin - 1);
-          if (gapLen > 0) gapSegments.push(gapLen);
-        }
-        const postGap = Math.max(0, (fin - lastSlot) / 60000);
-        if (postGap > 0) gapSegments.push(postGap);
-      }
-
-      const nptMin = gapSegments.reduce((a, b) => a + b, 0);
-
-      const nptMinRegistro = registrosOrdenados.filter(
-        (r) => r.pedaleadas === 0 && r.piezasContadas === 0,
-      ).length;
-
-      let nptPorInactividad = 0;
-      if (!tieneRegistros) {
-        const g = nptMin;
-        if (g > minutosInactividadParaNPT) nptPorInactividad += g;
-      } else {
-        for (const g of gapSegments) {
-          if (g > minutosInactividadParaNPT) nptPorInactividad += g;
-        }
-        let run = 0;
-        let prevRunMs = 0;
-        let hasPrevRun = false;
-        for (let i = 0; i < registrosOrdenados.length; i++) {
-          const curr = registrosOrdenados[i];
-          const currMs = DateTime.fromJSDate(curr.minutoInicio, { zone: 'America/Bogota' }).toMillis();
-          const zeroZero = curr.pedaleadas === 0 && curr.piezasContadas === 0;
-          if (zeroZero) {
-            if (hasPrevRun && currMs - prevRunMs === 60000) run += 1;
-            else run = 1;
-          } else {
-            if (run > minutosInactividadParaNPT) nptPorInactividad += run;
-            run = 0;
-          }
-          hasPrevRun = true;
-          prevRunMs = currMs;
-        }
-        if (run > minutosInactividadParaNPT) nptPorInactividad += run;
-      }
-
-      const nptNoProductivoTotal = Math.min(totalMin, nptMin + nptMinRegistro);
-      const minProd = Math.max(Number.EPSILON, totalMin - nptNoProductivoTotal);
-      const avgProd = (totalPiezas / minProd) * 60;
-      const avgSesion = (totalPiezas / totalMin) * 60;
-
-      const ventanaMin = 10;
-      const corte = fin - ventanaMin * 60000;
-      const regsVentana = registrosOrdenados.filter(
-        (r) =>
-          DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toMillis() >= corte,
-      );
-      const piezasVentana = regsVentana.reduce((a, b) => a + b.piezasContadas, 0);
-
-      const startVentana = Math.max(corte, sessionStart);
-      const finVentana = fin;
-      let gapSegmentsVentana: number[] = [];
-      if (regsVentana.length === 0) {
-        gapSegmentsVentana = [(finVentana - startVentana) / 60000];
-      } else {
-        const firstW = DateTime.fromJSDate(regsVentana[0].minutoInicio, { zone: 'America/Bogota' }).toMillis();
-        const preW = Math.max(0, (firstW - startVentana) / 60000);
-        if (preW > 0) gapSegmentsVentana.push(preW);
-        for (let i = 1; i < regsVentana.length; i++) {
-          const prevMs = DateTime.fromJSDate(regsVentana[i - 1].minutoInicio, { zone: 'America/Bogota' }).toMillis();
-          const currMs = DateTime.fromJSDate(regsVentana[i].minutoInicio, { zone: 'America/Bogota' }).toMillis();
-          const diffMin = (currMs - prevMs) / 60000;
-          const gapLen = Math.max(0, diffMin - 1);
-          if (gapLen > 0) gapSegmentsVentana.push(gapLen);
-        }
-        const lastWSlot = DateTime.fromJSDate(
-          regsVentana[regsVentana.length - 1].minutoInicio,
-          { zone: 'America/Bogota' },
-        )
-          .plus({ minutes: 1 })
-          .toMillis();
-        const postW = Math.max(0, (finVentana - lastWSlot) / 60000);
-        if (postW > 0) gapSegmentsVentana.push(postW);
-      }
-      const nptVentanaGapOver = gapSegmentsVentana.reduce(
-        (s, g) => s + (g > minutosInactividadParaNPT ? g : 0),
-        0,
-      );
-      let runW = 0;
-      let prevWms = 0;
-      let hasPrevW = false;
-      let nptVentanaZerosOver = 0;
-      for (let i = 0; i < regsVentana.length; i++) {
-        const reg = regsVentana[i];
-        const currMs = DateTime.fromJSDate(reg.minutoInicio, { zone: 'America/Bogota' }).toMillis();
-        const zeroZero = reg.pedaleadas === 0 && reg.piezasContadas === 0;
-        if (zeroZero) {
-          if (hasPrevW && currMs - prevWms === 60000) runW += 1;
-          else runW = 1;
-        } else {
-          if (runW > minutosInactividadParaNPT) nptVentanaZerosOver += runW;
-          runW = 0;
-        }
-        hasPrevW = true;
-        prevWms = currMs;
-      }
-      if (runW > minutosInactividadParaNPT) nptVentanaZerosOver += runW;
-
-      const minVentana = Math.max(Number.EPSILON, (finVentana - startVentana) / 60000);
-      const inactividadVentana = Math.min(minVentana, nptVentanaGapOver + nptVentanaZerosOver);
-      const minVentanaProd = Math.max(Number.EPSILON, minVentana - inactividadVentana);
-      const velocidadActual = (piezasVentana / minVentanaProd) * 60;
-      const porcentajeNPT = totalMin > 0 ? (Math.min(nptNoProductivoTotal, totalMin) / totalMin) * 100 : 0;
-
+      const registros = await this.registroMinutoService.obtenerPorSesion(sesion.id);
+      const registrosOrdenados = this.ordenarRegistros(registros);
+      const { tieneRegistros, sessionStart, lastSlot, fin, totalMin } = this.obtenerTiemposSesion(sesion, registrosOrdenados);
+      const segmentosInactivos = this.construirSegmentosInactividad(registrosOrdenados, sessionStart, fin);
+      const { totalPiezas, totalPedales, defectos } = this.aggregates(registros);
+      const nptMin = this.nptMinUnifiedFrom(segmentosInactivos);
+      const nptPorInactividad = this.nptPorInactividadFromSegments(segmentosInactivos, minutosInactividadParaNPT);
+      const nptNoProductivoTotal = Math.min(totalMin, nptMin);
+      const { avgProd, avgSesion } = this.promedios(totalPiezas, totalMin, nptNoProductivoTotal);
+      const { velocidadActual } = this.ventanaMetrics(registrosOrdenados, 10, fin, sessionStart, minutosInactividadParaNPT);
+      const porcentajeNPT = this.porcentajeNPTFrom(totalMin, nptNoProductivoTotal);
       const estados = await this.estadoSesionService.findBySesion(sesion.id);
       const estadoActual = estados[0];
-
       resultado.push({
         ...sesionConEstado,
         grupo: sesion.maquina?.tipo,
@@ -448,8 +386,7 @@ export class SesionTrabajoService {
         produccionTotal: totalPiezas,
       });
     }
-
-    return resultado.map((r) => this.formatSesionForResponse(r));
+    return resultado.map(r => this.formatSesionForResponse(r));
   }
 
   async findActivas() {
