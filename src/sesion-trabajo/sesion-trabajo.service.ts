@@ -303,10 +303,12 @@ export class SesionTrabajoService {
             .plus({ minutes: 1 })
             .toMillis()
         : 0;
-      const end = sesion.fechaFin
+      const ahoraMs = DateTime.now().setZone('America/Bogota').toMillis();
+      const fechaFinMs = sesion.fechaFin
         ? DateTime.fromJSDate(sesion.fechaFin, { zone: 'America/Bogota' }).toMillis()
-        : DateTime.now().setZone('America/Bogota').toMillis();
-      const fin = Math.max(end, lastSlot || end);
+        : null;
+      const endRef = fechaFinMs ?? ahoraMs;
+      const fin = Math.max(endRef, lastSlot || endRef);
       const totalMin = Math.max(Number.EPSILON, (fin - sessionStart) / 60000);
 
       const gapSegments: number[] = [];
@@ -439,7 +441,7 @@ export class SesionTrabajoService {
         avgSpeed: avgProd,
         avgSpeedSesion: avgSesion,
         velocidadActual,
-        nptMin: nptMin,
+        nptMin: nptNoProductivoTotal,
         nptPorInactividad,
         porcentajeNPT,
         defectos,
