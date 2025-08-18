@@ -410,17 +410,4 @@ export class SesionTrabajoService {
     return arr.map((s) => this.formatSesionForResponse(s));
   }
 
-  private async finalizarSesionesPrevias(trabajadorId: string) {
-    const activas = await this.repo.find({
-      where: {
-        fechaFin: IsNull(),
-        trabajador: { id: trabajadorId },
-      },
-    });
-
-    for (const sesion of activas) {
-      sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
-      await this.repo.save(sesion);
-    }
-  }
 }
