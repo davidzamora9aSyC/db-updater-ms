@@ -72,9 +72,7 @@ export class RegistroMinutoService {
     if (!pasoSesionTrabajo) return;
 
     await this.mutex.runExclusive(async () => {
-      const fecha = DateTime.fromISO(minutoInicio, {
-        zone: 'America/Bogota',
-      }).toJSDate();
+      const fecha = DateTime.fromISO(minutoInicio).toJSDate();
       const clave = `${sesion.id}_${pasoSesionTrabajo.id}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
@@ -97,9 +95,7 @@ export class RegistroMinutoService {
         registros.push({
           sesionTrabajo,
           pasoSesionTrabajo,
-          minutoInicio: DateTime.fromISO(minutoInicio, {
-            zone: 'America/Bogota',
-          }).toISO() as string,
+          minutoInicio: DateTime.fromISO(minutoInicio).toISO() as string,
           ...data,
         });
       }
@@ -107,9 +103,7 @@ export class RegistroMinutoService {
       for (const dto of registros) {
         const sesionTrabajoId = dto.sesionTrabajo;
         const pasoSesionTrabajoId = dto.pasoSesionTrabajo;
-        const minutoInicio = DateTime.fromISO(dto.minutoInicio, {
-          zone: 'America/Bogota',
-        }).toJSDate();
+        const minutoInicio = DateTime.fromISO(dto.minutoInicio).toJSDate();
 
         const existente = await this.repo.findOne({
           where: {
