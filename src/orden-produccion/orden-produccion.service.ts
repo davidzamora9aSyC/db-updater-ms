@@ -1,3 +1,4 @@
+import { validate as isUUID } from 'uuid';
 import {
   Injectable,
   NotFoundException,
@@ -192,6 +193,7 @@ export class OrdenProduccionService {
   }
 
   async obtenerDetalle(id: string) {
+    if (!isUUID(id)) throw new BadRequestException('ID inválido');
     const orden = await this.repo.findOne({ where: { id } });
     if (!orden) throw new NotFoundException('Orden no encontrada');
 
