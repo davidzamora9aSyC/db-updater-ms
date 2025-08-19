@@ -27,4 +27,9 @@ export class OrdenProduccionController {
   eliminar(@Param('id') id: string) {
     return this.service.eliminar(id)
   }
+
+  @Get(':id/detalle')
+  obtenerDetalle(@Param('id') id: string) {
+    return this.service.obtenerDetalle(id)
+  }
 }
