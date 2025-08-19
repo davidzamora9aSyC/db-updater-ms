@@ -1,4 +1,4 @@
-import { IsUUID, IsIn, IsDateString } from 'class-validator'
+import { IsUUID, IsIn, IsDateString, IsOptional } from 'class-validator'
 
 export class AcumuladorDto {
   @IsUUID()
@@ -10,6 +10,7 @@ export class AcumuladorDto {
   @IsIn(['pedal', 'pieza'])
   tipo: 'pedal' | 'pieza'
 
+  @IsOptional()
   @IsDateString()
   minutoInicio: string
 }

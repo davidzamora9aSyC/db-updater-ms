@@ -56,7 +56,7 @@ export class RegistroMinutoService {
     maquinaId: string,
     pasoId: string,
     tipo: 'pedal' | 'pieza',
-    minutoInicio: string,
+    minutoInicio?: string,
   ) {
     const sesion = await this.findSesionEnProduccionPorMaquina(maquinaId);
 
@@ -72,7 +72,12 @@ export class RegistroMinutoService {
     if (!pasoSesionTrabajo) return;
 
     await this.mutex.runExclusive(async () => {
-      const fecha = DateTime.fromISO(minutoInicio, { zone: 'America/Bogota' }).toJSDate();
+      // Use minutoInicio if provided, otherwise use current UTC time, then set to Bogota timezone
+      const fecha = (minutoInicio
+        ? DateTime.fromISO(minutoInicio, { zone: 'utc' })
+        : DateTime.utc()
+      ).setZone('America/Bogota').toJSDate();
+      // const fecha = DateTime.fromISO(minutoInicio, { zone: 'America/Bogota' }).toJSDate();
       const clave = `${sesion.id}_${pasoSesionTrabajo.id}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
         pedaleadas: 0,
