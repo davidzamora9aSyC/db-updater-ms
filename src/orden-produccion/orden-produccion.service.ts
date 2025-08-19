@@ -99,13 +99,16 @@ export class OrdenProduccionService {
   }
 
   private async withCantidadProducida(orden: OrdenProduccion) {
-    const raw: { suma?: number } = await this.pasoRepo
+    const raw = await this.pasoRepo
       .createQueryBuilder('p')
       .leftJoin('p.orden', 'o')
       .select('COALESCE(SUM(p.cantidadProducida),0)', 'suma')
       .where('o.id = :id', { id: orden.id })
       .getRawOne();
-    const cantidad = Number(raw.suma ?? 0);
+    if (!raw) {
+      throw new Error('No se pudo obtener la suma de cantidadProducida');
+    }
+    const cantidad = Number(raw.suma);
     return { ...orden, cantidadProducida: cantidad } as OrdenProduccion & {
       cantidadProducida: number;
     };
