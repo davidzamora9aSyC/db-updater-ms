@@ -12,6 +12,11 @@ import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { IndicadorSesionMinuto } from '../indicador-sesion-minuto/indicador-sesion-minuto.entity';
+import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
+import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
+import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
+import { Maquina } from '../maquina/maquina.entity';
+
 
 describe('SesionTrabajoService', () => {
   let service: SesionTrabajoService;
@@ -26,7 +31,13 @@ describe('SesionTrabajoService', () => {
         { provide: getRepositoryToken(EstadoTrabajador), useClass: Repository },
         { provide: getRepositoryToken(EstadoMaquina), useClass: Repository },
         { provide: getRepositoryToken(SesionTrabajoPaso), useClass: Repository },
-        { provide: getRepositoryToken(IndicadorSesionMinuto), useValue: { findOne: jest.fn() } },
+
+        { provide: getRepositoryToken(IndicadorSesionMinuto), useValue: { findOne: jest.fn(), find: jest.fn(), createQueryBuilder: jest.fn().mockReturnValue({ delete: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), execute: jest.fn() }) } },
+        { provide: getRepositoryToken(PausaPasoSesion), useClass: Repository },
+        { provide: getRepositoryToken(IndicadorSesion), useClass: Repository },
+        { provide: getRepositoryToken(IndicadorDiarioDim), useClass: Repository },
+        { provide: getRepositoryToken(Maquina), useClass: Repository },
+
         { provide: RegistroMinutoService, useValue: {} },
         { provide: EstadoSesionService, useValue: {} },
         { provide: ConfiguracionService, useValue: {} },
