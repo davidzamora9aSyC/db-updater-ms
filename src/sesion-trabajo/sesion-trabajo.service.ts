@@ -19,6 +19,11 @@ import {
   TipoEstadoSesion,
 } from '../estado-sesion/estado-sesion.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { IndicadorSesionMinuto } from '../indicador-sesion-minuto/indicador-sesion-minuto.entity';
+import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
+import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
+import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
+import { Maquina } from '../maquina/maquina.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -36,6 +41,16 @@ export class SesionTrabajoService {
     private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
     @InjectRepository(SesionTrabajoPaso)
     private readonly stpRepo: Repository<SesionTrabajoPaso>,
+    @InjectRepository(IndicadorSesionMinuto)
+    private readonly indicadorMinutoRepo: Repository<IndicadorSesionMinuto>,
+    @InjectRepository(PausaPasoSesion)
+    private readonly pausaRepo: Repository<PausaPasoSesion>,
+    @InjectRepository(IndicadorSesion)
+    private readonly indicadorSesionRepo: Repository<IndicadorSesion>,
+    @InjectRepository(IndicadorDiarioDim)
+    private readonly indicadorDiarioRepo: Repository<IndicadorDiarioDim>,
+    @InjectRepository(Maquina)
+    private readonly maquinaRepo: Repository<Maquina>,
   ) {}
 
   private toBogotaDate(input?: string | Date | null) {
@@ -92,9 +107,15 @@ export class SesionTrabajoService {
     if (sesionMaquinaActiva) {
       throw new BadRequestException('La máquina ya tiene una sesión activa');
     }
+    const maquina = await this.maquinaRepo.findOne({
+      where: { id: dto.maquina },
+      relations: ['area'],
+    });
+    if (!maquina) throw new NotFoundException('Máquina no encontrada');
     const sesion = this.repo.create({
       trabajador: { id: dto.trabajador } as any,
       maquina: { id: dto.maquina } as any,
+      areaIdSnapshot: maquina.area?.id ?? null,
       fechaInicio: this.toBogotaDate((dto as any).fechaInicio),
       fechaFin: undefined,
       cantidadProducida: 0,
@@ -131,8 +152,13 @@ export class SesionTrabajoService {
       relations: ['pasoOrden', 'pasoOrden.orden'],
 
     });
+    const indicador = await this.indicadorMinutoRepo.findOne({
+      where: { sesionTrabajo: { id } },
+      order: { minuto: 'DESC' },
+    });
     return this.formatSesionForResponse({
       ...sesionConEstado,
+      ...(indicador || {}),
       sesionesTrabajoPaso: relaciones.map((r) => ({
         ...r,
         estado: sesionConEstado.estadoSesion ?? TipoEstadoSesion.OTRO,
@@ -239,7 +265,7 @@ export class SesionTrabajoService {
   async finalizar(id: string) {
     const sesion = await this.repo.findOne({
       where: { id },
-      relations: ['trabajador'],
+      relations: ['trabajador', 'maquina', 'maquina.area'],
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     const descansoActivo = await this.estadoTrabajadorRepo.findOne({
@@ -255,6 +281,142 @@ export class SesionTrabajoService {
       );
     sesion.fechaFin = DateTime.now().setZone('America/Bogota').toJSDate();
     await this.repo.save(sesion);
+
+    const indicadores = await this.calcularIndicadoresSesion(sesion);
+    const { count: pausasCount, minutos: pausasMin } = await this.obtenerPausas(
+      sesion.id,
+    );
+    const totalProduccion =
+      indicadores.produccionTotal + indicadores.defectos;
+    const porcentajeDefectos =
+      totalProduccion > 0
+        ? (indicadores.defectos / totalProduccion) * 100
+        : 0;
+    const duracionSesionMin = Math.round(indicadores.totalMin);
+    const porcentajePausa =
+      duracionSesionMin > 0 ? (pausasMin / duracionSesionMin) * 100 : 0;
+    const indicadoresMinuto = await this.indicadorMinutoRepo.find({
+      where: { sesionTrabajo: { id } },
+    });
+    const velocidadMax10m = Math.max(
+      indicadores.velocidadActual,
+      ...indicadoresMinuto.map((i) => i.velocidadActual),
+    );
+
+    const areaId = (sesion.areaIdSnapshot ?? sesion.maquina.area?.id) as string;
+    const nuevoIndicador = this.indicadorSesionRepo.create({
+      sesionTrabajo: { id: sesion.id } as any,
+      areaIdSnapshot: areaId,
+      trabajadorId: sesion.trabajador.id,
+      maquinaId: sesion.maquina.id,
+      maquinaTipo: sesion.maquina.tipo,
+      fechaInicio: sesion.fechaInicio,
+      fechaFin: sesion.fechaFin!,
+      produccionTotal: indicadores.produccionTotal,
+      defectos: indicadores.defectos,
+      porcentajeDefectos,
+      avgSpeed: indicadores.avgSpeed,
+      avgSpeedSesion: indicadores.avgSpeedSesion,
+      velocidadMax10m,
+      nptMin: indicadores.nptMin,
+      nptPorInactividad: indicadores.nptPorInactividad,
+      porcentajeNPT: indicadores.porcentajeNPT,
+      pausasCount,
+      pausasMin,
+      porcentajePausa,
+      duracionSesionMin,
+      creadoEn: new Date(),
+    });
+    await this.indicadorSesionRepo.save(nuevoIndicador);
+
+    const fecha = DateTime.fromJSDate(sesion.fechaInicio, {
+      zone: 'America/Bogota',
+    }).toISODate() as string;
+    const diario = await this.indicadorDiarioRepo.findOne({
+      where: {
+        fecha,
+        trabajadorId: sesion.trabajador.id,
+        maquinaId: sesion.maquina.id,
+        areaId,
+      },
+    });
+    if (diario) {
+      diario.produccionTotal += indicadores.produccionTotal;
+      diario.defectos += indicadores.defectos;
+      diario.nptMin += indicadores.nptMin;
+      diario.nptPorInactividad += indicadores.nptPorInactividad;
+      diario.pausasCount += pausasCount;
+      diario.pausasMin += pausasMin;
+      diario.duracionTotalMin += duracionSesionMin;
+      diario.sesionesCerradas += 1;
+      const totalProd = diario.produccionTotal + diario.defectos;
+      diario.porcentajeDefectos =
+        totalProd > 0 ? (diario.defectos / totalProd) * 100 : 0;
+      diario.avgSpeed =
+        (diario.produccionTotal /
+          Math.max(
+            Number.EPSILON,
+            diario.duracionTotalMin -
+              Math.min(diario.duracionTotalMin, diario.nptMin),
+          )) *
+        60;
+      diario.avgSpeedSesion =
+        (diario.produccionTotal /
+          Math.max(Number.EPSILON, diario.duracionTotalMin)) *
+        60;
+      diario.porcentajeNPT =
+        diario.duracionTotalMin > 0
+          ? (Math.min(diario.nptMin, diario.duracionTotalMin) /
+              diario.duracionTotalMin) *
+            100
+          : 0;
+      diario.porcentajePausa =
+        diario.duracionTotalMin > 0
+          ? (diario.pausasMin / diario.duracionTotalMin) * 100
+          : 0;
+      diario.updatedAt = new Date();
+      await this.indicadorDiarioRepo.save(diario);
+    } else {
+      const totalProd =
+        indicadores.produccionTotal + indicadores.defectos;
+      const porcentajeDefectosDia =
+        totalProd > 0 ? (indicadores.defectos / totalProd) * 100 : 0;
+      const porcentajeNPTDia =
+        duracionSesionMin > 0
+          ? (Math.min(indicadores.nptMin, duracionSesionMin) /
+              duracionSesionMin) *
+            100
+          : 0;
+      const porcentajePausaDia = porcentajePausa;
+      const nuevoDiario = this.indicadorDiarioRepo.create({
+        fecha,
+        trabajadorId: sesion.trabajador.id,
+        maquinaId: sesion.maquina.id,
+        areaId,
+        produccionTotal: indicadores.produccionTotal,
+        defectos: indicadores.defectos,
+        porcentajeDefectos: porcentajeDefectosDia,
+        avgSpeed: indicadores.avgSpeed,
+        avgSpeedSesion: indicadores.avgSpeedSesion,
+        nptMin: indicadores.nptMin,
+        nptPorInactividad: indicadores.nptPorInactividad,
+        porcentajeNPT: porcentajeNPTDia,
+        pausasCount,
+        pausasMin,
+        porcentajePausa: porcentajePausaDia,
+        duracionTotalMin: duracionSesionMin,
+        sesionesCerradas: 1,
+        updatedAt: new Date(),
+      });
+      await this.indicadorDiarioRepo.save(nuevoDiario);
+    }
+
+    await this.indicadorMinutoRepo
+      .createQueryBuilder()
+      .delete()
+      .where('"sesionTrabajoId" = :id', { id })
+      .execute();
+
     return this.formatSesionForResponse(sesion);
   }
 
@@ -263,6 +425,26 @@ export class SesionTrabajoService {
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     await this.repo.remove(sesion);
     return { deleted: true };
+  }
+
+  private async obtenerPausas(sesionId: string) {
+    const pausas = await this.pausaRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.pasoSesion', 'ps')
+      .innerJoin('ps.sesionTrabajo', 's')
+      .where('s.id = :sesionId', { sesionId })
+      .getMany();
+    let minutos = 0;
+    for (const p of pausas) {
+      if (p.fin) {
+        const inicio = DateTime.fromJSDate(p.inicio, {
+          zone: 'America/Bogota',
+        });
+        const fin = DateTime.fromJSDate(p.fin, { zone: 'America/Bogota' });
+        minutos += Math.round(fin.diff(inicio, 'minutes').minutes);
+      }
+    }
+    return { count: pausas.length, minutos };
   }
 
   private ordenarRegistros(registros: any[]) {
@@ -352,41 +534,86 @@ export class SesionTrabajoService {
   private porcentajeNPTFrom(totalMin: number, nptNoProductivoTotal: number) {
     return totalMin > 0 ? (Math.min(nptNoProductivoTotal, totalMin) / totalMin) * 100 : 0;
   }
+
+  async calcularIndicadoresSesion(sesion: SesionTrabajo) {
+    const minutosInactividadParaNPT = await this.configService.getMinInactividad();
+    const registros = await this.registroMinutoService.obtenerPorSesion(sesion.id);
+    const registrosOrdenados = this.ordenarRegistros(registros);
+    const { sessionStart, fin, totalMin } = this.obtenerTiemposSesion(
+      sesion,
+      registrosOrdenados,
+    );
+    const segmentosInactivos = this.construirSegmentosInactividad(
+      registrosOrdenados,
+      sessionStart,
+      fin,
+    );
+    const { totalPiezas, totalPedales, defectos } = this.aggregates(registros);
+    const nptMin = this.nptMinUnifiedFrom(segmentosInactivos);
+    const nptPorInactividad = this.nptPorInactividadFromSegments(
+      segmentosInactivos,
+      minutosInactividadParaNPT,
+    );
+    const nptNoProductivoTotal = Math.min(totalMin, nptMin);
+    const { avgProd, avgSesion } = this.promedios(
+      totalPiezas,
+      totalMin,
+      nptNoProductivoTotal,
+    );
+    const { velocidadActual } = this.ventanaMetrics(
+      registrosOrdenados,
+      10,
+      fin,
+      sessionStart,
+      minutosInactividadParaNPT,
+    );
+    const porcentajeNPT = this.porcentajeNPTFrom(totalMin, nptNoProductivoTotal);
+    return {
+      produccionTotal: totalPiezas,
+      defectos,
+      avgSpeed: avgProd,
+      avgSpeedSesion: avgSesion,
+      velocidadActual,
+      nptMin: nptNoProductivoTotal,
+      nptPorInactividad,
+      porcentajeNPT,
+      totalMin,
+    };
+  }
   
   async findActuales() {
-    const sesiones = await this.repo.find({ where: { fechaFin: IsNull() }, relations: ['trabajador', 'maquina'] });
-    const minutosInactividadParaNPT = await this.configService.getMinInactividad();
+    const sesiones = await this.repo.find({
+      where: { fechaFin: IsNull() },
+      relations: ['trabajador', 'maquina'],
+    });
     const resultado: any[] = [];
     for (const sesion of sesiones) {
       const sesionConEstado = await this.mapSesionConEstado(sesion);
-      const registros = await this.registroMinutoService.obtenerPorSesion(sesion.id);
-      const registrosOrdenados = this.ordenarRegistros(registros);
-      const { tieneRegistros, sessionStart, lastSlot, fin, totalMin } = this.obtenerTiemposSesion(sesion, registrosOrdenados);
-      const segmentosInactivos = this.construirSegmentosInactividad(registrosOrdenados, sessionStart, fin);
-      const { totalPiezas, totalPedales, defectos } = this.aggregates(registros);
-      const nptMin = this.nptMinUnifiedFrom(segmentosInactivos);
-      const nptPorInactividad = this.nptPorInactividadFromSegments(segmentosInactivos, minutosInactividadParaNPT);
-      const nptNoProductivoTotal = Math.min(totalMin, nptMin);
-      const { avgProd, avgSesion } = this.promedios(totalPiezas, totalMin, nptNoProductivoTotal);
-      const { velocidadActual } = this.ventanaMetrics(registrosOrdenados, 10, fin, sessionStart, minutosInactividadParaNPT);
-      const porcentajeNPT = this.porcentajeNPTFrom(totalMin, nptNoProductivoTotal);
+      const indicador = await this.indicadorMinutoRepo.findOne({
+        where: { sesionTrabajo: { id: sesion.id } },
+        order: { minuto: 'DESC' },
+      });
+      let data: any = indicador;
+      if (!data) {
+        data = await this.calcularIndicadoresSesion(sesion);
+      }
       const estados = await this.estadoSesionService.findBySesion(sesion.id);
       const estadoActual = estados[0];
       resultado.push({
         ...sesionConEstado,
         grupo: sesion.maquina?.tipo,
         estadoInicio: estadoActual?.inicio,
-        avgSpeed: avgProd,
-        avgSpeedSesion: avgSesion,
-        velocidadActual,
-        nptMin: nptNoProductivoTotal,
-        nptPorInactividad,
-        porcentajeNPT,
-        defectos,
-        produccionTotal: totalPiezas,
+        avgSpeed: data.avgSpeed,
+        avgSpeedSesion: data.avgSpeedSesion,
+        velocidadActual: data.velocidadActual,
+        nptMin: data.nptMin,
+        nptPorInactividad: data.nptPorInactividad,
+        porcentajeNPT: data.porcentajeNPT,
+        defectos: data.defectos,
+        produccionTotal: data.produccionTotal,
       });
     }
-    return resultado.map(r => this.formatSesionForResponse(r));
+    return resultado.map((r) => this.formatSesionForResponse(r));
   }
 
   async findActivas() {

@@ -22,6 +22,9 @@ export class SesionTrabajo extends BaseEntity {
   @JoinColumn({ name: 'maquinaId' })
   maquina: Maquina;
 
+  @Column({ type: 'uuid', nullable: true })
+  areaIdSnapshot: string | null;
+
   @Column({ type: 'timestamp' })
   fechaInicio: Date;
 

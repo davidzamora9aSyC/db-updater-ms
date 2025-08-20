@@ -10,6 +10,11 @@ import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity'
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { IndicadorSesionMinuto } from '../indicador-sesion-minuto/indicador-sesion-minuto.entity';
+import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
+import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
+import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
+import { Maquina } from '../maquina/maquina.entity';
 
 @Module({
   imports: [
@@ -20,11 +25,17 @@ import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.en
       SesionTrabajo,
       RegistroMinuto,
       SesionTrabajoPaso,
+      IndicadorSesionMinuto,
+      PausaPasoSesion,
+      IndicadorSesion,
+      IndicadorDiarioDim,
+      Maquina,
     ]),
     RegistroMinutoModule,
     EstadoSesionModule,
   ],
   providers: [SesionTrabajoService],
   controllers: [SesionTrabajoController],
+  exports: [SesionTrabajoService],
 })
 export class SesionTrabajoModule {}

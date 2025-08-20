@@ -5,13 +5,13 @@ export class IndicadorDiarioDim {
   @PrimaryColumn({ type: 'date' })
   fecha: string;
 
-  @PrimaryColumn({ nullable: true })
+  @Column({ type: 'uuid', primary: true, nullable: true })
   trabajadorId: string | null;
 
-  @PrimaryColumn({ nullable: true })
+  @Column({ type: 'uuid', primary: true, nullable: true })
   maquinaId: string | null;
 
-  @PrimaryColumn({ nullable: true })
+  @Column({ type: 'uuid', primary: true, nullable: true })
   areaId: string | null;
 
   @Column('int')

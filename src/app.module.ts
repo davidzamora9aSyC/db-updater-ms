@@ -25,6 +25,7 @@ import { ProduccionDiariaModule } from './produccion-diaria/produccion-diaria.mo
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import * as fs from 'fs';
 import * as path from 'path';
+import { IndicadorSesionMinutoModule } from './indicador-sesion-minuto/indicador-sesion-minuto.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import * as path from 'path';
     ProduccionDiariaModule,
 
     AuthModule,
+    IndicadorSesionMinutoModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: TimezoneInterceptor }],
 })
