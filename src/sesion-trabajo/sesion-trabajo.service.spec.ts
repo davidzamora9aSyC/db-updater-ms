@@ -11,6 +11,7 @@ import { EstadoTrabajador } from '../estado-trabajador/estado-trabajador.entity'
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { IndicadorSesionMinuto } from '../indicador-sesion-minuto/indicador-sesion-minuto.entity';
 
 describe('SesionTrabajoService', () => {
   let service: SesionTrabajoService;
@@ -25,6 +26,7 @@ describe('SesionTrabajoService', () => {
         { provide: getRepositoryToken(EstadoTrabajador), useClass: Repository },
         { provide: getRepositoryToken(EstadoMaquina), useClass: Repository },
         { provide: getRepositoryToken(SesionTrabajoPaso), useClass: Repository },
+        { provide: getRepositoryToken(IndicadorSesionMinuto), useValue: { findOne: jest.fn() } },
         { provide: RegistroMinutoService, useValue: {} },
         { provide: EstadoSesionService, useValue: {} },
         { provide: ConfiguracionService, useValue: {} },
