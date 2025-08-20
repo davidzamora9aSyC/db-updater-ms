@@ -19,6 +19,7 @@ import {
   TipoEstadoSesion,
 } from '../estado-sesion/estado-sesion.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+import { IndicadorSesionMinuto } from '../indicador-sesion-minuto/indicador-sesion-minuto.entity';
 
 @Injectable()
 export class SesionTrabajoService {
@@ -36,6 +37,8 @@ export class SesionTrabajoService {
     private readonly estadoMaquinaRepo: Repository<EstadoMaquina>,
     @InjectRepository(SesionTrabajoPaso)
     private readonly stpRepo: Repository<SesionTrabajoPaso>,
+    @InjectRepository(IndicadorSesionMinuto)
+    private readonly indicadorRepo: Repository<IndicadorSesionMinuto>,
   ) {}
 
   private toBogotaDate(input?: string | Date | null) {
@@ -131,8 +134,13 @@ export class SesionTrabajoService {
       relations: ['pasoOrden', 'pasoOrden.orden'],
 
     });
+    const indicador = await this.indicadorRepo.findOne({
+      where: { sesionTrabajo: { id } },
+      order: { minuto: 'DESC' },
+    });
     return this.formatSesionForResponse({
       ...sesionConEstado,
+      ...(indicador || {}),
       sesionesTrabajoPaso: relaciones.map((r) => ({
         ...r,
         estado: sesionConEstado.estadoSesion ?? TipoEstadoSesion.OTRO,
@@ -352,41 +360,86 @@ export class SesionTrabajoService {
   private porcentajeNPTFrom(totalMin: number, nptNoProductivoTotal: number) {
     return totalMin > 0 ? (Math.min(nptNoProductivoTotal, totalMin) / totalMin) * 100 : 0;
   }
+
+  async calcularIndicadoresSesion(sesion: SesionTrabajo) {
+    const minutosInactividadParaNPT = await this.configService.getMinInactividad();
+    const registros = await this.registroMinutoService.obtenerPorSesion(sesion.id);
+    const registrosOrdenados = this.ordenarRegistros(registros);
+    const { sessionStart, fin, totalMin } = this.obtenerTiemposSesion(
+      sesion,
+      registrosOrdenados,
+    );
+    const segmentosInactivos = this.construirSegmentosInactividad(
+      registrosOrdenados,
+      sessionStart,
+      fin,
+    );
+    const { totalPiezas, totalPedales, defectos } = this.aggregates(registros);
+    const nptMin = this.nptMinUnifiedFrom(segmentosInactivos);
+    const nptPorInactividad = this.nptPorInactividadFromSegments(
+      segmentosInactivos,
+      minutosInactividadParaNPT,
+    );
+    const nptNoProductivoTotal = Math.min(totalMin, nptMin);
+    const { avgProd, avgSesion } = this.promedios(
+      totalPiezas,
+      totalMin,
+      nptNoProductivoTotal,
+    );
+    const { velocidadActual } = this.ventanaMetrics(
+      registrosOrdenados,
+      10,
+      fin,
+      sessionStart,
+      minutosInactividadParaNPT,
+    );
+    const porcentajeNPT = this.porcentajeNPTFrom(totalMin, nptNoProductivoTotal);
+    return {
+      produccionTotal: totalPiezas,
+      defectos,
+      avgSpeed: avgProd,
+      avgSpeedSesion: avgSesion,
+      velocidadActual,
+      nptMin: nptNoProductivoTotal,
+      nptPorInactividad,
+      porcentajeNPT,
+      totalMin,
+    };
+  }
   
   async findActuales() {
-    const sesiones = await this.repo.find({ where: { fechaFin: IsNull() }, relations: ['trabajador', 'maquina'] });
-    const minutosInactividadParaNPT = await this.configService.getMinInactividad();
+    const sesiones = await this.repo.find({
+      where: { fechaFin: IsNull() },
+      relations: ['trabajador', 'maquina'],
+    });
     const resultado: any[] = [];
     for (const sesion of sesiones) {
       const sesionConEstado = await this.mapSesionConEstado(sesion);
-      const registros = await this.registroMinutoService.obtenerPorSesion(sesion.id);
-      const registrosOrdenados = this.ordenarRegistros(registros);
-      const { tieneRegistros, sessionStart, lastSlot, fin, totalMin } = this.obtenerTiemposSesion(sesion, registrosOrdenados);
-      const segmentosInactivos = this.construirSegmentosInactividad(registrosOrdenados, sessionStart, fin);
-      const { totalPiezas, totalPedales, defectos } = this.aggregates(registros);
-      const nptMin = this.nptMinUnifiedFrom(segmentosInactivos);
-      const nptPorInactividad = this.nptPorInactividadFromSegments(segmentosInactivos, minutosInactividadParaNPT);
-      const nptNoProductivoTotal = Math.min(totalMin, nptMin);
-      const { avgProd, avgSesion } = this.promedios(totalPiezas, totalMin, nptNoProductivoTotal);
-      const { velocidadActual } = this.ventanaMetrics(registrosOrdenados, 10, fin, sessionStart, minutosInactividadParaNPT);
-      const porcentajeNPT = this.porcentajeNPTFrom(totalMin, nptNoProductivoTotal);
+      const indicador = await this.indicadorRepo.findOne({
+        where: { sesionTrabajo: { id: sesion.id } },
+        order: { minuto: 'DESC' },
+      });
+      let data: any = indicador;
+      if (!data) {
+        data = await this.calcularIndicadoresSesion(sesion);
+      }
       const estados = await this.estadoSesionService.findBySesion(sesion.id);
       const estadoActual = estados[0];
       resultado.push({
         ...sesionConEstado,
         grupo: sesion.maquina?.tipo,
         estadoInicio: estadoActual?.inicio,
-        avgSpeed: avgProd,
-        avgSpeedSesion: avgSesion,
-        velocidadActual,
-        nptMin: nptNoProductivoTotal,
-        nptPorInactividad,
-        porcentajeNPT,
-        defectos,
-        produccionTotal: totalPiezas,
+        avgSpeed: data.avgSpeed,
+        avgSpeedSesion: data.avgSpeedSesion,
+        velocidadActual: data.velocidadActual,
+        nptMin: data.nptMin,
+        nptPorInactividad: data.nptPorInactividad,
+        porcentajeNPT: data.porcentajeNPT,
+        defectos: data.defectos,
+        produccionTotal: data.produccionTotal,
       });
     }
-    return resultado.map(r => this.formatSesionForResponse(r));
+    return resultado.map((r) => this.formatSesionForResponse(r));
   }
 
   async findActivas() {
