@@ -16,6 +16,7 @@ import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
 import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
 import { Maquina } from '../maquina/maquina.entity';
 
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -30,6 +31,7 @@ import { Maquina } from '../maquina/maquina.entity';
       IndicadorSesion,
       IndicadorDiarioDim,
       Maquina,
+
     ]),
     RegistroMinutoModule,
     EstadoSesionModule,

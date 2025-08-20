@@ -25,6 +25,7 @@ import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
 import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
 import { Maquina } from '../maquina/maquina.entity';
 
+
 @Injectable()
 export class SesionTrabajoService {
   constructor(
@@ -51,6 +52,7 @@ export class SesionTrabajoService {
     private readonly indicadorDiarioRepo: Repository<IndicadorDiarioDim>,
     @InjectRepository(Maquina)
     private readonly maquinaRepo: Repository<Maquina>,
+
   ) {}
 
   private toBogotaDate(input?: string | Date | null) {
@@ -152,7 +154,9 @@ export class SesionTrabajoService {
       relations: ['pasoOrden', 'pasoOrden.orden'],
 
     });
+
     const indicador = await this.indicadorMinutoRepo.findOne({
+
       where: { sesionTrabajo: { id } },
       order: { minuto: 'DESC' },
     });
@@ -590,6 +594,7 @@ export class SesionTrabajoService {
     for (const sesion of sesiones) {
       const sesionConEstado = await this.mapSesionConEstado(sesion);
       const indicador = await this.indicadorMinutoRepo.findOne({
+
         where: { sesionTrabajo: { id: sesion.id } },
         order: { minuto: 'DESC' },
       });
