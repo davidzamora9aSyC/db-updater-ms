@@ -73,10 +73,13 @@ export class RegistroMinutoService {
 
     await this.mutex.runExclusive(async () => {
       // Use minutoInicio if provided, otherwise use current UTC time, then set to Bogota timezone
-      const fecha = (minutoInicio
-        ? DateTime.fromISO(minutoInicio, { zone: 'utc' })
-        : DateTime.utc()
-      ).setZone('America/Bogota').toJSDate();
+      const fecha = (
+        minutoInicio
+          ? DateTime.fromISO(minutoInicio, { zone: 'utc' })
+          : DateTime.utc()
+      )
+        .setZone('America/Bogota')
+        .toJSDate();
       // const fecha = DateTime.fromISO(minutoInicio, { zone: 'America/Bogota' }).toJSDate();
       const clave = `${sesion.id}_${pasoSesionTrabajo.id}_${fecha.toISOString()}`;
       const actual = this.memoria.get(clave) || {
@@ -96,7 +99,8 @@ export class RegistroMinutoService {
       const registros: CreateRegistroMinutoDto[] = [];
 
       for (const [clave, data] of this.memoria.entries()) {
-        const [sesionTrabajo, pasoSesionTrabajo, minutoInicio] = clave.split('_');
+        const [sesionTrabajo, pasoSesionTrabajo, minutoInicio] =
+          clave.split('_');
         registros.push({
           sesionTrabajo,
           pasoSesionTrabajo,
@@ -168,15 +172,17 @@ export class RegistroMinutoService {
               paso.cantidadPedaleos += dto.pedaleadas;
 
               if (paso.cantidadPedaleos >= paso.cantidadRequerida) {
-                if (!paso.fechaMetaAlcanzada)
-                  paso.fechaMetaAlcanzada = DateTime.now()
-                    .setZone('America/Bogota')
-                    .toJSDate();
+                const now = DateTime.now().setZone('America/Bogota');
+                const actividad = dto.pedaleadas > 0 || dto.piezasContadas > 0;
 
-                const diff = DateTime.now()
-                  .setZone('America/Bogota')
-                  .diff(DateTime.fromJSDate(paso.fechaMetaAlcanzada), 'minutes')
-                  .minutes;
+                if (!paso.fechaMetaAlcanzada || actividad) {
+                  paso.fechaMetaAlcanzada = now.toJSDate();
+                }
+
+                const diff = now.diff(
+                  DateTime.fromJSDate(paso.fechaMetaAlcanzada),
+                  'minutes',
+                ).minutes;
 
                 if (diff >= 5 && paso.estado !== EstadoPasoOrden.FINALIZADO) {
                   paso.estado = EstadoPasoOrden.FINALIZADO;
@@ -229,8 +235,10 @@ export class RegistroMinutoService {
     for (const paso of pendientes) {
       const diff = DateTime.now()
         .setZone('America/Bogota')
-        .diff(DateTime.fromJSDate(paso.fechaMetaAlcanzada as Date), 'minutes')
-        .minutes;
+        .diff(
+          DateTime.fromJSDate(paso.fechaMetaAlcanzada as Date),
+          'minutes',
+        ).minutes;
 
       if (diff >= 5) {
         paso.estado = EstadoPasoOrden.FINALIZADO;
@@ -336,7 +344,9 @@ export class RegistroMinutoService {
     const llenos = this.completarHuecos(registros, inicio, fin);
     const conLocal = llenos.map((r) => ({
       ...r,
-      minutoInicioLocal: DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toISO({ suppressMilliseconds: true }),
+      minutoInicioLocal: DateTime.fromJSDate(r.minutoInicio, {
+        zone: 'America/Bogota',
+      }).toISO({ suppressMilliseconds: true }),
     }));
     return conLocal as any;
   }
@@ -373,7 +383,9 @@ export class RegistroMinutoService {
     const llenos = this.completarHuecos(registros, inicio, fin);
     const conLocal = llenos.map((r) => ({
       ...r,
-      minutoInicioLocal: DateTime.fromJSDate(r.minutoInicio, { zone: 'America/Bogota' }).toISO({ suppressMilliseconds: true }),
+      minutoInicioLocal: DateTime.fromJSDate(r.minutoInicio, {
+        zone: 'America/Bogota',
+      }).toISO({ suppressMilliseconds: true }),
     }));
     return conLocal as any;
   }
