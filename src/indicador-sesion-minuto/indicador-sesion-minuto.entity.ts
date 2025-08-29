@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } 
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 
 @Entity('indicador_sesion_minuto')
-@Index(['sesionTrabajo', 'minuto'])
+@Index(['sesionTrabajo', 'minuto'], { unique: true })
 export class IndicadorSesionMinuto {
   @PrimaryGeneratedColumn('uuid')
   id: string;
