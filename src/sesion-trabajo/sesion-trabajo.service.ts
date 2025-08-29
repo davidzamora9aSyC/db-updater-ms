@@ -308,6 +308,8 @@ export class SesionTrabajoService {
     );
 
     const areaId = (sesion.areaIdSnapshot ?? sesion.maquina.area?.id) as string;
+    const nptMinInt = Math.round(indicadores.nptMin);
+    const nptPorInactividadInt = Math.round(indicadores.nptPorInactividad);
     const nuevoIndicador = this.indicadorSesionRepo.create({
       sesionTrabajo: { id: sesion.id } as any,
       areaIdSnapshot: areaId,
@@ -322,8 +324,8 @@ export class SesionTrabajoService {
       avgSpeed: indicadores.avgSpeed,
       avgSpeedSesion: indicadores.avgSpeedSesion,
       velocidadMax10m,
-      nptMin: indicadores.nptMin,
-      nptPorInactividad: indicadores.nptPorInactividad,
+      nptMin: nptMinInt,
+      nptPorInactividad: nptPorInactividadInt,
       porcentajeNPT: indicadores.porcentajeNPT,
       pausasCount,
       pausasMin,
@@ -347,8 +349,8 @@ export class SesionTrabajoService {
     if (diario) {
       diario.produccionTotal += indicadores.produccionTotal;
       diario.defectos += indicadores.defectos;
-      diario.nptMin += indicadores.nptMin;
-      diario.nptPorInactividad += indicadores.nptPorInactividad;
+      diario.nptMin += nptMinInt;
+      diario.nptPorInactividad += nptPorInactividadInt;
       diario.pausasCount += pausasCount;
       diario.pausasMin += pausasMin;
       diario.duracionTotalMin += duracionSesionMin;
@@ -387,7 +389,7 @@ export class SesionTrabajoService {
         totalProd > 0 ? (indicadores.defectos / totalProd) * 100 : 0;
       const porcentajeNPTDia =
         duracionSesionMin > 0
-          ? (Math.min(indicadores.nptMin, duracionSesionMin) /
+          ? (Math.min(nptMinInt, duracionSesionMin) /
               duracionSesionMin) *
             100
           : 0;
@@ -402,8 +404,8 @@ export class SesionTrabajoService {
         porcentajeDefectos: porcentajeDefectosDia,
         avgSpeed: indicadores.avgSpeed,
         avgSpeedSesion: indicadores.avgSpeedSesion,
-        nptMin: indicadores.nptMin,
-        nptPorInactividad: indicadores.nptPorInactividad,
+        nptMin: nptMinInt,
+        nptPorInactividad: nptPorInactividadInt,
         porcentajeNPT: porcentajeNPTDia,
         pausasCount,
         pausasMin,
