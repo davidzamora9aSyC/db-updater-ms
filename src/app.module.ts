@@ -5,7 +5,6 @@ import { TrabajadorModule } from './trabajador/trabajador.module';
 import { MaquinaModule } from './maquina/maquina.module';
 import { OrdenProduccionModule } from './orden-produccion/orden-produccion.module';
 import { PasoProduccionModule } from './paso-produccion/paso-produccion.module';
-import { IndicadorModule } from './indicador/indicador.module';
 import { MinutaModule } from './minuta/minuta.module';
 import { RegistroMinutoModule } from './registro-minuto/registro-minuto.module';
 import { AuthModule } from './auth/auth.module';
@@ -57,7 +56,6 @@ import { IndicadorSesionMinutoModule } from './indicador-sesion-minuto/indicador
 
     PasoProduccionModule,
 
-    IndicadorModule,
 
     MinutaModule,
 
