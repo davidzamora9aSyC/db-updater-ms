@@ -53,7 +53,7 @@ export class SesionTrabajoController {
     return this.service.update(id, dto);
   }
 
-  @Patch(':id/finalizar')
+  @Post(':id/finalizar')
   finalizar(@Param('id') id: string) {
     return this.service.finalizar(id);
   }
