@@ -1,17 +1,20 @@
-import { Entity, PrimaryColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity('indicador_diario_dim')
 export class IndicadorDiarioDim {
-  @PrimaryColumn({ type: 'date' })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'date' })
   fecha: string;
 
-  @Column({ type: 'uuid', primary: true, nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   trabajadorId: string | null;
 
-  @Column({ type: 'uuid', primary: true, nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   maquinaId: string | null;
 
-  @Column({ type: 'uuid', primary: true, nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   areaId: string | null;
 
   @Column('int')
