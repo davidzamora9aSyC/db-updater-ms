@@ -72,8 +72,10 @@ export class IndicadorSesionMinutoService {
           avgSpeed: indicadores.avgSpeed,
           avgSpeedSesion: indicadores.avgSpeedSesion,
           velocidadActual: indicadores.velocidadActual,
-          nptMin: indicadores.nptMin,
-          nptPorInactividad: indicadores.nptPorInactividad,
+          nptMin: Number(indicadores.nptMin.toFixed(2)),
+          nptPorInactividad: Number(
+            indicadores.nptPorInactividad.toFixed(2),
+          ),
           porcentajeNPT: indicadores.porcentajeNPT,
           pausasCount: count,
           pausasMin: minutos,

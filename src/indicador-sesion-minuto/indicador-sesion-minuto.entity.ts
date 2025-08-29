@@ -32,10 +32,10 @@ export class IndicadorSesionMinuto {
   @Column('float')
   velocidadActual: number;
 
-  @Column('int')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   nptMin: number;
 
-  @Column('int')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   nptPorInactividad: number;
 
   @Column('float')
