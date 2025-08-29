@@ -58,6 +58,11 @@ export class SesionTrabajoController {
     return this.service.finalizar(id);
   }
 
+  @Post('finalizar-todas')
+  finalizarTodas() {
+    return this.service.finalizarTodas();
+  }
+
 
   @Delete(':id')
   remove(@Param('id') id: string) {

@@ -642,4 +642,27 @@ export class SesionTrabajoService {
     return arr.map((s) => this.formatSesionForResponse(s));
   }
 
+  async finalizarTodas() {
+    const sesiones = await this.repo.find({
+      where: { fechaFin: IsNull() },
+      select: ['id'],
+    });
+    const resultados: { id: string; ok: boolean; error?: string }[] = [];
+    for (const s of sesiones) {
+      try {
+        await this.finalizar(s.id);
+        resultados.push({ id: s.id, ok: true });
+      } catch (e: any) {
+        resultados.push({ id: s.id, ok: false, error: e?.message ?? 'Error' });
+      }
+    }
+    return {
+      total: sesiones.length,
+      finalizadas: resultados.filter((r) => r.ok).map((r) => r.id),
+      noFinalizadas: resultados
+        .filter((r) => !r.ok)
+        .map((r) => ({ id: r.id, motivo: r.error })),
+    };
+  }
+
 }
