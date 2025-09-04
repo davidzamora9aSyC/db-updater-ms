@@ -11,6 +11,7 @@ import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { IndicadorSesionMinuto } from '../indicador-sesion-minuto/indicador-sesion-minuto.entity';
+import { IndicadorSesionMinutoModule } from '../indicador-sesion-minuto/indicador-sesion-minuto.module';
 import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
 import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
@@ -35,6 +36,7 @@ import { Maquina } from '../maquina/maquina.entity';
     ]),
     RegistroMinutoModule,
     EstadoSesionModule,
+    IndicadorSesionMinutoModule,
   ],
   providers: [SesionTrabajoService],
   controllers: [SesionTrabajoController],

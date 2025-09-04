@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, Between, Not, In } from 'typeorm';
 import { SesionTrabajo } from './sesion-trabajo.entity';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
@@ -664,6 +664,273 @@ export class SesionTrabajoService {
       noFinalizadas: resultados
         .filter((r) => !r.ok)
         .map((r) => ({ id: r.id, motivo: r.error })),
+    };
+  }
+
+  // ---- Indicadores en tiempo real por área ----
+  async velocidadAreaTiempoReal(areaId?: string, mode: 'sum' | 'avg' = 'sum') {
+    const sesiones = await this.repo.find({
+      where: { fechaFin: IsNull() },
+      relations: ['trabajador', 'maquina', 'maquina.area'],
+    });
+    const filtro = areaId ? (s: SesionTrabajo) => (s.areaIdSnapshot ?? s.maquina.area?.id) === areaId : () => true;
+    const activas = sesiones.filter(filtro);
+    const byArea = new Map<string, { suma: number; count: number; minuto?: Date }>();
+    for (const s of activas) {
+      const area = (s.areaIdSnapshot ?? s.maquina.area?.id) as string | undefined;
+      if (!area) continue;
+      const indicador = await this.indicadorMinutoRepo.findOne({
+        where: { sesionTrabajo: { id: s.id } },
+        order: { minuto: 'DESC' },
+      });
+      let vel = indicador?.velocidadActual;
+      let minuto = indicador?.minuto;
+      if (vel === undefined) {
+        const calc = await this.calcularIndicadoresSesion(s);
+        vel = calc.velocidadActual;
+        minuto = new Date();
+      }
+      const curr = byArea.get(area) || { suma: 0, count: 0 };
+      curr.suma += vel || 0;
+      curr.count += 1;
+      curr.minuto = curr.minuto && minuto ? (curr.minuto > minuto ? curr.minuto : minuto) : (minuto ?? curr.minuto);
+      byArea.set(area, curr);
+    }
+    if (areaId) {
+      const d = byArea.get(areaId) || { suma: 0, count: 0 };
+      const valor = mode === 'avg' ? (d.count > 0 ? d.suma / d.count : 0) : d.suma;
+      return { areaId, minuto: d.minuto ?? new Date(), sesiones: d.count, velocidad: valor, mode };
+    }
+    return Array.from(byArea.entries()).map(([a, d]) => ({
+      areaId: a,
+      minuto: d.minuto ?? new Date(),
+      sesiones: d.count,
+      velocidad: mode === 'avg' ? (d.count > 0 ? d.suma / d.count : 0) : d.suma,
+      mode,
+    }));
+  }
+
+  // ---- Velocidad normalizada por sesiones en rango ----
+  async velocidadNormalizadaRango(
+    inicioISO: string,
+    finISO: string,
+    areaId?: string,
+    points = 50,
+  ) {
+    const inicio = DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).toJSDate();
+    const fin = DateTime.fromISO(finISO, { zone: 'America/Bogota' }).toJSDate();
+    const sesiones = await this.repo.find({
+      where: {
+        fechaInicio: Between(inicio, fin),
+        fechaFin: Not(IsNull()),
+      },
+      relations: ['maquina', 'maquina.area'],
+    });
+    const candidatas = areaId
+      ? sesiones.filter((s) => (s.areaIdSnapshot ?? s.maquina.area?.id) === areaId)
+      : sesiones;
+
+    const series: number[][] = [];
+    for (const s of candidatas) {
+      const rows = await this.indicadorMinutoRepo.find({
+        where: { sesionTrabajo: { id: s.id } },
+        order: { minuto: 'ASC' },
+      });
+      if (rows.length < 2) continue;
+      const arr = rows.map((r) => r.velocidadActual || 0);
+      const n = arr.length;
+      const target: number[] = [];
+      for (let i = 0; i < points; i++) {
+        const idx = Math.round((i * (n - 1)) / (points - 1));
+        target.push(arr[idx]);
+      }
+      series.push(target);
+    }
+    const mean: number[] = Array.from({ length: points }, (_, i) => {
+      let sum = 0;
+      let c = 0;
+      for (const s of series) {
+        if (Number.isFinite(s[i])) {
+          sum += s[i];
+          c++;
+        }
+      }
+      return c > 0 ? sum / c : 0;
+    });
+    return {
+      inicio: inicioISO,
+      fin: finISO,
+      areaId: areaId ?? null,
+      points,
+      sesiones: series.length,
+      mean,
+    };
+  }
+
+  // ---- Resumen por trabajador en rango ----
+  async resumenTrabajadorRango(
+    trabajadorId: string,
+    inicioISO: string,
+    finISO: string,
+    includeVentana = false,
+  ) {
+    const inicio = DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).toISODate()!;
+    const fin = DateTime.fromISO(finISO, { zone: 'America/Bogota' }).toISODate()!;
+    const rows = await this.indicadorDiarioRepo
+      .createQueryBuilder('i')
+      .select('SUM(i.produccionTotal)', 'produccionTotal')
+      .addSelect('SUM(i.defectos)', 'defectos')
+      .addSelect('SUM(i.nptMin)', 'nptMin')
+      .addSelect('SUM(i.nptPorInactividad)', 'nptPorInactividad')
+      .addSelect('SUM(i.pausasMin)', 'pausasMin')
+      .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
+      .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
+      .where('i.trabajadorId = :trabajadorId', { trabajadorId })
+      .andWhere('i.fecha BETWEEN :inicio AND :fin', { inicio, fin })
+      .getRawOne<{
+        produccionTotal: string;
+        defectos: string;
+        nptMin: string;
+        nptPorInactividad: string;
+        pausasMin: string;
+        duracionTotalMin: string;
+        sesionesCerradas: string;
+      }>();
+
+    const base = {
+      produccionTotal: Number(rows?.produccionTotal || 0),
+      defectos: Number(rows?.defectos || 0),
+      nptMin: Number(rows?.nptMin || 0),
+      nptPorInactividad: Number(rows?.nptPorInactividad || 0),
+      pausasMin: Number(rows?.pausasMin || 0),
+      duracionTotalMin: Number(rows?.duracionTotalMin || 0),
+      sesionesCerradas: Number(rows?.sesionesCerradas || 0),
+    };
+    const totalPiezas = base.produccionTotal;
+    const totalPedaleos = base.produccionTotal + base.defectos;
+    const porcentajeDefectos = totalPedaleos > 0 ? (base.defectos / totalPedaleos) * 100 : 0;
+    const nptCapped = Math.min(base.nptMin, base.duracionTotalMin);
+    const porcentajeNPT = base.duracionTotalMin > 0 ? (nptCapped / base.duracionTotalMin) * 100 : 0;
+    const porcentajePausa = base.duracionTotalMin > 0 ? (base.pausasMin / base.duracionTotalMin) * 100 : 0;
+    const avgSpeedSesion = base.duracionTotalMin > 0 ? (totalPiezas / base.duracionTotalMin) * 60 : 0;
+    const minProd = Math.max(Number.EPSILON, base.duracionTotalMin - Math.min(base.duracionTotalMin, base.nptMin));
+    const avgSpeed = (totalPiezas / minProd) * 60;
+
+    let velocidadVentanaPromedio: number | undefined = undefined;
+    if (includeVentana) {
+      // Buscar sesiones del trabajador en rango y promediar velocidadActual de sus minutos
+      const sesiones = await this.repo.find({
+        where: {
+          trabajador: { id: trabajadorId } as any,
+          fechaInicio: Between(DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).toJSDate(), DateTime.fromISO(finISO, { zone: 'America/Bogota' }).toJSDate()),
+        },
+      });
+      if (sesiones.length > 0) {
+        const minutos = await this.indicadorMinutoRepo.find({
+          where: { sesionTrabajo: { id: In(sesiones.map((s) => s.id)) } as any },
+        });
+        const vals = minutos.map((m) => m.velocidadActual || 0);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        velocidadVentanaPromedio = vals.length > 0 ? sum / vals.length : 0;
+      } else {
+        velocidadVentanaPromedio = 0;
+      }
+    }
+
+    return {
+      trabajadorId,
+      inicio: inicioISO,
+      fin: finISO,
+      ...base,
+      porcentajeDefectos,
+      porcentajeNPT,
+      porcentajePausa,
+      avgSpeed,
+      avgSpeedSesion,
+      velocidadVentanaPromedio,
+    };
+  }
+
+  // ---- Resumen por máquina en rango ----
+  async resumenMaquinaRango(
+    maquinaId: string,
+    inicioISO: string,
+    finISO: string,
+    includeVentana = false,
+  ) {
+    const inicio = DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).toISODate()!;
+    const fin = DateTime.fromISO(finISO, { zone: 'America/Bogota' }).toISODate()!;
+    const rows = await this.indicadorDiarioRepo
+      .createQueryBuilder('i')
+      .select('SUM(i.produccionTotal)', 'produccionTotal')
+      .addSelect('SUM(i.defectos)', 'defectos')
+      .addSelect('SUM(i.nptMin)', 'nptMin')
+      .addSelect('SUM(i.nptPorInactividad)', 'nptPorInactividad')
+      .addSelect('SUM(i.pausasMin)', 'pausasMin')
+      .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
+      .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
+      .where('i.maquinaId = :maquinaId', { maquinaId })
+      .andWhere('i.fecha BETWEEN :inicio AND :fin', { inicio, fin })
+      .getRawOne<{
+        produccionTotal: string;
+        defectos: string;
+        nptMin: string;
+        nptPorInactividad: string;
+        pausasMin: string;
+        duracionTotalMin: string;
+        sesionesCerradas: string;
+      }>();
+
+    const base = {
+      produccionTotal: Number(rows?.produccionTotal || 0),
+      defectos: Number(rows?.defectos || 0),
+      nptMin: Number(rows?.nptMin || 0),
+      nptPorInactividad: Number(rows?.nptPorInactividad || 0),
+      pausasMin: Number(rows?.pausasMin || 0),
+      duracionTotalMin: Number(rows?.duracionTotalMin || 0),
+      sesionesCerradas: Number(rows?.sesionesCerradas || 0),
+    };
+    const totalPiezas = base.produccionTotal;
+    const totalPedaleos = base.produccionTotal + base.defectos;
+    const porcentajeDefectos = totalPedaleos > 0 ? (base.defectos / totalPedaleos) * 100 : 0;
+    const nptCapped = Math.min(base.nptMin, base.duracionTotalMin);
+    const porcentajeNPT = base.duracionTotalMin > 0 ? (nptCapped / base.duracionTotalMin) * 100 : 0;
+    const porcentajePausa = base.duracionTotalMin > 0 ? (base.pausasMin / base.duracionTotalMin) * 100 : 0;
+    const avgSpeedSesion = base.duracionTotalMin > 0 ? (totalPiezas / base.duracionTotalMin) * 60 : 0;
+    const minProd = Math.max(Number.EPSILON, base.duracionTotalMin - Math.min(base.duracionTotalMin, base.nptMin));
+    const avgSpeed = (totalPiezas / minProd) * 60;
+
+    let velocidadVentanaPromedio: number | undefined = undefined;
+    if (includeVentana) {
+      const sesiones = await this.repo.find({
+        where: {
+          maquina: { id: maquinaId } as any,
+          fechaInicio: Between(DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).toJSDate(), DateTime.fromISO(finISO, { zone: 'America/Bogota' }).toJSDate()),
+        },
+      });
+      if (sesiones.length > 0) {
+        const minutos = await this.indicadorMinutoRepo.find({
+          where: { sesionTrabajo: { id: In(sesiones.map((s) => s.id)) } as any },
+        });
+        const vals = minutos.map((m) => m.velocidadActual || 0);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        velocidadVentanaPromedio = vals.length > 0 ? sum / vals.length : 0;
+      } else {
+        velocidadVentanaPromedio = 0;
+      }
+    }
+
+    return {
+      maquinaId,
+      inicio: inicioISO,
+      fin: finISO,
+      ...base,
+      porcentajeDefectos,
+      porcentajeNPT,
+      porcentajePausa,
+      avgSpeed,
+      avgSpeedSesion,
+      velocidadVentanaPromedio,
     };
   }
 

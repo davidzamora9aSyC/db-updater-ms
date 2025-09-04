@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, Between } from 'typeorm';
 import { DateTime } from 'luxon';
 import { IndicadorSesionMinuto } from './indicador-sesion-minuto.entity';
 import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
@@ -19,6 +19,39 @@ export class IndicadorSesionMinutoService {
     private readonly sesionRepo: Repository<SesionTrabajo>,
     private readonly sesionService: SesionTrabajoService,
   ) {}
+
+  async seriePorSesion(
+    sesionId: string,
+    inicioISO?: string,
+    finISO?: string,
+  ) {
+    const where: any = { sesionTrabajo: { id: sesionId } };
+    if (inicioISO && finISO) {
+      where.minuto = Between(
+        DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).startOf('minute').toJSDate(),
+        DateTime.fromISO(finISO, { zone: 'America/Bogota' }).endOf('minute').toJSDate(),
+      );
+    }
+    const rows = await this.repo.find({ where, order: { minuto: 'ASC' } });
+    return rows.map((r) => ({
+      sesionTrabajoId: sesionId,
+      minuto: r.minuto,
+      produccionTotal: r.produccionTotal,
+      defectos: r.defectos,
+      porcentajeDefectos: r.porcentajeDefectos,
+      avgSpeed: r.avgSpeed,
+      avgSpeedSesion: r.avgSpeedSesion,
+      velocidadActual: r.velocidadActual,
+      nptMin: Number(r.nptMin),
+      nptPorInactividad: Number(r.nptPorInactividad),
+      porcentajeNPT: r.porcentajeNPT,
+      pausasCount: r.pausasCount,
+      pausasMin: r.pausasMin,
+      porcentajePausa: r.porcentajePausa,
+      duracionSesionMin: r.duracionSesionMin,
+      actualizadoEn: r.actualizadoEn,
+    }));
+  }
 
   private async obtenerPausas(sesionId: string) {
     const pausas = await this.pausaRepo
