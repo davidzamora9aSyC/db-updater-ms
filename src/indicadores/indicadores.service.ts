@@ -120,7 +120,7 @@ export class IndicadoresService {
 
       const resultado: any[] = [];
       for (let d = inicio.setZone(this.zone); d <= fin.setZone(this.zone); d = d.plus({ days: 1 })) {
-        const key = d.toISODate();
+        const key = d.toISODate()!;
         const base = map.get(key) || this.calcMetrics({
           produccionTotal: 0,
           defectos: 0,
@@ -400,4 +400,3 @@ export class IndicadoresService {
     }));
   }
 }
-

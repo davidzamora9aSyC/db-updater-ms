@@ -97,3 +97,22 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Front-only Auth Module
+
+- Endpoints: `POST /auth/login` and `GET /auth/validate`.
+- Users: up to 5 in `src/auth/users.config.ts` (in-memory, non-prod).
+- Behavior: API routes remain unprotected; frontend should login once and gate its own routes using the returned token. To verify a token, call `/auth/validate` with `Authorization: Bearer <token>`.
+
+Example login body:
+
+```
+POST /auth/login
+{ "username": "admin", "password": "admin123" }
+```
+
+Response:
+
+```
+{ "access_token": "...", "token_type": "Bearer", "expires_in": 28800, "user": { "username": "admin", "name": "Administrador" } }
+```
