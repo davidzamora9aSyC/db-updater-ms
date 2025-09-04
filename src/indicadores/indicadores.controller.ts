@@ -96,4 +96,26 @@ export class IndicadoresController {
       includeVentana === 'true',
     );
   }
+
+  // Listado de trabajadores con métricas agregadas en rango o rango predefinido
+  @Get('trabajadores')
+  listarTrabajadores(
+    @Query('rango') rango?: string,
+    @Query('inicio') inicio?: string,
+    @Query('fin') fin?: string,
+    @Query('metrics') metrics?: string,
+  ) {
+    return this.service.listarTrabajadores({ rango, inicio, fin, metrics });
+  }
+
+  // Listado de máquinas con métricas agregadas en rango o rango predefinido
+  @Get('maquinas')
+  listarMaquinas(
+    @Query('rango') rango?: string,
+    @Query('inicio') inicio?: string,
+    @Query('fin') fin?: string,
+    @Query('metrics') metrics?: string,
+  ) {
+    return this.service.listarMaquinas({ rango, inicio, fin, metrics });
+  }
 }
