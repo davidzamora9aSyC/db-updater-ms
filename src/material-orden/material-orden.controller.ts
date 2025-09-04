@@ -1,8 +1,10 @@
 import { Controller, Post, Get, Put, Delete, Param, Body } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { MaterialOrdenService } from './material-orden.service';
 import { CreateMaterialOrdenDto } from './dto/create-material-orden.dto';
 import { UpdateMaterialOrdenDto } from './dto/update-material-orden.dto';
 
+@ApiTags('MaterialOrden')
 @Controller('materiales-orden')
 export class MaterialOrdenController {
   constructor(private readonly service: MaterialOrdenService) {}

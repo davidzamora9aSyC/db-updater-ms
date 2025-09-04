@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Param, Body } from '@nestjs/common'
+import { ApiTags } from '@nestjs/swagger'
 import { MinutaService } from './minuta.service'
 import { CreateMinutaDto } from './dto/create-minuta.dto'
 
+@ApiTags('Minutas')
 @Controller('minutas')
 export class MinutaController {
   constructor(private readonly service: MinutaService) {}

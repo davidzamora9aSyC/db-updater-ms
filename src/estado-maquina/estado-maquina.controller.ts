@@ -9,10 +9,12 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { EstadoMaquinaService } from './estado-maquina.service';
 import { CreateEstadoMaquinaDto } from './dto/create-estado-maquina.dto';
 import { UpdateEstadoMaquinaDto } from './dto/update-estado-maquina.dto';
 
+@ApiTags('EstadosMaquina')
 @Controller('estados-maquina')
 export class EstadoMaquinaController {
   constructor(private readonly service: EstadoMaquinaService) {}

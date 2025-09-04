@@ -1,8 +1,10 @@
 import { Controller, Post, Get, Put, Param, Body, Delete } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { MaquinaService } from './maquina.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
 
+@ApiTags('Maquinas')
 @Controller('maquinas')
 export class MaquinaController {
   constructor(private readonly maquinaService: MaquinaService) {}

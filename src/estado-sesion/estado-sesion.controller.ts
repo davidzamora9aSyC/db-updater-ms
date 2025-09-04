@@ -1,8 +1,10 @@
 import { Controller, Post, Get, Param, Body, Put, Delete } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { EstadoSesionService } from './estado-sesion.service';
 import { CreateEstadoSesionDto } from './dto/create-estado-sesion.dto';
 import { UpdateEstadoSesionDto } from './dto/update-estado-sesion.dto';
 
+@ApiTags('EstadosSesion')
 @Controller('estados-sesion')
 export class EstadoSesionController {
   constructor(private readonly service: EstadoSesionService) {}

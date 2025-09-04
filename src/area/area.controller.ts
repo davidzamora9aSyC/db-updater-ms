@@ -7,10 +7,12 @@ import {
   Body,
   Param,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AreaService } from './area.service';
 import { CreateAreaDto } from './dto/create-area.dto';
 import { UpdateAreaDto } from './dto/update-area.dto';
 
+@ApiTags('Areas')
 @Controller('areas')
 export class AreaController {
   constructor(private readonly service: AreaService) {}

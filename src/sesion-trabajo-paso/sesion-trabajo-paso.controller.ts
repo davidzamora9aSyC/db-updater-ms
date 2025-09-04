@@ -1,8 +1,10 @@
 import { Controller, Post, Get, Param, Body, Put, Delete } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { SesionTrabajoPasoService } from './sesion-trabajo-paso.service';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
 
+@ApiTags('SesionTrabajoPaso')
 @Controller('sesion-trabajo-pasos')
 export class SesionTrabajoPasoController {
   constructor(private readonly service: SesionTrabajoPasoService) { }
