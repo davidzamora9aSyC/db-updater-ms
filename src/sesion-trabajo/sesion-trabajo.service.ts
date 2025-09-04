@@ -667,6 +667,42 @@ export class SesionTrabajoService {
     };
   }
 
+  async serieMinutoPorSesion(
+    sesionId: string,
+    inicioISO?: string,
+    finISO?: string,
+  ) {
+    const where: any = { sesionTrabajo: { id: sesionId } };
+    if (inicioISO && finISO) {
+      where.minuto = Between(
+        DateTime.fromISO(inicioISO, { zone: 'America/Bogota' }).startOf('minute').toJSDate(),
+        DateTime.fromISO(finISO, { zone: 'America/Bogota' }).endOf('minute').toJSDate(),
+      );
+    }
+    const rows = await this.indicadorMinutoRepo.find({
+      where,
+      order: { minuto: 'ASC' },
+    });
+    return rows.map((r) => ({
+      sesionTrabajoId: sesionId,
+      minuto: r.minuto,
+      produccionTotal: r.produccionTotal,
+      defectos: r.defectos,
+      porcentajeDefectos: r.porcentajeDefectos,
+      avgSpeed: r.avgSpeed,
+      avgSpeedSesion: r.avgSpeedSesion,
+      velocidadActual: r.velocidadActual,
+      nptMin: Number(r.nptMin),
+      nptPorInactividad: Number(r.nptPorInactividad),
+      porcentajeNPT: r.porcentajeNPT,
+      pausasCount: r.pausasCount,
+      pausasMin: r.pausasMin,
+      porcentajePausa: r.porcentajePausa,
+      duracionSesionMin: r.duracionSesionMin,
+      actualizadoEn: r.actualizadoEn,
+    }));
+  }
+
   // ---- Indicadores en tiempo real por área ----
   async velocidadAreaTiempoReal(areaId?: string, mode: 'sum' | 'avg' = 'sum') {
     const sesiones = await this.repo.find({

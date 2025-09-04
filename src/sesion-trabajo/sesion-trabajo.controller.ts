@@ -2,14 +2,12 @@ import { Controller, Post, Get, Param, Body, Put, Delete, Patch, Query } from '@
 import { SesionTrabajoService } from './sesion-trabajo.service';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
-import { IndicadorSesionMinutoService } from '../indicador-sesion-minuto/indicador-sesion-minuto.service';
 
 
 @Controller('sesiones-trabajo')
 export class SesionTrabajoController {
   constructor(
     private readonly service: SesionTrabajoService,
-    private readonly indicadorMinutoService: IndicadorSesionMinutoService,
   ) {}
 
   @Post()
@@ -59,7 +57,7 @@ export class SesionTrabajoController {
     @Query('inicio') inicio?: string,
     @Query('fin') fin?: string,
   ) {
-    return this.indicadorMinutoService.seriePorSesion(id, inicio, fin);
+    return this.service.serieMinutoPorSesion(id, inicio, fin);
   }
 
   @Put(':id')
