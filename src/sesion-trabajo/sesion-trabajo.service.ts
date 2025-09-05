@@ -772,12 +772,18 @@ export class SesionTrabajoService {
       byAreaMinute.set(a, inner);
     }
 
-    // 6) Armar salida
+    // 6) Armar salida con serie completa minuto a minuto (gap-filling)
     const buildSerie = (a: string) => {
       const inner = byAreaMinute.get(a) || new Map<string, { sum: number; c: number }>();
-      const puntos = Array.from(inner.entries())
-        .sort(([k1], [k2]) => (k1 < k2 ? -1 : k1 > k2 ? 1 : 0))
-        .map(([minuto, d]) => ({ minuto, meanNorm: d.c > 0 ? d.sum / d.c : 0 }));
+      const startDT = DateTime.fromJSDate(start, { zone });
+      const endDT = DateTime.fromJSDate(end, { zone }).startOf('minute');
+      const puntos: { minuto: string; meanNorm: number | null }[] = [];
+      for (let t = startDT.startOf('minute'); t <= endDT; t = t.plus({ minutes: 1 })) {
+        const key = t.toISO({ suppressSeconds: true, includeOffset: false });
+        const d = inner.get(key);
+        const meanNorm = d && d.c > 0 ? d.sum / d.c : null;
+        puntos.push({ minuto: key, meanNorm });
+      }
       return {
         areaId: a,
         inicio: DateTime.fromJSDate(start, { zone }).toISO(),
