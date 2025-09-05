@@ -703,50 +703,96 @@ export class SesionTrabajoService {
     }));
   }
 
-  // ---- Indicadores en tiempo real por área ----
-  async velocidadAreaTiempoReal(areaId?: string, mode: 'sum' | 'avg' = 'sum') {
+  // ---- Indicadores en tiempo real por área (serie promedio normalizada del día) ----
+  async velocidadAreaTiempoReal(areaId?: string) {
+    // 1) Obtener sesiones activas (fechaFin NULL). Filtrar por área si se solicita.
     const sesiones = await this.repo.find({
       where: { fechaFin: IsNull() },
-      relations: ['trabajador', 'maquina', 'maquina.area'],
+      relations: ['maquina', 'maquina.area'],
     });
-    const filtro = areaId ? (s: SesionTrabajo) => (s.areaIdSnapshot ?? s.maquina.area?.id) === areaId : () => true;
-    const activas = sesiones.filter(filtro);
-    const byArea = new Map<string, { suma: number; count: number; minuto?: Date }>();
+    const areaDe = (s: SesionTrabajo) => (s.areaIdSnapshot ?? s.maquina.area?.id) as string | undefined;
+    const activas = sesiones.filter((s) => !!areaDe(s) && (!areaId || areaDe(s) === areaId));
+
+    // 2) Mapear sesiones por área y armar lookup de área por sesión
+    const porArea = new Map<string, string[]>(); // areaId -> [sesionId]
+    const areaBySesion = new Map<string, string>();
     for (const s of activas) {
-      const area = (s.areaIdSnapshot ?? s.maquina.area?.id) as string | undefined;
-      if (!area) continue;
-      const indicador = await this.indicadorMinutoRepo.findOne({
-        where: { sesionTrabajo: { id: s.id } },
-        order: { minuto: 'DESC' },
-      });
-      let vel = indicador?.velocidadActual;
-      let minuto = indicador?.minuto;
-      if (vel === undefined) {
-        const calc = await this.calcularIndicadoresSesion(s);
-        vel = calc.velocidadActual;
-        minuto = new Date();
-      }
-      const curr = byArea.get(area) || { suma: 0, count: 0 };
-      curr.suma += vel || 0;
-      curr.count += 1;
-      curr.minuto = curr.minuto && minuto ? (curr.minuto > minuto ? curr.minuto : minuto) : (minuto ?? curr.minuto);
-      byArea.set(area, curr);
+      const a = areaDe(s)!;
+      porArea.set(a, [...(porArea.get(a) || []), s.id]);
+      areaBySesion.set(s.id, a);
     }
-    if (areaId) {
-      const d = byArea.get(areaId) || { suma: 0, count: 0 };
-      const valor = mode === 'avg' ? (d.count > 0 ? d.suma / d.count : 0) : d.suma;
-      return { areaId, minuto: d.minuto ?? new Date(), sesiones: d.count, velocidad: valor, mode };
+
+    // 3) Consultar todos los minutos del día actual para esas sesiones y calcular
+    //    promedio normalizado por minuto, alineando por timestamp (minuto exacto)
+    const zone = 'America/Bogota';
+    const start = DateTime.now().setZone(zone).startOf('day').toJSDate();
+    const end = DateTime.now().setZone(zone).toJSDate();
+
+    const todasSesionesIds = Array.from(areaBySesion.keys());
+    if (todasSesionesIds.length === 0) {
+      if (areaId) return { areaId, inicio: DateTime.fromJSDate(start, { zone }).toISO(), fin: DateTime.fromJSDate(end, { zone }).toISO(), sesiones: 0, puntos: [] as any[] };
+      return [] as any[];
     }
-    return Array.from(byArea.entries()).map(([a, d]) => ({
-      areaId: a,
-      minuto: d.minuto ?? new Date(),
-      sesiones: d.count,
-      velocidad: mode === 'avg' ? (d.count > 0 ? d.suma / d.count : 0) : d.suma,
-      mode,
-    }));
+
+    // Traer filas crudas con sesionId para agrupar y normalizar por sesión
+    const rows = await this.indicadorMinutoRepo
+      .createQueryBuilder('m')
+      .select(['m.minuto AS minuto', 'm.velocidadActual AS velocidad', 'm.sesionTrabajoId AS sid'])
+      .where('m.sesionTrabajoId IN (:...ids)', { ids: todasSesionesIds })
+      .andWhere('m.minuto BETWEEN :inicio AND :fin', { inicio: start, fin: end })
+      .orderBy('m.minuto', 'ASC')
+      .getRawMany<{ minuto: Date; velocidad: number; sid: string }>();
+
+    // 4) Calcular promedio de cada sesión para normalizar
+    const sumBySesion = new Map<string, { sum: number; c: number }>();
+    for (const r of rows) {
+      const d = sumBySesion.get(r.sid) || { sum: 0, c: 0 };
+      d.sum += Number(r.velocidad || 0);
+      d.c += 1;
+      sumBySesion.set(r.sid, d);
+    }
+    const meanBySesion = new Map<string, number>();
+    for (const [sid, d] of sumBySesion.entries()) {
+      meanBySesion.set(sid, d.c > 0 ? d.sum / d.c : 0);
+    }
+
+    // 5) Acumular por área y minuto: promedio de (velocidad / meanSesion)
+    const byAreaMinute = new Map<string, Map<string, { sum: number; c: number }>>();
+    for (const r of rows) {
+      const a = areaBySesion.get(r.sid);
+      if (!a) continue;
+      const mean = meanBySesion.get(r.sid) || 0;
+      const norm = mean > 0 ? Number(r.velocidad || 0) / mean : 0;
+      const minutoKey = DateTime.fromJSDate(r.minuto, { zone }).toISO({ suppressSeconds: true, includeOffset: false });
+      const inner = byAreaMinute.get(a) || new Map<string, { sum: number; c: number }>();
+      const curr = inner.get(minutoKey) || { sum: 0, c: 0 };
+      curr.sum += norm;
+      curr.c += 1;
+      inner.set(minutoKey, curr);
+      byAreaMinute.set(a, inner);
+    }
+
+    // 6) Armar salida
+    const buildSerie = (a: string) => {
+      const inner = byAreaMinute.get(a) || new Map<string, { sum: number; c: number }>();
+      const puntos = Array.from(inner.entries())
+        .sort(([k1], [k2]) => (k1 < k2 ? -1 : k1 > k2 ? 1 : 0))
+        .map(([minuto, d]) => ({ minuto, meanNorm: d.c > 0 ? d.sum / d.c : 0 }));
+      return {
+        areaId: a,
+        inicio: DateTime.fromJSDate(start, { zone }).toISO(),
+        fin: DateTime.fromJSDate(end, { zone }).toISO(),
+        sesiones: (porArea.get(a) || []).length,
+        puntos,
+        normalizacion: 'mean-per-sesion',
+      };
+    };
+
+    if (areaId) return buildSerie(areaId);
+    return Array.from(porArea.keys()).map((a) => buildSerie(a));
   }
 
-  // ---- Velocidad normalizada por sesiones en rango ----
+  // ---- Velocidad normalizada por sesiones en rango (con normalización por sesión) ----
   async velocidadNormalizadaRango(
     inicioISO: string,
     finISO: string,
@@ -773,7 +819,9 @@ export class SesionTrabajoService {
         order: { minuto: 'ASC' },
       });
       if (rows.length < 2) continue;
-      const arr = rows.map((r) => r.velocidadActual || 0);
+      const arrRaw = rows.map((r) => r.velocidadActual || 0);
+      const mean = arrRaw.length > 0 ? arrRaw.reduce((a, b) => a + b, 0) / arrRaw.length : 0;
+      const arr = mean > 0 ? arrRaw.map((v) => v / mean) : arrRaw.map(() => 0);
       const n = arr.length;
       const target: number[] = [];
       for (let i = 0; i < points; i++) {
@@ -800,6 +848,7 @@ export class SesionTrabajoService {
       points,
       sesiones: series.length,
       mean,
+      normalizacion: 'mean-per-sesion',
     };
   }
 

@@ -122,7 +122,7 @@ export class IndicadoresService {
 
   private pickMetrics<T extends Record<string, any>>(obj: T, allow?: string[] | null) {
     if (!allow || allow.length === 0) return obj;
-    const baseKeys = ['id', 'nombre', 'identificacion', 'grupo', 'turno', 'tipo', 'areaId'];
+    const baseKeys = ['id', 'nombre', 'identificacion', 'grupo', 'turno', 'tipo', 'areaId', 'areaNombre'];
     const out: any = {};
     for (const k of baseKeys) if (k in obj) out[k] = obj[k];
     for (const k of allow) if (k in obj) out[k] = obj[k];
@@ -251,7 +251,7 @@ export class IndicadoresService {
         id: r.id,
         nombre: m?.nombre,
         tipo: m?.tipo,
-        areaId: m?.area?.id,
+        areaNombre: m?.area?.nombre,
         produccionTotal: this.toNum(r.produccionTotal),
         defectos: this.toNum(r.defectos),
         nptMin: this.toNum(r.nptMin),

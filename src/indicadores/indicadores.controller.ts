@@ -48,28 +48,26 @@ export class IndicadoresController {
     return this.service.resumenMesActual();
   }
 
-  // Tiempo real: velocidad por área (suma o promedio)
+  // Tiempo real: serie promedio normalizada por área (día actual)
   @Get('realtime/area-velocidad')
-  @ApiOperation({ summary: 'Velocidad de ventana (10m) por área en tiempo real' })
+  @ApiOperation({ summary: 'Serie promedio normalizada (ventana 10m) del día por área' })
   @ApiQuery({ name: 'areaId', required: false })
-  @ApiQuery({ name: 'mode', required: false, description: 'sum | avg', example: 'sum' })
   velocidadAreaTiempoReal(
     @Query('areaId') areaId?: string,
-    @Query('mode') mode: 'sum' | 'avg' = 'sum',
   ) {
-    return this.sesionService.velocidadAreaTiempoReal(areaId, mode);
+    return this.sesionService.velocidadAreaTiempoReal(areaId);
   }
 
   // Velocidad normalizada por sesiones en un rango (general o por área)
   @Get('sesiones/velocidad-normalizada')
-  @ApiOperation({ summary: 'Curva promedio normalizada de velocidad de ventana por sesiones en rango' })
+  @ApiOperation({ summary: 'Curva promedio (longitud normalizada) con velocidades normalizadas por sesión' })
   @ApiQuery({ name: 'inicio', required: true, description: 'Fecha/ISO inicio' })
   @ApiQuery({ name: 'fin', required: true, description: 'Fecha/ISO fin' })
   @ApiQuery({ name: 'areaId', required: false })
   @ApiQuery({ name: 'points', required: false, example: 50 })
-  @ApiOkResponse({ description: 'Curva mean normalizada', schema: { example: {
+  @ApiOkResponse({ description: 'Curva promedio de velocidades normalizadas', schema: { example: {
     inicio: '2025-09-01', fin: '2025-09-04', areaId: 'a1', points: 50, sesiones: 37,
-    mean: [120.0, 122.5, 125.1, 130.3, 140.9]
+    mean: [0.95, 1.02, 1.08, 1.05, 0.98], normalizacion: 'mean-per-sesion'
   } } })
   velocidadNormalizada(
     @Query('inicio') inicio: string,
