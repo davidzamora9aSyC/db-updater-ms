@@ -763,7 +763,7 @@ export class SesionTrabajoService {
       if (!a) continue;
       const mean = meanBySesion.get(r.sid) || 0;
       const norm = mean > 0 ? Number(r.velocidad || 0) / mean : 0;
-      const minutoKey = DateTime.fromJSDate(r.minuto, { zone }).toISO({ suppressSeconds: true, includeOffset: false });
+      const minutoKey = DateTime.fromJSDate(r.minuto, { zone }).toISO({ suppressSeconds: true, includeOffset: false }) as string;
       const inner = byAreaMinute.get(a) || new Map<string, { sum: number; c: number }>();
       const curr = inner.get(minutoKey) || { sum: 0, c: 0 };
       curr.sum += norm;
@@ -779,7 +779,7 @@ export class SesionTrabajoService {
       const endDT = DateTime.fromJSDate(end, { zone }).startOf('minute');
       const puntos: { minuto: string; meanNorm: number | null }[] = [];
       for (let t = startDT.startOf('minute'); t <= endDT; t = t.plus({ minutes: 1 })) {
-        const key = t.toISO({ suppressSeconds: true, includeOffset: false });
+        const key = t.toISO({ suppressSeconds: true, includeOffset: false }) as string;
         const d = inner.get(key);
         const meanNorm = d && d.c > 0 ? d.sum / d.c : null;
         puntos.push({ minuto: key, meanNorm });
