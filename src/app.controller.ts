@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
 @Controller()
@@ -11,6 +12,17 @@ export class AppController {
   }
 
   @Post('evento')
+  @ApiBody({ description: 'Evento desde dispositivo', schema: {
+    type: 'object',
+    properties: {
+      estacion: { type: 'string', example: 'estacion-1' },
+      id: { type: 'string', example: 'tolva' },
+      intervalo: { type: 'number', example: 100 },
+      distancia: { type: 'number', example: 12.5 },
+      luz: { type: 'number', example: 1 }
+    },
+    required: ['estacion', 'id']
+  } })
   handleEvento(@Body() body: any) {
     console.log('POST /evento recibido:', body);
     const { estacion, id, intervalo, distancia, luz } = body;
@@ -38,6 +50,14 @@ export class AppController {
   }
 
   @Post('impacto')
+  @ApiBody({ description: 'Impacto desde dispositivo', schema: {
+    type: 'object',
+    properties: {
+      estacion: { type: 'string', example: 'estacion-1' },
+      id: { type: 'string', enum: ['stop', 'stop-m', 'continue'] }
+    },
+    required: ['estacion', 'id']
+  } })
   handleImpacto(@Body() body: any) {
     console.log('POST /impacto recibido:', body);
     const { estacion, id } = body;
@@ -56,6 +76,20 @@ export class AppController {
 
 
   @Post('minuta')
+  @ApiBody({ description: 'Minuta de producción', schema: {
+    type: 'object',
+    properties: {
+      accion: { type: 'string', example: 'Terminar turno' },
+      fecha: { type: 'string', format: 'date-time' },
+      trabajador: { type: 'string', example: 'uuid' },
+      orden_produccion: { type: 'string', example: 'uuid' },
+      proceso: { type: 'string', example: 'Corte' },
+      cantidad_piezas: { type: 'number', example: 200 },
+      meta: { type: 'number', example: 240 },
+      npt_min: { type: 'number', example: 12 }
+    },
+    required: ['accion', 'fecha', 'proceso']
+  } })
   handleMinuta(@Body() body: any) {
     console.log('POST /minuta recibido:', body);
     const { accion, fecha, trabajador, orden_produccion, proceso, cantidad_piezas, meta, npt_min } = body;

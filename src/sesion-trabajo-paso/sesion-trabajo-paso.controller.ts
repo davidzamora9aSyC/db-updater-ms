@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Param, Body, Put, Delete } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiTags, getSchemaPath } from '@nestjs/swagger';
 import { SesionTrabajoPasoService } from './sesion-trabajo-paso.service';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
@@ -15,6 +15,7 @@ export class SesionTrabajoPasoController {
   }
 
   @Post('batch')
+  @ApiBody({ type: [CreateSesionTrabajoPasoDto] })
   createBatch(@Body() dtos: CreateSesionTrabajoPasoDto[]) {
     return Promise.all(dtos.map(dto => this.service.create(dto)));
   }
@@ -45,6 +46,17 @@ export class SesionTrabajoPasoController {
   }
 
   @Put('batch')
+  @ApiBody({ schema: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        data: { $ref: getSchemaPath(UpdateSesionTrabajoPasoDto) }
+      },
+      required: ['id', 'data']
+    }
+  } })
   updateBatch(@Body() updates: { id: string; data: UpdateSesionTrabajoPasoDto }[]) {
     return Promise.all(updates.map(({ id, data }) => this.service.update(id, data)));
   }

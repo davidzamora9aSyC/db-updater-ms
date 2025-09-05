@@ -7,7 +7,7 @@ import {
   Query,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -18,6 +18,7 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Login con usuario/clave' })
+  @ApiBody({ description: 'Credenciales de acceso', type: LoginDto })
   @ApiOkResponse({ description: 'JWT emitido', schema: { example: {
     access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     token_type: 'Bearer',

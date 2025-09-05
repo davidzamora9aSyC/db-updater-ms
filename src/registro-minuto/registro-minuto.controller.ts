@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Get, Param } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { RegistroMinutoService } from './registro-minuto.service';
 import { AcumuladorDto } from './dto/acumulador.dto';
 
@@ -9,6 +9,7 @@ export class RegistroMinutoController {
   constructor(private readonly service: RegistroMinutoService) {}
 
   @Post('acumular')
+  @ApiBody({ type: AcumuladorDto })
   async acumular(@Body() body: AcumuladorDto) {
     const { maquina, paso, tipo, minutoInicio } = body;
     await this.service.acumular(maquina, paso, tipo, minutoInicio);
