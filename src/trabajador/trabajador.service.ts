@@ -47,6 +47,36 @@ export class TrabajadorService {
     )
   }
 
+  async buscar(opts: { q?: string; nombre?: string; identificacion?: string; limit?: number }) {
+    const qb = this.repo.createQueryBuilder('t')
+    const limit = Math.min(Math.max(opts.limit || 20, 1), 100)
+    const whereParts: string[] = []
+    const params: Record<string, any> = {}
+
+    if (opts.q && opts.q.trim()) {
+      whereParts.push('(LOWER(t.nombre) LIKE :q OR LOWER(t.identificacion) LIKE :q)')
+      params.q = `%${opts.q.trim().toLowerCase()}%`
+    }
+    if (opts.nombre && opts.nombre.trim()) {
+      whereParts.push('LOWER(t.nombre) LIKE :nombre')
+      params.nombre = `%${opts.nombre.trim().toLowerCase()}%`
+    }
+    if (opts.identificacion && opts.identificacion.trim()) {
+      whereParts.push('t.identificacion LIKE :identificacion')
+      params.identificacion = `%${opts.identificacion.trim()}%`
+    }
+
+    if (whereParts.length > 0) qb.where(whereParts.join(' AND '), params)
+    const rows = await qb.orderBy('t.nombre', 'ASC').take(limit).getMany()
+
+    return Promise.all(
+      rows.map(async (t) => ({
+        ...t,
+        estado: await this.obtenerEstado(t.id),
+      })),
+    )
+  }
+
   async obtener(id: string) {
     const trabajador = await this.repo.findOneBy({ id })
     if (!trabajador) throw new NotFoundException('Trabajador no encontrado')

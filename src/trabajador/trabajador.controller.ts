@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Param, Body, Delete } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Param, Body, Delete, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { TrabajadorService } from './trabajador.service';
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
 import { UpdateTrabajadorDto } from './dto/update-trabajador.dto';
@@ -19,6 +19,22 @@ export class TrabajadorController {
   @Get()
   listar() {
     return this.service.listar();
+  }
+
+  // Buscar por nombre o identificación
+  @Get('buscar')
+  @ApiOperation({ summary: 'Buscar trabajadores por nombre o identificación' })
+  @ApiQuery({ name: 'q', required: false, description: 'Texto libre: nombre o identificación' })
+  @ApiQuery({ name: 'nombre', required: false })
+  @ApiQuery({ name: 'identificacion', required: false })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  buscar(
+    @Query('q') q?: string,
+    @Query('nombre') nombre?: string,
+    @Query('identificacion') identificacion?: string,
+    @Query('limit') limit = '20',
+  ) {
+    return this.service.buscar({ q, nombre, identificacion, limit: Number(limit) || 20 });
   }
 
   // Obtiene un trabajador por su ID

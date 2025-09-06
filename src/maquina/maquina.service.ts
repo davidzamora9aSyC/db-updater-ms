@@ -85,4 +85,35 @@ export class MaquinaService {
     if (estadoMaq) return 'mantenimiento';
     return 'inactivo';
   }
+
+  async buscar(opts: { q?: string; nombre?: string; areaId?: string; limit?: number }) {
+    const qb = this.repo.createQueryBuilder('m').leftJoinAndSelect('m.area', 'a')
+    const limit = Math.min(Math.max(opts.limit || 20, 1), 100)
+    const whereParts: string[] = []
+    const params: Record<string, any> = {}
+
+    if (opts.q && opts.q.trim()) {
+      whereParts.push('(LOWER(m.nombre) LIKE :q OR LOWER(m.codigo) LIKE :q)')
+      params.q = `%${opts.q.trim().toLowerCase()}%`
+    }
+    if (opts.nombre && opts.nombre.trim()) {
+      whereParts.push('LOWER(m.nombre) LIKE :nombre')
+      params.nombre = `%${opts.nombre.trim().toLowerCase()}%`
+    }
+    if (opts.areaId && opts.areaId.trim()) {
+      whereParts.push('a.id = :areaId')
+      params.areaId = opts.areaId.trim()
+    }
+
+    if (whereParts.length > 0) qb.where(whereParts.join(' AND '), params)
+    const rows = await qb.orderBy('m.nombre', 'ASC').take(limit).getMany()
+
+    return Promise.all(
+      rows.map(async (m) => ({
+        ...m,
+        estado: await this.getEstado(m.id),
+        areaNombre: m.area?.nombre,
+      })),
+    )
+  }
 }
