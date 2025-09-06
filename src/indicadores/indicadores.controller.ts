@@ -156,4 +156,36 @@ export class IndicadoresController {
   ) {
     return this.service.listarMaquinas({ rango, inicio, fin, metrics });
   }
+
+  // Serie diaria por trabajador en rango o rango predefinido
+  @Get('trabajadores/:id/diaria')
+  @ApiOperation({ summary: 'Serie diaria de métricas por trabajador' })
+  @ApiParam({ name: 'id', required: true })
+  @ApiQuery({ name: 'rango', required: false, description: 'hoy, semana, mes, ultimos-30-dias, ano, ultimos-12-meses' })
+  @ApiQuery({ name: 'inicio', required: false })
+  @ApiQuery({ name: 'fin', required: false })
+  diariaTrabajador(
+    @Param('id') id: string,
+    @Query('rango') rango?: string,
+    @Query('inicio') inicio?: string,
+    @Query('fin') fin?: string,
+  ) {
+    return this.service.diariaPorTrabajador(id, { rango, inicio, fin });
+  }
+
+  // Serie diaria por máquina en rango o rango predefinido
+  @Get('maquinas/:id/diaria')
+  @ApiOperation({ summary: 'Serie diaria de métricas por máquina' })
+  @ApiParam({ name: 'id', required: true })
+  @ApiQuery({ name: 'rango', required: false, description: 'hoy, semana, mes, ultimos-30-dias, ano, ultimos-12-meses' })
+  @ApiQuery({ name: 'inicio', required: false })
+  @ApiQuery({ name: 'fin', required: false })
+  diariaMaquina(
+    @Param('id') id: string,
+    @Query('rango') rango?: string,
+    @Query('inicio') inicio?: string,
+    @Query('fin') fin?: string,
+  ) {
+    return this.service.diariaPorMaquina(id, { rango, inicio, fin });
+  }
 }

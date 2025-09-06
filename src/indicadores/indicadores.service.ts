@@ -624,4 +624,133 @@ export class IndicadoresService {
       })),
     }));
   }
+
+  // ---- Series diarias por trabajador/maquina ----
+  async diariaPorTrabajador(
+    trabajadorId: string,
+    opts: { rango?: string; inicio?: string; fin?: string },
+  ) {
+    const { inicio, fin } = this.rangoFechas(opts);
+    const rows = await this.repo
+      .createQueryBuilder('i')
+      .select('i.fecha', 'fecha')
+      .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
+      .addSelect('SUM(i.defectos)', 'defectos')
+      .addSelect('SUM(i.nptMin)', 'nptMin')
+      .addSelect('SUM(i.nptPorInactividad)', 'nptPorInactividad')
+      .addSelect('SUM(i.pausasMin)', 'pausasMin')
+      .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
+      .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
+      .where('i.trabajadorId = :trabajadorId', { trabajadorId })
+      .andWhere('i.fecha BETWEEN :inicio AND :fin', { inicio, fin })
+      .groupBy('i.fecha')
+      .orderBy('i.fecha', 'ASC')
+      .getRawMany<{
+        fecha: string | Date;
+        produccionTotal: string | number;
+        defectos: string | number;
+        nptMin: string | number;
+        nptPorInactividad: string | number;
+        pausasMin: string | number;
+        duracionTotalMin: string | number;
+        sesionesCerradas: string | number;
+      }>();
+
+    const map = new Map(
+      rows.map((r) => [
+        (typeof r.fecha === 'string' ? r.fecha : DateTime.fromJSDate(r.fecha).toISODate()) as string,
+        this.calcMetrics({
+          produccionTotal: this.toNum(r.produccionTotal),
+          defectos: this.toNum(r.defectos),
+          nptMin: this.toNum(r.nptMin),
+          nptPorInactividad: this.toNum(r.nptPorInactividad),
+          pausasMin: this.toNum(r.pausasMin),
+          duracionTotalMin: this.toNum(r.duracionTotalMin),
+          sesionesCerradas: this.toNum(r.sesionesCerradas),
+        }),
+      ]),
+    );
+
+    const start = DateTime.fromISO(inicio, { zone: this.zone }).startOf('day');
+    const end = DateTime.fromISO(fin, { zone: this.zone }).startOf('day');
+    const out: any[] = [];
+    for (let d = start; d <= end; d = d.plus({ days: 1 })) {
+      const key = d.toISODate()!;
+      const base = map.get(key) || this.calcMetrics({
+        produccionTotal: 0,
+        defectos: 0,
+        nptMin: 0,
+        nptPorInactividad: 0,
+        pausasMin: 0,
+        duracionTotalMin: 0,
+        sesionesCerradas: 0,
+      });
+      out.push({ fecha: key, trabajadorId, ...base });
+    }
+    return out;
+  }
+
+  async diariaPorMaquina(
+    maquinaId: string,
+    opts: { rango?: string; inicio?: string; fin?: string },
+  ) {
+    const { inicio, fin } = this.rangoFechas(opts);
+    const rows = await this.repo
+      .createQueryBuilder('i')
+      .select('i.fecha', 'fecha')
+      .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
+      .addSelect('SUM(i.defectos)', 'defectos')
+      .addSelect('SUM(i.nptMin)', 'nptMin')
+      .addSelect('SUM(i.nptPorInactividad)', 'nptPorInactividad')
+      .addSelect('SUM(i.pausasMin)', 'pausasMin')
+      .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
+      .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
+      .where('i.maquinaId = :maquinaId', { maquinaId })
+      .andWhere('i.fecha BETWEEN :inicio AND :fin', { inicio, fin })
+      .groupBy('i.fecha')
+      .orderBy('i.fecha', 'ASC')
+      .getRawMany<{
+        fecha: string | Date;
+        produccionTotal: string | number;
+        defectos: string | number;
+        nptMin: string | number;
+        nptPorInactividad: string | number;
+        pausasMin: string | number;
+        duracionTotalMin: string | number;
+        sesionesCerradas: string | number;
+      }>();
+
+    const map = new Map(
+      rows.map((r) => [
+        (typeof r.fecha === 'string' ? r.fecha : DateTime.fromJSDate(r.fecha).toISODate()) as string,
+        this.calcMetrics({
+          produccionTotal: this.toNum(r.produccionTotal),
+          defectos: this.toNum(r.defectos),
+          nptMin: this.toNum(r.nptMin),
+          nptPorInactividad: this.toNum(r.nptPorInactividad),
+          pausasMin: this.toNum(r.pausasMin),
+          duracionTotalMin: this.toNum(r.duracionTotalMin),
+          sesionesCerradas: this.toNum(r.sesionesCerradas),
+        }),
+      ]),
+    );
+
+    const start = DateTime.fromISO(inicio, { zone: this.zone }).startOf('day');
+    const end = DateTime.fromISO(fin, { zone: this.zone }).startOf('day');
+    const out: any[] = [];
+    for (let d = start; d <= end; d = d.plus({ days: 1 })) {
+      const key = d.toISODate()!;
+      const base = map.get(key) || this.calcMetrics({
+        produccionTotal: 0,
+        defectos: 0,
+        nptMin: 0,
+        nptPorInactividad: 0,
+        pausasMin: 0,
+        duracionTotalMin: 0,
+        sesionesCerradas: 0,
+      });
+      out.push({ fecha: key, maquinaId, ...base });
+    }
+    return out;
+  }
 }
