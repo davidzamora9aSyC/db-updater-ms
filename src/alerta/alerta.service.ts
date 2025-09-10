@@ -190,21 +190,21 @@ export class AlertaService implements OnModuleInit {
       .leftJoin(
         (qb) =>
           qb
-            .select('r.sesionTrabajoId', 'sesionId')
-            .addSelect('MAX(r.minutoInicio)', 'lastMin')
+            .select('r.sesionTrabajoId', 'sesion_id')
+            .addSelect('MAX(r.minutoInicio)', 'last_min')
             .from(RegistroMinuto, 'r')
             .where("(r.pedaleadas > 0 OR r.piezasContadas > 0)")
             .andWhere("TO_CHAR(r.minutoInicio, 'YYYY-MM-DD') = :fecha", { fecha })
             .groupBy('r.sesionTrabajoId'),
         'lr',
-        'lr.sesionId = st.id',
+        'lr.sesion_id = st.id',
       )
       .where("TO_CHAR(st.fechaInicio, 'YYYY-MM-DD') = :fecha", { fecha })
       .andWhere('st.fechaFin IS NULL')
       .select('st.id', 'sesionId')
       .addSelect('t.id', 'trabajadorId')
-      .addSelect(`EXTRACT(EPOCH FROM ( ${refTimeExpr} - COALESCE(lr.lastMin, st.fechaInicio) ))/60`, 'minutos')
-      .having('EXTRACT(EPOCH FROM ( ' + refTimeExpr + ' - COALESCE(lr.lastMin, st.fechaInicio) ))/60 > :lim', {
+      .addSelect(`EXTRACT(EPOCH FROM ( ${refTimeExpr} - COALESCE(lr.last_min, st.fechaInicio) ))/60`, 'minutos')
+      .having('EXTRACT(EPOCH FROM ( ' + refTimeExpr + ' - COALESCE(lr.last_min, st.fechaInicio) ))/60 > :lim', {
         lim: minInactividad,
         fecha,
       });
