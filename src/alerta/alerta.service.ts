@@ -204,9 +204,8 @@ export class AlertaService implements OnModuleInit {
       .select('st.id', 'sesionId')
       .addSelect('t.id', 'trabajadorId')
       .addSelect(`EXTRACT(EPOCH FROM ( ${refTimeExpr} - COALESCE(lr.last_min, st.fechaInicio) ))/60`, 'minutos')
-      .having('EXTRACT(EPOCH FROM ( ' + refTimeExpr + ' - COALESCE(lr.last_min, st.fechaInicio) ))/60 > :lim', {
+      .andWhere('EXTRACT(EPOCH FROM ( ' + refTimeExpr + ' - COALESCE(lr.last_min, st.fechaInicio) ))/60 > :lim', {
         lim: minInactividad,
-        fecha,
       });
     if (trabajadorId) qbInact = qbInact.andWhere('t.id = :trabajadorId', { trabajadorId });
     const rowsInact: { sesionId: string; trabajadorId: string; minutos: number }[] = await qbInact.getRawMany();
