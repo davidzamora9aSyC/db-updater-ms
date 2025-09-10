@@ -26,6 +26,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IndicadorSesionMinutoModule } from './indicador-sesion-minuto/indicador-sesion-minuto.module';
 import { IndicadoresModule } from './indicadores/indicadores.module';
+import { AlertaModule } from './alerta/alerta.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { IndicadoresModule } from './indicadores/indicadores.module';
     AuthModule,
     IndicadorSesionMinutoModule,
     IndicadoresModule,
+    AlertaModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: TimezoneInterceptor }],
 })

@@ -40,4 +40,19 @@ export class ConfiguracionService {
     const config = await this.getConfig();
     return config.zonaHorariaCliente;
   }
+
+  async getMaxDescansosDiariosPorTrabajador(): Promise<number> {
+    const config = await this.getConfig();
+    return config.maxDescansosDiariosPorTrabajador;
+  }
+
+  async getMaxDuracionPausaMinutos(): Promise<number> {
+    const config = await this.getConfig();
+    return config.maxDuracionPausaMinutos;
+  }
+
+  async getMaxHorasSesionAbierta(): Promise<number> {
+    const config = await this.getConfig();
+    return config.maxHorasSesionAbierta;
+  }
 }

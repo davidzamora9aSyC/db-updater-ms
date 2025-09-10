@@ -10,4 +10,13 @@ export class Configuracion {
 
   @Column({ default: 'UTC' })
   zonaHorariaCliente: string;
+
+  @Column({ type: 'int', default: 6 })
+  maxDescansosDiariosPorTrabajador: number;
+
+  @Column({ type: 'int', default: 30 })
+  maxDuracionPausaMinutos: number;
+
+  @Column({ type: 'int', default: 10 })
+  maxHorasSesionAbierta: number;
 }
