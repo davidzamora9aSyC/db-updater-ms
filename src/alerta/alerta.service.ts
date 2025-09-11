@@ -333,26 +333,26 @@ export class AlertaService implements OnModuleInit {
     const rowsPausaAbierta: { id: string; trabajadorId: string; fecha: string; duracion: number }[] = await qbPausaA.getRawMany();
 
     // 3) Sin actividad por día dentro del rango sin iterar (generate_series)
-    const params: any = { desde, hasta, lim: minInactividad };
-    if (trabajadorId) params.trabajadorId = trabajadorId;
-    if (identificacion) params.identificacion = identificacion;
-
+    // Construir placeholders posicionales ($1..$n) y arreglo de parámetros
+    const sqlParams: any[] = [desde, hasta, minInactividad];
     const trabFilterSql = trabajadorId
-      ? ' AND t.id = :trabajadorId'
+      ? ' AND t.id = $4'
       : identificacion
-      ? ' AND t.identificacion = :identificacion'
+      ? ' AND t.identificacion = $4'
       : '';
+    if (trabajadorId) sqlParams.push(trabajadorId);
+    else if (identificacion) sqlParams.push(identificacion);
 
     const sqlInact = `
       WITH days AS (
-        SELECT generate_series(:desde::date, :hasta::date, interval '1 day')::date AS fecha
+        SELECT generate_series($1::date, $2::date, interval '1 day')::date AS fecha
       ),
       st AS (
         SELECT st.id, st."trabajadorId", st."fechaInicio"
         FROM "sesion_trabajo" st
         JOIN "trabajador" t ON t.id = st."trabajadorId"
         WHERE st."fechaFin" IS NULL
-          AND st."fechaInicio"::date BETWEEN :desde::date AND :hasta::date${trabFilterSql}
+          AND st."fechaInicio"::date BETWEEN $1::date AND $2::date${trabFilterSql}
       ),
       lr AS (
         SELECT r."sesionTrabajoId" AS sesion_id,
@@ -360,7 +360,7 @@ export class AlertaService implements OnModuleInit {
                MAX(r."minutoInicio") AS last_min
         FROM "registro_minuto" r
         WHERE (r.pedaleadas > 0 OR r."piezasContadas" > 0)
-          AND r."minutoInicio"::date BETWEEN :desde::date AND :hasta::date
+          AND r."minutoInicio"::date BETWEEN $1::date AND $2::date
         GROUP BY r."sesionTrabajoId", (r."minutoInicio"::date)
       )
       SELECT d.fecha::text AS fecha,
@@ -376,11 +376,11 @@ export class AlertaService implements OnModuleInit {
       WHERE EXTRACT(EPOCH FROM (
                (CASE WHEN d.fecha = CURRENT_DATE THEN NOW() ELSE (d.fecha + time '23:59:59')::timestamp END)
                - COALESCE(lr.last_min, st."fechaInicio")
-             ))/60 > :lim
+             ))/60 > $3
     `;
 
-    // Ejecutar como una única consulta cruda
-    const rowsInact = await this.stRepo.query(sqlInact, params) as Array<{
+    // Ejecutar como una única consulta cruda con arreglo de parámetros
+    const rowsInact = await this.stRepo.query(sqlInact, sqlParams) as Array<{
       fecha: string;
       sesionId: string;
       trabajadorId: string;
