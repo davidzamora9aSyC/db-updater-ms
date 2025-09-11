@@ -14,6 +14,7 @@ import { ConfiguracionService } from '../configuracion/configuracion.service';
 export interface GetAlertasQuery {
   fecha?: string; // YYYY-MM-DD
   trabajadorId?: string;
+  identificacion?: string;
 }
 
 @Injectable()
@@ -65,7 +66,8 @@ export class AlertaService implements OnModuleInit {
 
   async getAlertas(query: GetAlertasQuery) {
     const fecha = query.fecha ?? new Date().toISOString().slice(0, 10);
-    const trabajadorId = query.trabajadorId;
+    const trabajadorId = query.trabajadorId?.trim();
+    const identificacion = query.identificacion?.trim();
     const hoy = new Date().toISOString().slice(0, 10);
     const maxDescansos = await this.configService.getMaxDescansosDiariosPorTrabajador();
     const maxPausaMin = await this.configService.getMaxDuracionPausaMinutos();
@@ -91,6 +93,13 @@ export class AlertaService implements OnModuleInit {
       return new Map(list.map((t) => [t.id, t]));
     };
 
+    // Helper para aplicar filtro por trabajador (id o identificación)
+    const applyTrabFilter = <T>(qb: T & { andWhere: any }) => {
+      if (trabajadorId) return qb.andWhere('t.id = :trabajadorId', { trabajadorId });
+      if (identificacion) return qb.andWhere('t.identificacion = :identificacion', { identificacion });
+      return qb;
+    };
+
     // 1) Demasiados descansos por día por trabajador
     let qbDesc = this.pausaRepo
       .createQueryBuilder('p')
@@ -104,7 +113,7 @@ export class AlertaService implements OnModuleInit {
       .groupBy('t.id')
       .addGroupBy("TO_CHAR(p.inicio, 'YYYY-MM-DD')")
       .having('COUNT(p.id) > :limite', { limite: maxDescansos });
-    if (trabajadorId) qbDesc = qbDesc.andWhere('t.id = :trabajadorId', { trabajadorId });
+    qbDesc = applyTrabFilter(qbDesc);
     const rowsDescansos: { trabajadorId: string; fecha: string; total: string }[] = await qbDesc.getRawMany();
     const mapTrab1 = await ensureTrabajadores(rowsDescansos.map((r) => r.trabajadorId));
     resultados.push(
@@ -134,7 +143,7 @@ export class AlertaService implements OnModuleInit {
       .where('p.fin IS NOT NULL')
       .andWhere("TO_CHAR(p.inicio, 'YYYY-MM-DD') = :fecha", { fecha })
       .andWhere('EXTRACT(EPOCH FROM (p.fin - p.inicio))/60 > :lim', { lim: maxPausaMin });
-    if (trabajadorId) qbPausaC = qbPausaC.andWhere('t.id = :trabajadorId', { trabajadorId });
+    qbPausaC = applyTrabFilter(qbPausaC);
     const rowsPausaCerrada: { id: string; trabajadorId: string; fecha: string; duracion: number }[] = await qbPausaC.getRawMany();
 
     let qbPausaA = this.pausaRepo
@@ -149,7 +158,7 @@ export class AlertaService implements OnModuleInit {
       .where('p.fin IS NULL')
       .andWhere("TO_CHAR(p.inicio, 'YYYY-MM-DD') = :fecha", { fecha })
       .andWhere('EXTRACT(EPOCH FROM (NOW() - p.inicio))/60 > :lim', { lim: maxPausaMin });
-    if (trabajadorId) qbPausaA = qbPausaA.andWhere('t.id = :trabajadorId', { trabajadorId });
+    qbPausaA = applyTrabFilter(qbPausaA);
     const rowsPausaAbierta: { id: string; trabajadorId: string; fecha: string; duracion: number }[] = await qbPausaA.getRawMany();
 
     const mapTrab2 = await ensureTrabajadores([
@@ -207,7 +216,7 @@ export class AlertaService implements OnModuleInit {
       .andWhere('EXTRACT(EPOCH FROM ( ' + refTimeExpr + ' - COALESCE(lr.last_min, st.fechaInicio) ))/60 > :lim', {
         lim: minInactividad,
       });
-    if (trabajadorId) qbInact = qbInact.andWhere('t.id = :trabajadorId', { trabajadorId });
+    qbInact = applyTrabFilter(qbInact);
     const rowsInact: { sesionId: string; trabajadorId: string; minutos: number }[] = await qbInact.getRawMany();
 
     const mapTrab3 = await ensureTrabajadores(rowsInact.map((r) => r.trabajadorId));
