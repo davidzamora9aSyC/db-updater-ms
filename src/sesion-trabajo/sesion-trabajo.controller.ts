@@ -129,4 +129,14 @@ export class SesionTrabajoController {
     return sesion;
   }
 
+  @Get('maquina/:id/rango')
+  @ApiOperation({ summary: 'Listar sesiones de una máquina en un rango de fechas (por fechaInicio)' })
+  async findSesionesPorMaquinaEnRango(
+    @Param('id') id: string,
+    @Query('desde') desde: string,
+    @Query('hasta') hasta: string,
+  ) {
+    return this.service.findPorMaquinaEnRango(id, desde, hasta);
+  }
+
 }

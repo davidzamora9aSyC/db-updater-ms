@@ -17,6 +17,13 @@ export interface GetAlertasQuery {
   identificacion?: string;
 }
 
+export interface GetAlertasTrabajadorRangoQuery {
+  desde: string; // YYYY-MM-DD
+  hasta: string; // YYYY-MM-DD
+  trabajadorId?: string;
+  identificacion?: string;
+}
+
 @Injectable()
 export class AlertaService implements OnModuleInit {
   constructor(
@@ -240,5 +247,239 @@ export class AlertaService implements OnModuleInit {
     );
 
     return resultados;
+  }
+
+  // Alertas por trabajador en rango (sin iterar día a día)
+  async getAlertasTrabajadorRango(query: GetAlertasTrabajadorRangoQuery) {
+    const desde = (query.desde || '').slice(0, 10);
+    const hasta = (query.hasta || '').slice(0, 10);
+    if (!desde || !hasta) {
+      throw new Error('Parámetros desde y hasta son requeridos (YYYY-MM-DD).');
+    }
+
+    const maxDescansos = await this.configService.getMaxDescansosDiariosPorTrabajador();
+    const maxPausaMin = await this.configService.getMaxDuracionPausaMinutos();
+    const minInactividad = await this.configService.getMinInactividad();
+
+    const trabajadorId = query.trabajadorId?.trim();
+    const identificacion = query.identificacion?.trim();
+
+    // Helper: filtro por trabajador
+    const applyTrabFilterRaw = (base: string) => {
+      if (trabajadorId) return base + ' AND t.id = :trabajadorId';
+      if (identificacion) return base + ' AND t.identificacion = :identificacion';
+      return base;
+    };
+
+    // 1) Demasiados descansos agrupados por día dentro del rango
+    let qbDesc = this.pausaRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.pasoSesion', 'stp')
+      .innerJoin('stp.sesionTrabajo', 'st')
+      .innerJoin('st.trabajador', 't')
+      .select('t.id', 'trabajadorId')
+      .addSelect("TO_CHAR(p.inicio, 'YYYY-MM-DD')", 'fecha')
+      .addSelect('COUNT(p.id)', 'total')
+      .where("p.inicio::date BETWEEN :desde::date AND :hasta::date", { desde, hasta })
+      .groupBy('t.id')
+      .addGroupBy("TO_CHAR(p.inicio, 'YYYY-MM-DD')")
+      .having('COUNT(p.id) > :limite', { limite: maxDescansos });
+    if (trabajadorId) qbDesc = qbDesc.andWhere('t.id = :trabajadorId', { trabajadorId });
+    else if (identificacion) qbDesc = qbDesc.andWhere('t.identificacion = :identificacion', { identificacion });
+    const rowsDescansos: { trabajadorId: string; fecha: string; total: string }[] = await qbDesc.getRawMany();
+
+    // 2) Pausas prolongadas (cerradas) en rango
+    let qbPausaC = this.pausaRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.pasoSesion', 'stp')
+      .innerJoin('stp.sesionTrabajo', 'st')
+      .innerJoin('st.trabajador', 't')
+      .select('p.id', 'id')
+      .addSelect('t.id', 'trabajadorId')
+      .addSelect("TO_CHAR(p.inicio, 'YYYY-MM-DD')", 'fecha')
+      .addSelect("EXTRACT(EPOCH FROM (p.fin - p.inicio))/60", 'duracion')
+      .where('p.fin IS NOT NULL')
+      .andWhere("p.inicio::date BETWEEN :desde::date AND :hasta::date", { desde, hasta })
+      .andWhere('EXTRACT(EPOCH FROM (p.fin - p.inicio))/60 > :lim', { lim: maxPausaMin });
+    if (trabajadorId) qbPausaC = qbPausaC.andWhere('t.id = :trabajadorId', { trabajadorId });
+    else if (identificacion) qbPausaC = qbPausaC.andWhere('t.identificacion = :identificacion', { identificacion });
+    const rowsPausaCerrada: { id: string; trabajadorId: string; fecha: string; duracion: number }[] = await qbPausaC.getRawMany();
+
+    // 2b) Pausas prolongadas (abiertas) en rango
+    let qbPausaA = this.pausaRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.pasoSesion', 'stp')
+      .innerJoin('stp.sesionTrabajo', 'st')
+      .innerJoin('st.trabajador', 't')
+      .select('p.id', 'id')
+      .addSelect('t.id', 'trabajadorId')
+      .addSelect("TO_CHAR(p.inicio, 'YYYY-MM-DD')", 'fecha')
+      .addSelect("EXTRACT(EPOCH FROM (NOW() - p.inicio))/60", 'duracion')
+      .where('p.fin IS NULL')
+      .andWhere("p.inicio::date BETWEEN :desde::date AND :hasta::date", { desde, hasta })
+      .andWhere('EXTRACT(EPOCH FROM (NOW() - p.inicio))/60 > :lim', { lim: maxPausaMin });
+    if (trabajadorId) qbPausaA = qbPausaA.andWhere('t.id = :trabajadorId', { trabajadorId });
+    else if (identificacion) qbPausaA = qbPausaA.andWhere('t.identificacion = :identificacion', { identificacion });
+    const rowsPausaAbierta: { id: string; trabajadorId: string; fecha: string; duracion: number }[] = await qbPausaA.getRawMany();
+
+    // 3) Sin actividad por día dentro del rango sin iterar (generate_series)
+    const params: any = { desde, hasta, lim: minInactividad };
+    if (trabajadorId) params.trabajadorId = trabajadorId;
+    if (identificacion) params.identificacion = identificacion;
+
+    const trabFilterSql = trabajadorId
+      ? ' AND t.id = :trabajadorId'
+      : identificacion
+      ? ' AND t.identificacion = :identificacion'
+      : '';
+
+    const sqlInact = `
+      WITH days AS (
+        SELECT generate_series(:desde::date, :hasta::date, interval '1 day')::date AS fecha
+      ),
+      st AS (
+        SELECT st.id, st."trabajadorId", st."fechaInicio"
+        FROM "sesion_trabajo" st
+        JOIN "trabajador" t ON t.id = st."trabajadorId"
+        WHERE st."fechaFin" IS NULL
+          AND st."fechaInicio"::date BETWEEN :desde::date AND :hasta::date${trabFilterSql}
+      ),
+      lr AS (
+        SELECT r."sesionTrabajoId" AS sesion_id,
+               (r."minutoInicio"::date) AS fecha,
+               MAX(r."minutoInicio") AS last_min
+        FROM "registro_minuto" r
+        WHERE (r.pedaleadas > 0 OR r."piezasContadas" > 0)
+          AND r."minutoInicio"::date BETWEEN :desde::date AND :hasta::date
+        GROUP BY r."sesionTrabajoId", (r."minutoInicio"::date)
+      )
+      SELECT d.fecha::text AS fecha,
+             st.id AS "sesionId",
+             st."trabajadorId" AS "trabajadorId",
+             EXTRACT(EPOCH FROM (
+               (CASE WHEN d.fecha = CURRENT_DATE THEN NOW() ELSE (d.fecha + time '23:59:59')::timestamp END)
+               - COALESCE(lr.last_min, st."fechaInicio")
+             ))/60 AS minutos
+      FROM days d
+      JOIN st ON st."fechaInicio"::date = d.fecha
+      LEFT JOIN lr ON lr.sesion_id = st.id AND lr.fecha = d.fecha
+      WHERE EXTRACT(EPOCH FROM (
+               (CASE WHEN d.fecha = CURRENT_DATE THEN NOW() ELSE (d.fecha + time '23:59:59')::timestamp END)
+               - COALESCE(lr.last_min, st."fechaInicio")
+             ))/60 > :lim
+    `;
+
+    // Ejecutar como una única consulta cruda
+    const rowsInact = await this.stRepo.query(sqlInact, params) as Array<{
+      fecha: string;
+      sesionId: string;
+      trabajadorId: string;
+      minutos: number;
+    }>;
+
+    // Mapear trabajadores para nombres
+    const ensureTrabajadores = async (ids: string[]) => {
+      if (!ids.length) return new Map<string, Trabajador>();
+      const list = await this.trabajadorRepo.findBy({ id: In(ids) });
+      return new Map(list.map((t) => [t.id, t]));
+    };
+
+    // Tipos
+    const tipoDescansos = await this.tipoRepo.findOneBy({
+      codigo: AlertaTipoCodigo.TRABAJADOR_DEMASIADOS_DESCANSOS_EN_DIA,
+    });
+    const tipoPausaLarga = await this.tipoRepo.findOneBy({
+      codigo: AlertaTipoCodigo.TRABAJADOR_PAUSA_LARGA,
+    });
+    const tipoSinActividad = await this.tipoRepo.findOneBy({
+      codigo: AlertaTipoCodigo.SIN_ACTIVIDAD,
+    });
+
+    const resultados: any[] = [];
+
+    // 1) Descansos
+    const mapTrab1 = await ensureTrabajadores(rowsDescansos.map((r) => r.trabajadorId));
+    resultados.push(
+      ...rowsDescansos.map((r) => ({
+        id: undefined,
+        tipo: tipoDescansos!,
+        sujeto: {
+          tipo: AlertaSujetoTipo.TRABAJADOR,
+          id: r.trabajadorId,
+          nombre: mapTrab1.get(r.trabajadorId)?.nombre ?? '',
+        },
+        fecha: r.fecha,
+        metadata: { total: Number(r.total), limite: maxDescansos },
+      })),
+    );
+
+    // 2) Pausas cerradas y abiertas
+    const mapTrab2 = await ensureTrabajadores([
+      ...rowsPausaCerrada.map((r) => r.trabajadorId),
+      ...rowsPausaAbierta.map((r) => r.trabajadorId),
+    ]);
+    resultados.push(
+      ...rowsPausaCerrada.map((r) => ({
+        id: undefined,
+        tipo: tipoPausaLarga!,
+        sujeto: {
+          tipo: AlertaSujetoTipo.TRABAJADOR,
+          id: r.trabajadorId,
+          nombre: mapTrab2.get(r.trabajadorId)?.nombre ?? '',
+        },
+        fecha: r.fecha,
+        metadata: { pausaId: r.id, duracionMin: Math.round(Number(r.duracion)), abierta: false, limite: maxPausaMin },
+      })),
+      ...rowsPausaAbierta.map((r) => ({
+        id: undefined,
+        tipo: tipoPausaLarga!,
+        sujeto: {
+          tipo: AlertaSujetoTipo.TRABAJADOR,
+          id: r.trabajadorId,
+          nombre: mapTrab2.get(r.trabajadorId)?.nombre ?? '',
+        },
+        fecha: r.fecha,
+        metadata: { pausaId: r.id, duracionMin: Math.round(Number(r.duracion)), abierta: true, limite: maxPausaMin },
+      })),
+    );
+
+    // 3) Sin actividad
+    const mapTrab3 = await ensureTrabajadores(rowsInact.map((r) => r.trabajadorId));
+    resultados.push(
+      ...rowsInact.map((r) => ({
+        id: undefined,
+        tipo: tipoSinActividad!,
+        sujeto: {
+          tipo: AlertaSujetoTipo.TRABAJADOR,
+          id: r.trabajadorId,
+          nombre: mapTrab3.get(r.trabajadorId)?.nombre ?? '',
+        },
+        fecha: r.fecha,
+        metadata: {
+          sesionId: r.sesionId,
+          minutosSinActividad: Math.round(Number(r.minutos)),
+          limite: minInactividad,
+          motivo: 'SIN_ACTIVIDAD',
+        },
+      })),
+    );
+
+    // Cabecera con trabajador
+    let trabajador: Trabajador | null = null;
+    if (trabajadorId) {
+      trabajador = await this.trabajadorRepo.findOne({ where: { id: trabajadorId } });
+    } else if (identificacion) {
+      trabajador = await this.trabajadorRepo.findOne({ where: { identificacion } });
+    }
+
+    return {
+      desde,
+      hasta,
+      trabajador: trabajador
+        ? { id: trabajador.id, nombre: trabajador.nombre, identificacion: trabajador.identificacion }
+        : null,
+      total: resultados.length,
+      alertas: resultados,
+    };
   }
 }

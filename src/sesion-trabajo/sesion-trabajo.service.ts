@@ -644,6 +644,21 @@ export class SesionTrabajoService {
     return arr.map((s) => this.formatSesionForResponse(s));
   }
 
+  async findPorMaquinaEnRango(maquinaId: string, desde: string, hasta: string) {
+    if (!maquinaId || !desde || !hasta) {
+      throw new BadRequestException('maquinaId, desde y hasta son requeridos');
+    }
+    const arr = await this.repo
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.trabajador', 't')
+      .leftJoinAndSelect('s.maquina', 'm')
+      .where('m.id = :maquinaId', { maquinaId })
+      .andWhere("s.fechaInicio >= :desde::date AND s.fechaInicio < (:hasta::date + interval '1 day')", { desde, hasta })
+      .orderBy('s.fechaInicio', 'ASC')
+      .getMany();
+    return arr.map((s) => this.formatSesionForResponse(s));
+  }
+
   async finalizarTodas() {
     const sesiones = await this.repo.find({
       where: { fechaFin: IsNull() },
