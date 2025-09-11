@@ -134,6 +134,22 @@ export class SesionTrabajoService {
     return this.formatSesionForResponse(saved);
   }
 
+  private async resolveMaquinaId(idOrNombre: string) {
+    // 1) Por UUID
+    let m = await this.maquinaRepo.findOne({ where: { id: idOrNombre } });
+    if (m) return m.id;
+    // 2) Por código
+    m = await this.maquinaRepo.findOne({ where: { codigo: idOrNombre } });
+    if (m) return m.id;
+    // 3) Por nombre (case-insensitive)
+    m = await this.maquinaRepo
+      .createQueryBuilder('m')
+      .where('LOWER(m.nombre) = LOWER(:n)', { n: idOrNombre })
+      .getOne();
+    if (m) return m.id;
+    throw new NotFoundException('Máquina no encontrada por id/código/nombre');
+  }
+
   async findAll() {
     const sesiones = await this.repo.find({
       relations: ['trabajador', 'maquina'],
@@ -170,7 +186,8 @@ export class SesionTrabajoService {
     });
   }
 
-  async findByMaquina(maquinaId: string) {
+  async findByMaquina(idOrNombre: string) {
+    const maquinaId = await this.resolveMaquinaId(idOrNombre);
     const sesion = await this.repo.findOne({
       where: { maquina: { id: maquinaId }, fechaFin: IsNull() },
       relations: ['trabajador', 'maquina'],
@@ -644,10 +661,11 @@ export class SesionTrabajoService {
     return arr.map((s) => this.formatSesionForResponse(s));
   }
 
-  async findPorMaquinaEnRango(maquinaId: string, desde: string, hasta: string) {
-    if (!maquinaId || !desde || !hasta) {
+  async findPorMaquinaEnRango(idOrNombre: string, desde: string, hasta: string) {
+    if (!idOrNombre || !desde || !hasta) {
       throw new BadRequestException('maquinaId, desde y hasta son requeridos');
     }
+    const maquinaId = await this.resolveMaquinaId(idOrNombre);
     const arr = await this.repo
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.trabajador', 't')
