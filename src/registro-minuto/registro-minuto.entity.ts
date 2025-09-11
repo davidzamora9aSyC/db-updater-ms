@@ -16,11 +16,11 @@ export class RegistroMinuto extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => SesionTrabajo, { nullable: false })
+  @ManyToOne(() => SesionTrabajo, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'sesionTrabajoId' })
   sesionTrabajo: SesionTrabajo;
 
-  @ManyToOne(() => SesionTrabajoPaso, { nullable: false })
+  @ManyToOne(() => SesionTrabajoPaso, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pasoSesionTrabajoId' })
   pasoSesionTrabajo: SesionTrabajoPaso;
 
