@@ -11,6 +11,7 @@ import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { ConfiguracionModule } from '../configuracion/configuracion.module';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
+import { Maquina } from '../maquina/maquina.entity';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
       SesionTrabajo,
       Trabajador,
       RegistroMinuto,
+      Maquina,
     ]),
     ConfiguracionModule,
   ],

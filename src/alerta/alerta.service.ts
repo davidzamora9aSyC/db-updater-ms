@@ -7,6 +7,7 @@ import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { Trabajador } from '../trabajador/trabajador.entity';
+import { Maquina } from '../maquina/maquina.entity';
 import { AlertaSujetoTipo } from './alerta.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
@@ -22,6 +23,13 @@ export interface GetAlertasTrabajadorRangoQuery {
   hasta: string; // YYYY-MM-DD
   trabajadorId?: string;
   identificacion?: string;
+}
+
+export interface GetAlertasMaquinaRangoQuery {
+  desde: string; // YYYY-MM-DD
+  hasta: string; // YYYY-MM-DD
+  maquinaId?: string; // UUID
+  maquina?: string; // id/código/nombre
 }
 
 @Injectable()
@@ -41,6 +49,8 @@ export class AlertaService implements OnModuleInit {
     private readonly trabajadorRepo: Repository<Trabajador>,
     @InjectRepository(RegistroMinuto)
     private readonly registroRepo: Repository<RegistroMinuto>,
+    @InjectRepository(Maquina)
+    private readonly maquinaRepo: Repository<Maquina>,
     private readonly configService: ConfiguracionService,
   ) {}
 
@@ -478,6 +488,146 @@ export class AlertaService implements OnModuleInit {
       trabajador: trabajador
         ? { id: trabajador.id, nombre: trabajador.nombre, identificacion: trabajador.identificacion }
         : null,
+      total: resultados.length,
+      alertas: resultados,
+    };
+  }
+
+  // Alertas por máquina en rango (pausas largas y sin actividad)
+  async getAlertasMaquinaRango(query: GetAlertasMaquinaRangoQuery) {
+    const desde = (query.desde || '').slice(0, 10);
+    const hasta = (query.hasta || '').slice(0, 10);
+    if (!desde || !hasta) throw new Error('Parámetros desde y hasta son requeridos (YYYY-MM-DD).');
+
+    const maxPausaMin = await this.configService.getMaxDuracionPausaMinutos();
+    const minInactividad = await this.configService.getMinInactividad();
+
+    // Resolver máquina por id/código/nombre
+    let maquinaId = query.maquinaId?.trim();
+    let maquina: Maquina | null = null;
+    if (!maquinaId && query.maquina) {
+      const key = query.maquina.trim();
+      maquina = await this.maquinaRepo.findOne({ where: { id: key } });
+      if (!maquina)
+        maquina = await this.maquinaRepo.findOne({ where: { codigo: key } });
+      if (!maquina)
+        maquina = await this.maquinaRepo
+          .createQueryBuilder('m')
+          .where('LOWER(m.nombre) = LOWER(:n)', { n: key })
+          .getOne();
+      if (!maquina) throw new Error('Máquina no encontrada');
+      maquinaId = maquina.id;
+    }
+    if (!maquinaId) throw new Error('Parámetro maquinaId o maquina es requerido');
+    if (!maquina) maquina = await this.maquinaRepo.findOne({ where: { id: maquinaId } });
+
+    // Tipos
+    const tipoPausaLarga = await this.tipoRepo.findOneBy({ codigo: AlertaTipoCodigo.TRABAJADOR_PAUSA_LARGA });
+    const tipoSinActividad = await this.tipoRepo.findOneBy({ codigo: AlertaTipoCodigo.SIN_ACTIVIDAD });
+
+    const resultados: any[] = [];
+
+    // Pausas cerradas
+    let qbPausaC = this.pausaRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.pasoSesion', 'stp')
+      .innerJoin('stp.sesionTrabajo', 'st')
+      .innerJoin('st.maquina', 'm')
+      .select('p.id', 'id')
+      .addSelect('m.id', 'maquinaId')
+      .addSelect("TO_CHAR(p.inicio, 'YYYY-MM-DD')", 'fecha')
+      .addSelect("EXTRACT(EPOCH FROM (p.fin - p.inicio))/60", 'duracion')
+      .where('p.fin IS NOT NULL')
+      .andWhere('m.id = :maquinaId', { maquinaId })
+      .andWhere("p.inicio::date BETWEEN :desde::date AND :hasta::date", { desde, hasta })
+      .andWhere('EXTRACT(EPOCH FROM (p.fin - p.inicio))/60 > :lim', { lim: maxPausaMin });
+    const rowsPausaCerrada = await qbPausaC.getRawMany<{ id: string; maquinaId: string; fecha: string; duracion: number }>();
+
+    // Pausas abiertas
+    let qbPausaA = this.pausaRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.pasoSesion', 'stp')
+      .innerJoin('stp.sesionTrabajo', 'st')
+      .innerJoin('st.maquina', 'm')
+      .select('p.id', 'id')
+      .addSelect('m.id', 'maquinaId')
+      .addSelect("TO_CHAR(p.inicio, 'YYYY-MM-DD')", 'fecha')
+      .addSelect("EXTRACT(EPOCH FROM (NOW() - p.inicio))/60", 'duracion')
+      .where('p.fin IS NULL')
+      .andWhere('m.id = :maquinaId', { maquinaId })
+      .andWhere("p.inicio::date BETWEEN :desde::date AND :hasta::date", { desde, hasta })
+      .andWhere('EXTRACT(EPOCH FROM (NOW() - p.inicio))/60 > :lim', { lim: maxPausaMin });
+    const rowsPausaAbierta = await qbPausaA.getRawMany<{ id: string; maquinaId: string; fecha: string; duracion: number }>();
+
+    // Sin actividad con generate_series
+    const rowsInact = (await this.stRepo.query(
+      `WITH days AS (
+        SELECT generate_series($1::date, $2::date, interval '1 day')::date AS fecha
+      ),
+      st AS (
+        SELECT st.id, st."maquinaId", st."fechaInicio"
+        FROM "sesion_trabajo" st
+        WHERE st."fechaFin" IS NULL
+          AND st."maquinaId" = $3
+          AND st."fechaInicio"::date BETWEEN $1::date AND $2::date
+      ),
+      lr AS (
+        SELECT r."sesionTrabajoId" AS sesion_id,
+               (r."minutoInicio"::date) AS fecha,
+               MAX(r."minutoInicio") AS last_min
+        FROM "registro_minuto" r
+        WHERE (r.pedaleadas > 0 OR r."piezasContadas" > 0)
+          AND r."minutoInicio"::date BETWEEN $1::date AND $2::date
+        GROUP BY r."sesionTrabajoId", (r."minutoInicio"::date)
+      )
+      SELECT d.fecha::text AS fecha,
+             st.id AS "sesionId",
+             st."maquinaId" AS "maquinaId",
+             EXTRACT(EPOCH FROM (
+               (CASE WHEN d.fecha = CURRENT_DATE THEN NOW() ELSE (d.fecha + time '23:59:59')::timestamp END)
+               - COALESCE(lr.last_min, st."fechaInicio")
+             ))/60 AS minutos
+      FROM days d
+      JOIN st ON st."fechaInicio"::date = d.fecha
+      LEFT JOIN lr ON lr.sesion_id = st.id AND lr.fecha = d.fecha
+      WHERE EXTRACT(EPOCH FROM (
+               (CASE WHEN d.fecha = CURRENT_DATE THEN NOW() ELSE (d.fecha + time '23:59:59')::timestamp END)
+               - COALESCE(lr.last_min, st."fechaInicio")
+             ))/60 > $4`,
+      [desde, hasta, maquinaId, minInactividad],
+    )) as Array<{ fecha: string; sesionId: string; maquinaId: string; minutos: number }>;
+
+    // Mapear resultados
+    const maquinaNombre = maquina?.nombre ?? '';
+
+    resultados.push(
+      ...rowsPausaCerrada.map((r) => ({
+        id: undefined,
+        tipo: tipoPausaLarga!,
+        sujeto: { tipo: AlertaSujetoTipo.MAQUINA, id: r.maquinaId, nombre: maquinaNombre },
+        fecha: r.fecha,
+        metadata: { pausaId: r.id, duracionMin: Math.round(Number(r.duracion)), abierta: false, limite: maxPausaMin },
+      })),
+      ...rowsPausaAbierta.map((r) => ({
+        id: undefined,
+        tipo: tipoPausaLarga!,
+        sujeto: { tipo: AlertaSujetoTipo.MAQUINA, id: r.maquinaId, nombre: maquinaNombre },
+        fecha: r.fecha,
+        metadata: { pausaId: r.id, duracionMin: Math.round(Number(r.duracion)), abierta: true, limite: maxPausaMin },
+      })),
+      ...rowsInact.map((r) => ({
+        id: undefined,
+        tipo: tipoSinActividad!,
+        sujeto: { tipo: AlertaSujetoTipo.MAQUINA, id: r.maquinaId, nombre: maquinaNombre },
+        fecha: r.fecha,
+        metadata: { sesionId: r.sesionId, minutosSinActividad: Math.round(Number(r.minutos)), limite: minInactividad, motivo: 'SIN_ACTIVIDAD' },
+      })),
+    );
+
+    return {
+      desde,
+      hasta,
+      maquina: maquina ? { id: maquina.id, nombre: maquina.nombre, codigo: maquina.codigo } : { id: maquinaId },
       total: resultados.length,
       alertas: resultados,
     };

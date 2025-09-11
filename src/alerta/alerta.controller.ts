@@ -20,4 +20,15 @@ export class AlertaController {
   ) {
     return this.alertaService.getAlertasTrabajadorRango({ desde, hasta, trabajadorId, identificacion });
   }
+
+  // Alertas por máquina en rango de fechas
+  @Get('maquina/rango')
+  async getAlertasMaquinaRango(
+    @Query('desde') desde: string,
+    @Query('hasta') hasta: string,
+    @Query('maquinaId') maquinaId?: string,
+    @Query('maquina') maquina?: string, // acepta id/código/nombre
+  ) {
+    return this.alertaService.getAlertasMaquinaRango({ desde, hasta, maquinaId, maquina });
+  }
 }
