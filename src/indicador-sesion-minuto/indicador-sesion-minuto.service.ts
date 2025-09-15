@@ -7,6 +7,7 @@ import { IndicadorSesionMinuto } from './indicador-sesion-minuto.entity';
 import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { SesionTrabajoService } from '../sesion-trabajo/sesion-trabajo.service';
+import { IndicadorDiarioSyncService } from '../indicador-diario-dim/indicador-diario-sync.service';
 
 @Injectable()
 export class IndicadorSesionMinutoService {
@@ -18,6 +19,7 @@ export class IndicadorSesionMinutoService {
     @InjectRepository(SesionTrabajo)
     private readonly sesionRepo: Repository<SesionTrabajo>,
     private readonly sesionService: SesionTrabajoService,
+    private readonly diarioSync: IndicadorDiarioSyncService,
   ) {}
 
   async seriePorSesion(
@@ -77,6 +79,7 @@ export class IndicadorSesionMinutoService {
   async generar() {
     const sesiones = await this.sesionRepo.find({
       where: { fechaFin: IsNull() },
+      relations: ['trabajador', 'maquina', 'maquina.area'],
     });
     const minuto = DateTime.now()
       .setZone('America/Bogota')
@@ -118,6 +121,20 @@ export class IndicadorSesionMinutoService {
         },
         ['sesionTrabajo', 'minuto'],
       );
+
+      await this.diarioSync.applyParcial(sesion, {
+        produccionTotal: indicadores.produccionTotal,
+        defectos: indicadores.defectos,
+        nptMin: indicadores.nptMin,
+        nptPorInactividad: indicadores.nptPorInactividad,
+        pausasCount: count,
+        pausasMin: minutos,
+        duracionTotalMin: duracionSesionMin,
+      });
+    }
+
+    if (DateTime.fromJSDate(minuto, { zone: 'America/Bogota' }).minute % 10 === 0) {
+      await this.diarioSync.resyncOpenSessions();
     }
   }
 }

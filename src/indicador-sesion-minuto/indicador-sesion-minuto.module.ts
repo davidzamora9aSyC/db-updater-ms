@@ -5,6 +5,7 @@ import { IndicadorSesionMinutoService } from './indicador-sesion-minuto.service'
 import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { SesionTrabajoModule } from '../sesion-trabajo/sesion-trabajo.module';
+import { IndicadorDiarioDimModule } from '../indicador-diario-dim/indicador-diario-dim.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SesionTrabajoModule } from '../sesion-trabajo/sesion-trabajo.module';
       SesionTrabajo,
     ]),
     SesionTrabajoModule,
+    IndicadorDiarioDimModule,
   ],
   providers: [IndicadorSesionMinutoService],
   exports: [IndicadorSesionMinutoService],

@@ -15,6 +15,7 @@ import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
 import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
 import { Maquina } from '../maquina/maquina.entity';
+import { IndicadorDiarioDimModule } from '../indicador-diario-dim/indicador-diario-dim.module';
 
 
 @Module({
@@ -35,6 +36,7 @@ import { Maquina } from '../maquina/maquina.entity';
     ]),
     RegistroMinutoModule,
     EstadoSesionModule,
+    IndicadorDiarioDimModule,
   ],
   providers: [SesionTrabajoService],
   controllers: [SesionTrabajoController],

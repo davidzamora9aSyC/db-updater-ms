@@ -24,6 +24,7 @@ import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
 import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim.entity';
 import { Maquina } from '../maquina/maquina.entity';
+import { IndicadorDiarioSyncService } from '../indicador-diario-dim/indicador-diario-sync.service';
 
 
 @Injectable()
@@ -52,6 +53,7 @@ export class SesionTrabajoService {
     private readonly indicadorDiarioRepo: Repository<IndicadorDiarioDim>,
     @InjectRepository(Maquina)
     private readonly maquinaRepo: Repository<Maquina>,
+    private readonly diarioSync: IndicadorDiarioSyncService,
 
   ) {}
 
@@ -351,88 +353,15 @@ export class SesionTrabajoService {
       creadoEn: new Date(),
     });
     await this.indicadorSesionRepo.save(nuevoIndicador);
-
-    const fecha = DateTime.fromJSDate(sesion.fechaInicio, {
-      zone: 'America/Bogota',
-    }).toISODate() as string;
-    const diario = await this.indicadorDiarioRepo.findOne({
-      where: {
-        fecha,
-        trabajadorId: sesion.trabajador.id,
-        maquinaId: sesion.maquina.id,
-        areaId,
-      },
+    await this.diarioSync.applyFinal(sesion, {
+      produccionTotal: indicadores.produccionTotal,
+      defectos: indicadores.defectos,
+      nptMin: indicadores.nptMin,
+      nptPorInactividad: indicadores.nptPorInactividad,
+      pausasCount,
+      pausasMin,
+      duracionTotalMin: duracionSesionMin,
     });
-    if (diario) {
-      diario.produccionTotal += indicadores.produccionTotal;
-      diario.defectos += indicadores.defectos;
-      diario.nptMin += nptMinInt;
-      diario.nptPorInactividad += nptPorInactividadInt;
-      diario.pausasCount += pausasCount;
-      diario.pausasMin += pausasMin;
-      diario.duracionTotalMin += duracionSesionMin;
-      diario.sesionesCerradas += 1;
-      const totalProd = diario.produccionTotal + diario.defectos;
-      diario.porcentajeDefectos =
-        totalProd > 0 ? (diario.defectos / totalProd) * 100 : 0;
-      diario.avgSpeed =
-        (diario.produccionTotal /
-          Math.max(
-            Number.EPSILON,
-            diario.duracionTotalMin -
-              Math.min(diario.duracionTotalMin, diario.nptMin),
-          )) *
-        60;
-      diario.avgSpeedSesion =
-        (diario.produccionTotal /
-          Math.max(Number.EPSILON, diario.duracionTotalMin)) *
-        60;
-      diario.porcentajeNPT =
-        diario.duracionTotalMin > 0
-          ? (Math.min(diario.nptMin, diario.duracionTotalMin) /
-              diario.duracionTotalMin) *
-            100
-          : 0;
-      diario.porcentajePausa =
-        diario.duracionTotalMin > 0
-          ? (diario.pausasMin / diario.duracionTotalMin) * 100
-          : 0;
-      diario.updatedAt = new Date();
-      await this.indicadorDiarioRepo.save(diario);
-    } else {
-      const totalProd =
-        indicadores.produccionTotal + indicadores.defectos;
-      const porcentajeDefectosDia =
-        totalProd > 0 ? (indicadores.defectos / totalProd) * 100 : 0;
-      const porcentajeNPTDia =
-        duracionSesionMin > 0
-          ? (Math.min(nptMinInt, duracionSesionMin) /
-              duracionSesionMin) *
-            100
-          : 0;
-      const porcentajePausaDia = porcentajePausa;
-      const nuevoDiario = this.indicadorDiarioRepo.create({
-        fecha,
-        trabajadorId: sesion.trabajador.id,
-        maquinaId: sesion.maquina.id,
-        areaId,
-        produccionTotal: indicadores.produccionTotal,
-        defectos: indicadores.defectos,
-        porcentajeDefectos: porcentajeDefectosDia,
-        avgSpeed: indicadores.avgSpeed,
-        avgSpeedSesion: indicadores.avgSpeedSesion,
-        nptMin: nptMinInt,
-        nptPorInactividad: nptPorInactividadInt,
-        porcentajeNPT: porcentajeNPTDia,
-        pausasCount,
-        pausasMin,
-        porcentajePausa: porcentajePausaDia,
-        duracionTotalMin: duracionSesionMin,
-        sesionesCerradas: 1,
-        updatedAt: new Date(),
-      });
-      await this.indicadorDiarioRepo.save(nuevoDiario);
-    }
 
     await this.indicadorMinutoRepo
       .createQueryBuilder()
