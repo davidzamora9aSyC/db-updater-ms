@@ -62,6 +62,9 @@ export class SesionTrabajoPasoService {
           inicio: ahora,
         });
         await estadoSesionRepo.save(estadoSesion);
+        await this.pasoProduccionService.actualizarEstadoPorSesion(
+          dto.sesionTrabajo,
+        );
         return existente;
       }
     }
