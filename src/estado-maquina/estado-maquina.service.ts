@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { DateTime } from 'luxon';
@@ -97,12 +101,21 @@ export class EstadoMaquinaService {
   }
 
   findByMaquina(maquinaId: string, inicioStr: string, finStr: string) {
-    const inicio = DateTime.fromISO(inicioStr, {
+    const inicioDate = DateTime.fromISO(inicioStr, {
       zone: 'America/Bogota',
-    }).toJSDate();
-    const fin = DateTime.fromISO(finStr, {
+    });
+    const finDate = DateTime.fromISO(finStr, {
       zone: 'America/Bogota',
-    }).toJSDate();
+    });
+
+    if (!inicioDate.isValid || !finDate.isValid) {
+      throw new BadRequestException(
+        'inicio y fin deben tener formato ISO-8601 válido',
+      );
+    }
+
+    const inicio = inicioDate.toJSDate();
+    const fin = finDate.toJSDate();
     return this.repo
       .createQueryBuilder('estado')
       .leftJoinAndSelect('estado.maquina', 'maquina')
