@@ -144,8 +144,8 @@ export class ProduccionDiariaService {
       const map = new Map(
         rows.map((r) => {
           const dt = typeof r.fecha === 'string'
-            ? DateTime.fromISO(r.fecha, { zone: this.zone })
-            : DateTime.fromJSDate(r.fecha).setZone(this.zone);
+            ? DateTime.fromISO(r.fecha, { zone: 'UTC' })
+            : DateTime.fromJSDate(r.fecha, { zone: 'UTC' });
           return [
             dt.toISODate(),
             {
@@ -191,8 +191,8 @@ export class ProduccionDiariaService {
     const byKey = new Map(
       rows.map((r) => {
         const dt = typeof r.fecha === 'string'
-          ? DateTime.fromISO(r.fecha, { zone: this.zone })
-          : DateTime.fromJSDate(r.fecha).setZone(this.zone);
+          ? DateTime.fromISO(r.fecha, { zone: 'UTC' })
+          : DateTime.fromJSDate(r.fecha, { zone: 'UTC' });
         return [
           `${dt.toISODate()}|${r.areaId}`,
           {
