@@ -11,6 +11,11 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  @Get('hora-colombia')
+  getColombiaTime() {
+    return this.appService.getColombiaTime();
+  }
+
   @Post('evento')
   @ApiBody({ description: 'Evento desde dispositivo', schema: {
     type: 'object',
