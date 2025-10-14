@@ -104,6 +104,19 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 - Users: up to 5 in `src/auth/users.config.ts` (in-memory, non-prod).
 - Behavior: API routes remain unprotected; frontend should login once and gate its own routes using the returned token. To verify a token, call `/auth/validate` with `Authorization: Bearer <token>`.
 
+## Hora actual de Colombia
+
+- Endpoint: `GET /hora-colombia` (por ejemplo `https://smartindustries.org/hora-colombia`).
+- Respuesta: JSON con la hora actual en la zona horaria `America/Bogota`.
+- Ejemplo:
+
+```json
+{
+  "timeZone": "America/Bogota",
+  "dateTime": "2024-03-05T16:27:42"
+}
+```
+
 Example login body:
 
 ```
