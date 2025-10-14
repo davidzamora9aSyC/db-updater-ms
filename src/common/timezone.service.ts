@@ -16,4 +16,13 @@ export class TimezoneService {
   async convertFromUTC(data: any): Promise<any> {
     return data;
   }
+
+  getCurrentColombiaTime() {
+    const now = DateTime.now().setZone(this.zone);
+
+    return {
+      timeZone: this.zone,
+      dateTime: now.toFormat("yyyy-LL-dd'T'HH:mm:ss"),
+    };
+  }
 }
