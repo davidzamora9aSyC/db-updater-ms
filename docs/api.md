@@ -170,3 +170,37 @@ GET /indicadores/producto?productoId=PROD-123&periodo=mensual&compararCon=previo
   }
 }
 ```
+
+## Pasos de Orden (Mini)
+
+- **Método**: `GET`
+- **Ruta**: `/ordenes/{ordenId}/pasos-mini`
+- **Descripción**: devuelve la lista ordenada de pasos asociados a una orden de producción, con sólo los campos esenciales (`id`, `nombre`, `numeroPaso`).
+
+### Ejemplo de uso
+
+```
+GET /ordenes/4b159c1e-5f2a-4b1d-9c54-1f6b84a5c0d7/pasos-mini
+```
+
+### Ejemplo de respuesta
+
+```json
+[
+  {
+    "id": "8a1f7e5d-0c0d-4f21-b6c4-8a0d9316c231",
+    "nombre": "Corte",
+    "numeroPaso": 1
+  },
+  {
+    "id": "5e3a4a19-6fd8-4f2d-9cc1-6e71ae7d9f4f",
+    "nombre": "Confección",
+    "numeroPaso": 2
+  },
+  {
+    "id": "9ad3b8a2-54e9-4d85-bf10-134c5f7e6f0b",
+    "nombre": "Empaque",
+    "numeroPaso": 3
+  }
+]
+```

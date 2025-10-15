@@ -24,6 +24,10 @@ export class OrdenProduccionController {
     return this.service.obtenerPorId(id)
   }
 
+  @Get(':id/pasos-mini')
+  obtenerPasosMini(@Param('id') id: string) {
+    return this.service.obtenerPasosMini(id);
+  }
 
   @Delete(':id')
   eliminar(@Param('id') id: string) {
