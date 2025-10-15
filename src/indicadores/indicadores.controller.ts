@@ -11,6 +11,59 @@ export class IndicadoresController {
     private readonly sesionService: SesionTrabajoService,
   ) {}
 
+  @Get('producto')
+  @ApiOperation({ summary: 'Indicadores agregados por producto' })
+  @ApiQuery({ name: 'productoId', required: false, description: 'Identificador o etiqueta del producto (Orden.producto)' })
+  @ApiQuery({ name: 'producto', required: false, description: 'Alias del producto si no se pasa productoId' })
+  @ApiQuery({ name: 'periodo', required: false, description: 'diario | semanal | mensual' })
+  @ApiQuery({ name: 'inicio', required: false, description: 'Fecha inicio ISO (junto con fin)' })
+  @ApiQuery({ name: 'fin', required: false, description: 'Fecha fin ISO (junto con inicio)' })
+  @ApiQuery({
+    name: 'compararCon',
+    required: false,
+    description: 'previo | mismoPeriodoAnterior | personalizado | ninguno',
+  })
+  @ApiQuery({ name: 'compararInicio', required: false, description: 'Inicio ISO para comparación personalizada' })
+  @ApiQuery({ name: 'compararFin', required: false, description: 'Fin ISO para comparación personalizada' })
+  @ApiQuery({ name: 'targetNc', required: false, description: 'Objetivo de porcentaje de no conformes' })
+  @ApiQuery({ name: 'targetNpt', required: false, description: 'Objetivo de NPT (horas)' })
+  @ApiQuery({
+    name: 'targetCumplimiento',
+    required: false,
+    description: 'Objetivo de cumplimiento como relación (0-1)',
+  })
+  indicadoresPorProducto(
+    @Query('productoId') productoId?: string,
+    @Query('producto') producto?: string,
+    @Query('periodo') periodo?: string,
+    @Query('inicio') inicio?: string,
+    @Query('fin') fin?: string,
+    @Query('compararCon') compararCon?: string,
+    @Query('compararInicio') compararInicio?: string,
+    @Query('compararFin') compararFin?: string,
+    @Query('targetNc') targetNc?: string,
+    @Query('targetNpt') targetNpt?: string,
+    @Query('targetCumplimiento') targetCumplimiento?: string,
+  ) {
+    const toNumber = (value?: string) => {
+      if (value === undefined || value === null || value === '') return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    return this.service.indicadoresPorProducto({
+      producto: productoId ?? producto ?? '',
+      periodo,
+      inicio,
+      fin,
+      compararCon,
+      compararInicio,
+      compararFin,
+      targetNc: toNumber(targetNc),
+      targetNpt: toNumber(targetNpt),
+      targetCumplimiento: toNumber(targetCumplimiento),
+    });
+  }
+
   @Get('diaria/mes-actual')
   @ApiOperation({ summary: 'Serie diaria del mes actual (por área opcional)' })
   diariaMesActual(@Query('areaId') areaId?: string) {

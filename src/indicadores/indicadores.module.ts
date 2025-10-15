@@ -6,10 +6,22 @@ import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim
 import { Area } from '../area/area.entity';
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { Maquina } from '../maquina/maquina.entity';
+import { OrdenProduccion } from '../orden-produccion/entity';
+import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
 import { SesionTrabajoModule } from '../sesion-trabajo/sesion-trabajo.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([IndicadorDiarioDim, Area, Trabajador, Maquina]), SesionTrabajoModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      IndicadorDiarioDim,
+      Area,
+      Trabajador,
+      Maquina,
+      OrdenProduccion,
+      RegistroMinuto,
+    ]),
+    SesionTrabajoModule,
+  ],
   controllers: [IndicadoresController],
   providers: [IndicadoresService],
 })

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { DateTime } from 'luxon';
@@ -6,6 +6,9 @@ import { IndicadorDiarioDim } from '../indicador-diario-dim/indicador-diario-dim
 import { Area } from '../area/area.entity';
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { Maquina } from '../maquina/maquina.entity';
+import { OrdenProduccion } from '../orden-produccion/entity';
+import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
+import { ConfiguracionService } from '../configuracion/configuracion.service';
 
 type SumRow = {
   clave: Date | string;
@@ -32,6 +35,11 @@ export class IndicadoresService {
     private readonly trabajadorRepo: Repository<Trabajador>,
     @InjectRepository(Maquina)
     private readonly maquinaRepo: Repository<Maquina>,
+    @InjectRepository(OrdenProduccion)
+    private readonly ordenRepo: Repository<OrdenProduccion>,
+    @InjectRepository(RegistroMinuto)
+    private readonly registroRepo: Repository<RegistroMinuto>,
+    private readonly configService: ConfiguracionService,
   ) {}
 
   private calcMetrics(base: {
@@ -127,6 +135,471 @@ export class IndicadoresService {
     for (const k of baseKeys) if (k in obj) out[k] = obj[k];
     for (const k of allow) if (k in obj) out[k] = obj[k];
     return out;
+  }
+
+  private round(valor: number, decimales = 2) {
+    if (!Number.isFinite(valor)) return valor;
+    const factor = 10 ** decimales;
+    return Math.round(valor * factor) / factor;
+  }
+
+  private variacionPorcentual(actual: number | null | undefined, comparativo: number | null | undefined) {
+    if (actual == null || comparativo == null) return null;
+    if (!Number.isFinite(actual) || !Number.isFinite(comparativo)) return null;
+    if (Math.abs(comparativo) < 1e-9) {
+      return Math.abs(actual) < 1e-9 ? 0 : null;
+    }
+    return ((actual - comparativo) / Math.abs(comparativo)) * 100;
+  }
+
+  private resolverPeriodoProducto(opts: { periodo?: string; inicio?: string; fin?: string }) {
+    if (opts.inicio && opts.fin) {
+      const inicio = DateTime.fromISO(opts.inicio, { zone: this.zone }).startOf('day');
+      const fin = DateTime.fromISO(opts.fin, { zone: this.zone }).endOf('day');
+      if (!inicio.isValid || !fin.isValid) {
+        throw new BadRequestException('Parámetros de fecha inválidos');
+      }
+      return { inicio, fin };
+    }
+    const base = DateTime.now().setZone(this.zone);
+    const periodo = (opts.periodo ?? '').toLowerCase();
+    switch (periodo) {
+      case 'diario':
+      case 'dia':
+      case 'día':
+        return { inicio: base.startOf('day'), fin: base.endOf('day') };
+      case 'semanal':
+      case 'semana':
+        return { inicio: base.startOf('week'), fin: base.endOf('week') };
+      case 'mensual':
+      case 'mes':
+        return { inicio: base.startOf('month'), fin: base.endOf('month') };
+      default:
+        return { inicio: base.startOf('day'), fin: base.endOf('day') };
+    }
+  }
+
+  private resolverComparativoProducto(
+    base: { inicio: DateTime; fin: DateTime },
+    opts: { compararCon?: string; compararInicio?: string; compararFin?: string },
+  ) {
+    const normalizado = (opts.compararCon ?? 'previo').toLowerCase().replace(/[\s_-]/g, '');
+    if (normalizado === 'ninguno' || normalizado === 'none' || normalizado === 'sincomparacion') {
+      return null;
+    }
+    if (normalizado === 'personalizado') {
+      if (!opts.compararInicio || !opts.compararFin) return null;
+      const inicio = DateTime.fromISO(opts.compararInicio, { zone: this.zone }).startOf('day');
+      const fin = DateTime.fromISO(opts.compararFin, { zone: this.zone }).endOf('day');
+      if (!inicio.isValid || !fin.isValid) return null;
+      return { inicio, fin, tipo: 'personalizado' as const };
+    }
+    if (normalizado === 'mismoperiodoanterior' || normalizado === 'mismoperiodo' || normalizado === 'anterioranio') {
+      return {
+        inicio: base.inicio.minus({ years: 1 }),
+        fin: base.fin.minus({ years: 1 }),
+        tipo: 'mismoPeriodoAnterior' as const,
+      };
+    }
+    const duracion = base.fin.diff(base.inicio);
+    return {
+      inicio: base.inicio.minus(duracion),
+      fin: base.fin.minus(duracion),
+      tipo: 'previo' as const,
+    };
+  }
+
+  private async obtenerPlaneadoProducto(producto: string, inicio: DateTime, fin: DateTime) {
+    const row = await this.ordenRepo
+      .createQueryBuilder('o')
+      .select('COALESCE(SUM(o.cantidadAProducir),0)', 'planeadas')
+      .where('o.producto = :producto', { producto })
+      .andWhere('o.fechaOrden BETWEEN :inicio AND :fin', {
+        inicio: inicio.toISODate(),
+        fin: fin.toISODate(),
+      })
+      .getRawOne<{ planeadas: string }>();
+    return this.toNum(row?.planeadas);
+  }
+
+  private async obtenerProduccionProducto(producto: string, inicio: DateTime, fin: DateTime) {
+    const row = await this.registroRepo
+      .createQueryBuilder('r')
+      .innerJoin('r.pasoSesionTrabajo', 'stp')
+      .innerJoin('stp.pasoOrden', 'p')
+      .innerJoin('p.orden', 'o')
+      .select('COALESCE(SUM(r.piezasContadas),0)', 'piezas')
+      .addSelect('COALESCE(SUM(r.pedaleadas),0)', 'pedaleadas')
+      .where('o.producto = :producto', { producto })
+      .andWhere('r.minutoInicio BETWEEN :inicio AND :fin', {
+        inicio: inicio.toJSDate(),
+        fin: fin.toJSDate(),
+      })
+      .getRawOne<{ piezas: string; pedaleadas: string }>();
+    const piezas = this.toNum(row?.piezas);
+    const pedaleadas = this.toNum(row?.pedaleadas);
+    const defectos = Math.max(0, pedaleadas - piezas);
+    return { piezas, pedaleadas, defectos };
+  }
+
+  private construirSegmentosInactividadProducto(
+    registros: { minuto: Date; pedaleadas: number; piezas: number }[],
+    inicio: DateTime,
+    fin: DateTime,
+  ) {
+    const segmentos: number[] = [];
+    if (!registros.length) return segmentos;
+    const inicioMs = Math.max(
+      inicio.toMillis(),
+      DateTime.fromJSDate(registros[0].minuto, { zone: this.zone }).startOf('minute').toMillis(),
+    );
+    const finMs = Math.min(
+      fin.toMillis(),
+      DateTime.fromJSDate(registros[registros.length - 1].minuto, { zone: this.zone })
+        .startOf('minute')
+        .plus({ minutes: 1 })
+        .toMillis(),
+    );
+    if (finMs <= inicioMs) return segmentos;
+    let cursor = inicioMs;
+    let racha = 0;
+    for (const registro of registros) {
+      const minutoMs = DateTime.fromJSDate(registro.minuto, { zone: this.zone }).startOf('minute').toMillis();
+      if (minutoMs < inicioMs) continue;
+      if (minutoMs > finMs) break;
+      if (minutoMs > cursor) {
+        const faltantes = Math.floor((minutoMs - cursor) / 60000);
+        if (faltantes > 0) {
+          racha += faltantes;
+          cursor += faltantes * 60000;
+        }
+      }
+      const esInactivo = (registro.pedaleadas ?? 0) === 0 && (registro.piezas ?? 0) === 0;
+      if (minutoMs >= cursor) {
+        if (esInactivo) {
+          racha += 1;
+          cursor = minutoMs + 60000;
+        } else {
+          if (racha > 0) {
+            segmentos.push(racha);
+            racha = 0;
+          }
+          cursor = minutoMs + 60000;
+        }
+      } else if (!esInactivo && racha > 0) {
+        segmentos.push(racha);
+        racha = 0;
+      }
+    }
+    if (finMs > cursor) {
+      const cola = Math.ceil((finMs - cursor) / 60000);
+      if (cola > 0) racha += cola;
+    }
+    if (racha > 0) segmentos.push(racha);
+    return segmentos;
+  }
+
+  private async obtenerNptProducto(
+    producto: string,
+    inicio: DateTime,
+    fin: DateTime,
+    minutosInactividadParaNPT: number,
+  ) {
+    const rows = await this.registroRepo
+      .createQueryBuilder('r')
+      .innerJoin('r.pasoSesionTrabajo', 'stp')
+      .innerJoin('stp.pasoOrden', 'p')
+      .innerJoin('p.orden', 'o')
+      .select('r.minutoInicio', 'minutoInicio')
+      .addSelect('r.pedaleadas', 'pedaleadas')
+      .addSelect('r.piezasContadas', 'piezas')
+      .addSelect('p.id', 'pasoId')
+      .addSelect('p.nombre', 'pasoNombre')
+      .addSelect('stp.id', 'pasoSesionId')
+      .where('o.producto = :producto', { producto })
+      .andWhere('r.minutoInicio BETWEEN :inicio AND :fin', {
+        inicio: inicio.toJSDate(),
+        fin: fin.toJSDate(),
+      })
+      .orderBy('p.id', 'ASC')
+      .addOrderBy('stp.id', 'ASC')
+      .addOrderBy('r.minutoInicio', 'ASC')
+      .getRawMany<{
+        minutoInicio: Date;
+        pedaleadas: number;
+        piezas: number;
+        pasoId: string;
+        pasoNombre: string;
+        pasoSesionId: string;
+      }>();
+
+    if (!rows.length) {
+      return {
+        totalMin: 0,
+        totalHoras: 0,
+        totalPorInactividadMin: 0,
+        pasos: [] as {
+          pasoId: string;
+          nombre: string;
+          minutos: number;
+          horas: number;
+          porcentaje: number;
+          nptPorInactividadMin: number;
+        }[],
+      };
+    }
+
+    const registrosPorSesionPaso = new Map<
+      string,
+      { pasoId: string; pasoNombre: string; registros: { minuto: Date; pedaleadas: number; piezas: number }[] }
+    >();
+
+    for (const row of rows) {
+      const key = row.pasoSesionId;
+      const entry =
+        registrosPorSesionPaso.get(key) ||
+        {
+          pasoId: row.pasoId,
+          pasoNombre: row.pasoNombre,
+          registros: [],
+        };
+      entry.registros.push({
+        minuto: row.minutoInicio,
+        pedaleadas: Number(row.pedaleadas ?? 0),
+        piezas: Number(row.piezas ?? 0),
+      });
+      registrosPorSesionPaso.set(key, entry);
+    }
+
+    const agregadoPorPaso = new Map<
+      string,
+      { nombre: string; nptMin: number; nptPorInactividadMin: number }
+    >();
+
+    for (const entry of registrosPorSesionPaso.values()) {
+      entry.registros.sort(
+        (a, b) =>
+          DateTime.fromJSDate(a.minuto, { zone: this.zone }).toMillis() -
+          DateTime.fromJSDate(b.minuto, { zone: this.zone }).toMillis(),
+      );
+      const segmentos = this.construirSegmentosInactividadProducto(entry.registros, inicio, fin);
+      if (!segmentos.length) continue;
+      const nptMin = segmentos.reduce((acc, v) => acc + v, 0);
+      const nptPorInactividad = segmentos.reduce(
+        (acc, v) => acc + (v > minutosInactividadParaNPT ? v : 0),
+        0,
+      );
+      const agregado = agregadoPorPaso.get(entry.pasoId) || {
+        nombre: entry.pasoNombre,
+        nptMin: 0,
+        nptPorInactividadMin: 0,
+      };
+      agregado.nptMin += nptMin;
+      agregado.nptPorInactividadMin += nptPorInactividad;
+      agregadoPorPaso.set(entry.pasoId, agregado);
+    }
+
+    const totalMin = Array.from(agregadoPorPaso.values()).reduce((acc, v) => acc + v.nptMin, 0);
+    const totalPorInactividadMin = Array.from(agregadoPorPaso.values()).reduce(
+      (acc, v) => acc + v.nptPorInactividadMin,
+      0,
+    );
+    const pasos = Array.from(agregadoPorPaso.entries())
+      .map(([pasoId, data]) => {
+        const horas = data.nptMin / 60;
+        const porcentaje = totalMin > 0 ? (data.nptMin / totalMin) * 100 : 0;
+        return {
+          pasoId,
+          nombre: data.nombre,
+          minutos: data.nptMin,
+          horas: this.round(horas, 2),
+          porcentaje: this.round(porcentaje, 2),
+          nptPorInactividadMin: data.nptPorInactividadMin,
+        };
+      })
+      .sort((a, b) => b.minutos - a.minutos);
+
+    return {
+      totalMin,
+      totalHoras: totalMin / 60,
+      totalPorInactividadMin,
+      pasos,
+    };
+  }
+
+  private async calcularKPIsProductoPeriodo(
+    producto: string,
+    inicio: DateTime,
+    fin: DateTime,
+    minutosInactividadParaNPT: number,
+  ) {
+    const [planeado, produccion, npt] = await Promise.all([
+      this.obtenerPlaneadoProducto(producto, inicio, fin),
+      this.obtenerProduccionProducto(producto, inicio, fin),
+      this.obtenerNptProducto(producto, inicio, fin, minutosInactividadParaNPT),
+    ]);
+
+    const cumplimiento = planeado > 0 ? produccion.piezas / planeado : null;
+    const calidadPct = produccion.pedaleadas > 0 ? (produccion.defectos / produccion.pedaleadas) * 100 : null;
+
+    return {
+      planeado,
+      piezasProducidas: produccion.piezas,
+      pedaleadas: produccion.pedaleadas,
+      defectos: produccion.defectos,
+      cumplimiento,
+      calidadPct,
+      npt,
+    };
+  }
+
+  async indicadoresPorProducto(opts: {
+    producto: string;
+    periodo?: string;
+    inicio?: string;
+    fin?: string;
+    compararCon?: string;
+    compararInicio?: string;
+    compararFin?: string;
+    targetNc?: number | null;
+    targetNpt?: number | null;
+    targetCumplimiento?: number | null;
+  }) {
+    if (!opts.producto) throw new BadRequestException('El parámetro producto es requerido');
+    const periodo = this.resolverPeriodoProducto(opts);
+    const comparativo = this.resolverComparativoProducto(periodo, opts);
+    const minutosInactividad = await this.configService.getMinInactividad();
+    const [actual, compar] = await Promise.all([
+      this.calcularKPIsProductoPeriodo(opts.producto, periodo.inicio, periodo.fin, minutosInactividad),
+      comparativo
+        ? this.calcularKPIsProductoPeriodo(opts.producto, comparativo.inicio, comparativo.fin, minutosInactividad)
+        : Promise.resolve(null),
+    ]);
+
+    const variacionCumplimiento = compar
+      ? this.variacionPorcentual(actual.cumplimiento, compar.cumplimiento)
+      : null;
+    const variacionCalidad = compar ? this.variacionPorcentual(actual.calidadPct, compar.calidadPct) : null;
+    const variacionNpt = compar ? this.variacionPorcentual(actual.npt.totalHoras, compar.npt.totalHoras) : null;
+
+    const indicadorCumplimiento = {
+      indicador: 'cumplimiento_plan',
+      periodo_actual: {
+        inicio: periodo.inicio.toISO(),
+        fin: periodo.fin.toISO(),
+      },
+      valor_actual: {
+        piezas_planeadas: actual.planeado,
+        piezas_producidas: actual.piezasProducidas,
+        cumplimiento_rel: actual.cumplimiento != null ? this.round(actual.cumplimiento, 4) : null,
+        cumplimiento_pct: actual.cumplimiento != null ? this.round(actual.cumplimiento * 100, 2) : null,
+      },
+      comparativo: compar && comparativo
+        ? {
+            inicio: comparativo.inicio.toISO(),
+            fin: comparativo.fin.toISO(),
+            piezas_planeadas: compar.planeado,
+            piezas_producidas: compar.piezasProducidas,
+            cumplimiento_rel: compar.cumplimiento != null ? this.round(compar.cumplimiento, 4) : null,
+            cumplimiento_pct: compar.cumplimiento != null ? this.round(compar.cumplimiento * 100, 2) : null,
+          }
+        : null,
+      variacion_pct: variacionCumplimiento != null ? this.round(variacionCumplimiento, 2) : null,
+      objetivo: opts.targetCumplimiento ?? null,
+      objetivo_pct: opts.targetCumplimiento != null ? this.round(opts.targetCumplimiento * 100, 2) : null,
+      brecha_objetivo:
+        opts.targetCumplimiento != null && actual.cumplimiento != null
+          ? this.round(actual.cumplimiento - opts.targetCumplimiento, 4)
+          : null,
+      brecha_objetivo_pct:
+        opts.targetCumplimiento != null && actual.cumplimiento != null
+          ? this.round(actual.cumplimiento * 100 - opts.targetCumplimiento * 100, 2)
+          : null,
+    };
+
+    const indicadorCalidad = {
+      indicador: 'calidad_no_conforme',
+      periodo_actual: {
+        inicio: periodo.inicio.toISO(),
+        fin: periodo.fin.toISO(),
+      },
+      valor_actual: {
+        piezas_totales: actual.pedaleadas,
+        piezas_no_conformes: actual.defectos,
+        porcentaje_no_conformes: actual.calidadPct != null ? this.round(actual.calidadPct, 2) : null,
+      },
+      comparativo: compar && comparativo
+        ? {
+            inicio: comparativo.inicio.toISO(),
+            fin: comparativo.fin.toISO(),
+            piezas_totales: compar.pedaleadas,
+            piezas_no_conformes: compar.defectos,
+            porcentaje_no_conformes: compar.calidadPct != null ? this.round(compar.calidadPct, 2) : null,
+          }
+        : null,
+      variacion_pct: variacionCalidad != null ? this.round(variacionCalidad, 2) : null,
+      objetivo: opts.targetNc ?? null,
+      brecha_objetivo:
+        opts.targetNc != null && actual.calidadPct != null
+          ? this.round(actual.calidadPct - opts.targetNc, 2)
+          : null,
+    };
+
+    const indicadorNpt = {
+      indicador: 'npt',
+      periodo_actual: {
+        inicio: periodo.inicio.toISO(),
+        fin: periodo.fin.toISO(),
+      },
+      valor_actual: {
+        total_minutos: this.round(actual.npt.totalMin, 2),
+        total_horas: this.round(actual.npt.totalHoras, 2),
+        npt_por_inactividad_min: this.round(actual.npt.totalPorInactividadMin, 2),
+        pasos: actual.npt.pasos.map((p) => ({
+          ...p,
+          minutos: this.round(p.minutos, 2),
+          nptPorInactividadMin: this.round(p.nptPorInactividadMin, 2),
+        })),
+      },
+      comparativo: compar && comparativo
+        ? {
+            inicio: comparativo.inicio.toISO(),
+            fin: comparativo.fin.toISO(),
+            total_minutos: this.round(compar.npt.totalMin, 2),
+            total_horas: this.round(compar.npt.totalHoras, 2),
+            npt_por_inactividad_min: this.round(compar.npt.totalPorInactividadMin, 2),
+            pasos: compar.npt.pasos.map((p) => ({
+              ...p,
+              minutos: this.round(p.minutos, 2),
+              nptPorInactividadMin: this.round(p.nptPorInactividadMin, 2),
+            })),
+          }
+        : null,
+      variacion_pct: variacionNpt != null ? this.round(variacionNpt, 2) : null,
+      objetivo: opts.targetNpt ?? null,
+      unidad_objetivo: opts.targetNpt != null ? 'horas' : null,
+      brecha_objetivo: opts.targetNpt != null ? this.round(actual.npt.totalHoras - opts.targetNpt, 2) : null,
+    };
+
+    return {
+      producto: opts.producto,
+      periodo: {
+        inicio: periodo.inicio.toISO(),
+        fin: periodo.fin.toISO(),
+      },
+      comparativo: compar && comparativo
+        ? {
+            inicio: comparativo.inicio.toISO(),
+            fin: comparativo.fin.toISO(),
+            tipo: (comparativo as any)?.tipo ?? 'custom',
+          }
+        : null,
+      indicadores: [indicadorCumplimiento, indicadorCalidad, indicadorNpt],
+      metadatos: {
+        zonaHoraria: this.zone,
+        minutosInactividadParaNPT: minutosInactividad,
+      },
+    };
   }
 
   async listarTrabajadores(opts: {

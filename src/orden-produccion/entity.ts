@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 export enum EstadoOrdenProduccion {
@@ -21,6 +22,7 @@ export class OrdenProduccion {
   @Column()
   numero: string;
 
+  @Index('idx_orden_producto')
   @Column()
   producto: string;
 
