@@ -214,10 +214,13 @@ export class IndicadoresService {
       .createQueryBuilder('o')
       .select('COALESCE(SUM(o.cantidadAProducir),0)', 'planeadas')
       .where('o.producto = :producto', { producto })
-      .andWhere('o.fechaOrden BETWEEN :inicio AND :fin', {
-        inicio: inicio.toISODate(),
-        fin: fin.toISODate(),
-      })
+      .andWhere(
+        'o.fechaOrden <= :fin AND o.fechaVencimiento >= :inicio',
+        {
+          inicio: inicio.toISODate(),
+          fin: fin.toISODate(),
+        },
+      )
       .getRawOne<{ planeadas: string }>();
     return this.toNum(row?.planeadas);
   }
@@ -237,9 +240,10 @@ export class IndicadoresService {
       })
       .getRawOne<{ piezas: string; pedaleadas: string }>();
     const piezas = this.toNum(row?.piezas);
-    const pedaleadas = this.toNum(row?.pedaleadas);
-    const defectos = Math.max(0, pedaleadas - piezas);
-    return { piezas, pedaleadas, defectos };
+    const pedaleadasRaw = this.toNum(row?.pedaleadas);
+    const defectos = Math.max(0, pedaleadasRaw - piezas);
+    const totalInspeccionadas = piezas + defectos;
+    return { piezas, pedaleadas: totalInspeccionadas, defectos };
   }
 
   private construirSegmentosInactividadProducto(
@@ -440,12 +444,13 @@ export class IndicadoresService {
     ]);
 
     const cumplimiento = planeado > 0 ? produccion.piezas / planeado : null;
-    const calidadPct = produccion.pedaleadas > 0 ? (produccion.defectos / produccion.pedaleadas) * 100 : null;
+    const totalInspeccionadas = produccion.piezas + produccion.defectos;
+    const calidadPct = totalInspeccionadas > 0 ? (produccion.defectos / totalInspeccionadas) * 100 : null;
 
     return {
       planeado,
       piezasProducidas: produccion.piezas,
-      pedaleadas: produccion.pedaleadas,
+      pedaleadas: totalInspeccionadas,
       defectos: produccion.defectos,
       cumplimiento,
       calidadPct,
