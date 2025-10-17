@@ -185,13 +185,31 @@ export class IndicadoresController {
   @ApiQuery({ name: 'inicio', required: false })
   @ApiQuery({ name: 'fin', required: false })
   @ApiQuery({ name: 'metrics', required: false, description: 'Lista separada por comas de métricas a incluir' })
+  @ApiQuery({
+    name: 'compararCon',
+    required: false,
+    description: 'previo (default), mismo-periodo-anterior, personalizado, ninguno',
+  })
+  @ApiQuery({ name: 'compararInicio', required: false })
+  @ApiQuery({ name: 'compararFin', required: false })
   listarTrabajadores(
     @Query('rango') rango?: string,
     @Query('inicio') inicio?: string,
     @Query('fin') fin?: string,
     @Query('metrics') metrics?: string,
+    @Query('compararCon') compararCon?: string,
+    @Query('compararInicio') compararInicio?: string,
+    @Query('compararFin') compararFin?: string,
   ) {
-    return this.service.listarTrabajadores({ rango, inicio, fin, metrics });
+    return this.service.listarTrabajadores({
+      rango,
+      inicio,
+      fin,
+      metrics,
+      compararCon,
+      compararInicio,
+      compararFin,
+    });
   }
 
   // Listado de máquinas con métricas agregadas en rango o rango predefinido

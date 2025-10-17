@@ -607,38 +607,121 @@ export class IndicadoresService {
     };
   }
 
+  private resolverComparativoRango(
+    base: { inicio: string; fin: string },
+    opts: { compararCon?: string; compararInicio?: string; compararFin?: string },
+  ) {
+    const inicioActual = DateTime.fromISO(base.inicio, { zone: this.zone }).startOf('day');
+    const finActual = DateTime.fromISO(base.fin, { zone: this.zone }).startOf('day');
+    if (!inicioActual.isValid || !finActual.isValid) return null;
+    const normalizado = (opts.compararCon ?? 'previo').toLowerCase().replace(/[\s_-]/g, '');
+    if (normalizado === 'ninguno' || normalizado === 'none' || normalizado === 'sincomparacion') {
+      return null;
+    }
+    if (normalizado === 'personalizado') {
+      if (!opts.compararInicio || !opts.compararFin) return null;
+      const inicio = DateTime.fromISO(opts.compararInicio, { zone: this.zone }).startOf('day');
+      const fin = DateTime.fromISO(opts.compararFin, { zone: this.zone }).startOf('day');
+      if (!inicio.isValid || !fin.isValid) return null;
+      return {
+        inicio: inicio.toISODate()!,
+        fin: fin.toISODate()!,
+        tipo: 'personalizado' as const,
+      };
+    }
+    if (normalizado === 'mismoperiodoanterior' || normalizado === 'mismoperiodo' || normalizado === 'anterioranio') {
+      return {
+        inicio: inicioActual.minus({ years: 1 }).toISODate()!,
+        fin: finActual.minus({ years: 1 }).toISODate()!,
+        tipo: 'mismoPeriodoAnterior' as const,
+      };
+    }
+    const diasPeriodo = Math.max(
+      1,
+      Math.round(finActual.diff(inicioActual, 'days').days ?? 0) + 1,
+    );
+    return {
+      inicio: inicioActual.minus({ days: diasPeriodo }).toISODate()!,
+      fin: finActual.minus({ days: diasPeriodo }).toISODate()!,
+      tipo: 'previo' as const,
+    };
+  }
+
   async listarTrabajadores(opts: {
     rango?: string
     inicio?: string
     fin?: string
     metrics?: string
+    compararCon?: string
+    compararInicio?: string
+    compararFin?: string
   }) {
-    const { inicio, fin } = this.rangoFechas(opts);
-    const rows = await this.repo
-      .createQueryBuilder('i')
-      .select('i.trabajadorId', 'id')
-      .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
-      .addSelect('SUM(i.defectos)', 'defectos')
-      .addSelect('SUM(i.nptMin)', 'nptMin')
-      .addSelect('SUM(i.nptPorInactividad)', 'nptPorInactividad')
-      .addSelect('SUM(i.pausasMin)', 'pausasMin')
-      .addSelect('SUM(i.pausasCount)', 'pausasCount')
-      .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
-      .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
-      .where('i.fecha BETWEEN :inicio AND :fin', { inicio, fin })
-      .andWhere('i.trabajadorId IS NOT NULL')
-      .groupBy('i.trabajadorId')
-      .getRawMany<{
-        id: string
-        produccionTotal: string | number
-        defectos: string | number
-        nptMin: string | number
-        nptPorInactividad: string | number
-        pausasMin: string | number
-        pausasCount: string | number
-        duracionTotalMin: string | number
-        sesionesCerradas: string | number
-      }>();
+    const { inicio, fin } = this.rangoFechas({
+      rango: opts.rango,
+      inicio: opts.inicio,
+      fin: opts.fin,
+    });
+    const comparativo = this.resolverComparativoRango(
+      { inicio, fin },
+      {
+        compararCon: opts.compararCon,
+        compararInicio: opts.compararInicio,
+        compararFin: opts.compararFin,
+      },
+    );
+    const fetchRows = (desde: string, hasta: string) =>
+      this.repo
+        .createQueryBuilder('i')
+        .select('i.trabajadorId', 'id')
+        .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
+        .addSelect('SUM(i.defectos)', 'defectos')
+        .addSelect('SUM(i.nptMin)', 'nptMin')
+        .addSelect('SUM(i.nptPorInactividad)', 'nptPorInactividad')
+        .addSelect('SUM(i.pausasMin)', 'pausasMin')
+        .addSelect('SUM(i.pausasCount)', 'pausasCount')
+        .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
+        .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
+        .where('i.fecha BETWEEN :inicio AND :fin', { inicio: desde, fin: hasta })
+        .andWhere('i.trabajadorId IS NOT NULL')
+        .groupBy('i.trabajadorId')
+        .getRawMany<{
+          id: string
+          produccionTotal: string | number
+          defectos: string | number
+          nptMin: string | number
+          nptPorInactividad: string | number
+          pausasMin: string | number
+          pausasCount: string | number
+          duracionTotalMin: string | number
+          sesionesCerradas: string | number
+        }>();
+
+    const rows = await fetchRows(inicio, fin);
+    const comparRows = comparativo ? await fetchRows(comparativo.inicio, comparativo.fin) : [];
+
+    const normalizeRow = (row: {
+      produccionTotal: string | number
+      defectos: string | number
+      nptMin: string | number
+      nptPorInactividad: string | number
+      pausasMin: string | number
+      pausasCount: string | number
+      duracionTotalMin: string | number
+      sesionesCerradas: string | number
+    }) => ({
+      produccionTotal: this.toNum(row.produccionTotal),
+      defectos: this.toNum(row.defectos),
+      nptMin: this.toNum(row.nptMin),
+      nptPorInactividad: this.toNum(row.nptPorInactividad),
+      pausasMin: this.toNum(row.pausasMin),
+      pausasCount: this.toNum(row.pausasCount),
+      duracionTotalMin: this.toNum(row.duracionTotalMin),
+      sesionesCerradas: this.toNum(row.sesionesCerradas),
+    });
+
+    const comparById = comparativo
+      ? new Map(comparRows.map((r) => [r.id, normalizeRow(r)]))
+      : new Map<string, ReturnType<typeof normalizeRow>>();
 
     const ids = rows.map((r) => r.id).filter(Boolean);
     const trabajadores = ids.length
@@ -646,40 +729,70 @@ export class IndicadoresService {
       : [];
     const metaById = new Map(trabajadores.map((t) => [t.id, t]));
     const metricsAllow = opts.metrics ? opts.metrics.split(',').map((s) => s.trim()).filter(Boolean) : null;
+    const metricsAllowEffective = comparativo && metricsAllow
+      ? Array.from(new Set([
+          ...metricsAllow,
+          ...metricsAllow.map((metric) => `${metric}Anterior`),
+        ]))
+      : metricsAllow;
 
     return rows.map((r) => {
-      const base = {
+      const baseInfo = {
         id: r.id,
         nombre: metaById.get(r.id)?.nombre,
         identificacion: metaById.get(r.id)?.identificacion,
         grupo: metaById.get(r.id)?.grupo,
         turno: metaById.get(r.id)?.turno,
-        produccionTotal: this.toNum(r.produccionTotal),
-        defectos: this.toNum(r.defectos),
-        nptMin: this.toNum(r.nptMin),
-        nptPorInactividad: this.toNum(r.nptPorInactividad),
-        pausasMin: this.toNum(r.pausasMin),
-        pausasCount: this.toNum(r.pausasCount),
-        duracionTotalMin: this.toNum(r.duracionTotalMin),
-        sesionesCerradas: this.toNum(r.sesionesCerradas),
       };
-      const totalPiezas = base.produccionTotal;
-      const totalPedaleos = base.produccionTotal + base.defectos;
-      const porcentajeDefectos = totalPedaleos > 0 ? (base.defectos / totalPedaleos) * 100 : 0;
-      const nptCapped = Math.min(base.nptMin, base.duracionTotalMin);
-      const porcentajeNPT = base.duracionTotalMin > 0 ? (nptCapped / base.duracionTotalMin) * 100 : 0;
-      const porcentajePausa = base.duracionTotalMin > 0 ? (base.pausasMin / base.duracionTotalMin) * 100 : 0;
-      const avgSpeedSesion = base.duracionTotalMin > 0 ? (totalPiezas / base.duracionTotalMin) * 60 : 0;
-      const minProd = Math.max(Number.EPSILON, base.duracionTotalMin - Math.min(base.duracionTotalMin, base.nptMin));
-      const avgSpeed = (totalPiezas / minProd) * 60;
+      const actualRow = normalizeRow(r);
+      const actualMetrics = {
+        ...this.calcMetrics({
+          produccionTotal: actualRow.produccionTotal,
+          defectos: actualRow.defectos,
+          nptMin: actualRow.nptMin,
+          nptPorInactividad: actualRow.nptPorInactividad,
+          pausasMin: actualRow.pausasMin,
+          duracionTotalMin: actualRow.duracionTotalMin,
+          sesionesCerradas: actualRow.sesionesCerradas,
+        }),
+        pausasCount: actualRow.pausasCount,
+      };
+      const comparRow = comparativo
+        ? comparById.get(r.id) ?? {
+            produccionTotal: 0,
+            defectos: 0,
+            nptMin: 0,
+            nptPorInactividad: 0,
+            pausasMin: 0,
+            pausasCount: 0,
+            duracionTotalMin: 0,
+            sesionesCerradas: 0,
+          }
+        : null;
+      const comparMetrics = comparRow
+        ? {
+            ...this.calcMetrics({
+              produccionTotal: comparRow.produccionTotal,
+              defectos: comparRow.defectos,
+              nptMin: comparRow.nptMin,
+              nptPorInactividad: comparRow.nptPorInactividad,
+              pausasMin: comparRow.pausasMin,
+              duracionTotalMin: comparRow.duracionTotalMin,
+              sesionesCerradas: comparRow.sesionesCerradas,
+            }),
+            pausasCount: comparRow.pausasCount,
+          }
+        : null;
+      const comparSuffix = comparMetrics
+        ? Object.fromEntries(
+            Object.entries(comparMetrics).map(([key, value]) => [`${key}Anterior`, value]),
+          )
+        : {};
       return this.pickMetrics({
-        ...base,
-        porcentajeDefectos,
-        porcentajeNPT,
-        porcentajePausa,
-        avgSpeed,
-        avgSpeedSesion,
-      }, metricsAllow);
+        ...baseInfo,
+        ...actualMetrics,
+        ...comparSuffix,
+      }, metricsAllowEffective);
     });
   }
 
