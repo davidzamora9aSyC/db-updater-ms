@@ -87,11 +87,19 @@ export class SesionTrabajoPasoService {
       throw new NotFoundException('Paso de producción no encontrado');
     }
 
+    // Ajusta contra producción previa y no conformes acumulados para evitar sobreasignaciones.
+    const piezasPrevias = paso.cantidadProducida ?? 0;
+    const pedaleosPrevios = paso.cantidadPedaleos ?? 0;
+    const noConformesPrevios = Math.max(pedaleosPrevios - piezasPrevias, 0);
+    const cantidadAsignada =
+      dto.cantidadAsignada ??
+      Math.max(paso.cantidadRequerida - piezasPrevias - noConformesPrevios, 0);
+
     // Crear la relación SesionTrabajoPaso
     const entity = this.repo.create({
       sesionTrabajo: { id: dto.sesionTrabajo } as SesionTrabajo,
       pasoOrden: { id: dto.pasoOrden } as PasoProduccion,
-      cantidadAsignada: dto.cantidadAsignada ?? paso.cantidadRequerida,
+      cantidadAsignada,
       cantidadProducida: 0,
       cantidadPedaleos: 0,
     });

@@ -7,6 +7,7 @@ import { Area } from '../area/area.entity';
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { Maquina } from '../maquina/maquina.entity';
 import { OrdenProduccion } from '../orden-produccion/entity';
+import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 
@@ -237,6 +238,15 @@ export class IndicadoresService {
       .andWhere('r.minutoInicio BETWEEN :inicio AND :fin', {
         inicio: inicio.toJSDate(),
         fin: fin.toJSDate(),
+      })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('MAX(p2.numeroPaso)')
+          .from(PasoProduccion, 'p2')
+          .where('p2."ordenId" = o.id')
+          .getQuery();
+        return `p.numeroPaso = ${subQuery}`;
       })
       .getRawOne<{ piezas: string; pedaleadas: string }>();
     const piezas = this.toNum(row?.piezas);
