@@ -249,14 +249,12 @@ export class SesionTrabajoPasoService {
       }
     }
     if (dto.cantidadProducida !== undefined) {
-      if (dto.cantidadProducida > entity.cantidadProducida) {
-        entity.cantidadProducida = dto.cantidadProducida;
-      }
+      const incremento = Math.max(dto.cantidadProducida, 0);
+      entity.cantidadProducida += incremento;
     }
     if (dto.cantidadPedaleos !== undefined) {
-      if (dto.cantidadPedaleos > entity.cantidadPedaleos) {
-        entity.cantidadPedaleos = dto.cantidadPedaleos;
-      }
+      const incremento = Math.max(dto.cantidadPedaleos, 0);
+      entity.cantidadPedaleos += incremento;
     }
     const saved = await this.repo.save(entity);
     await this.redistribuirPorPaso(entity.pasoOrden.id);
