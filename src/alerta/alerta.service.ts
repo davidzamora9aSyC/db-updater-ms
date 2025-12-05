@@ -5,7 +5,7 @@ import { Alerta } from './alerta.entity';
 import { AlertaTipo, AlertaTipoCodigo } from './alerta-tipo.entity';
 import { PausaPasoSesion } from '../pausa-paso-sesion/pausa-paso-sesion.entity';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
-import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { SesionTrabajo, FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { Maquina } from '../maquina/maquina.entity';
 import { AlertaSujetoTipo } from './alerta.entity';
@@ -227,6 +227,7 @@ export class AlertaService implements OnModuleInit {
       )
       .where("TO_CHAR(st.fechaInicio, 'YYYY-MM-DD') = :fecha", { fecha })
       .andWhere('st.fechaFin IS NULL')
+      .andWhere('(st.fuente IS NULL OR st.fuente != :tabletFuente)', { tabletFuente: FuenteDatosSesion.TABLET })
       .select('st.id', 'sesionId')
       .addSelect('t.id', 'trabajadorId')
       .addSelect(`EXTRACT(EPOCH FROM ( ${refTimeExpr} - COALESCE(lr.last_min, st.fechaInicio) ))/60`, 'minutos')
@@ -335,13 +336,16 @@ export class AlertaService implements OnModuleInit {
     // 3) Sin actividad por día dentro del rango sin iterar (generate_series)
     // Construir placeholders posicionales ($1..$n) y arreglo de parámetros
     const sqlParams: any[] = [desde, hasta, minInactividad];
-    const trabFilterSql = trabajadorId
-      ? ' AND t.id = $4'
-      : identificacion
-      ? ' AND t.identificacion = $4'
-      : '';
-    if (trabajadorId) sqlParams.push(trabajadorId);
-    else if (identificacion) sqlParams.push(identificacion);
+    let trabFilterSql = '';
+    if (trabajadorId) {
+      trabFilterSql = ` AND t.id = $${sqlParams.length + 1}`;
+      sqlParams.push(trabajadorId);
+    } else if (identificacion) {
+      trabFilterSql = ` AND t.identificacion = $${sqlParams.length + 1}`;
+      sqlParams.push(identificacion);
+    }
+    const tabletParamIndex = sqlParams.length + 1;
+    sqlParams.push(FuenteDatosSesion.TABLET);
 
     const sqlInact = `
       WITH days AS (
@@ -353,6 +357,7 @@ export class AlertaService implements OnModuleInit {
         JOIN "trabajador" t ON t.id = st."trabajadorId"
         WHERE st."fechaFin" IS NULL
           AND st."fechaInicio"::date BETWEEN $1::date AND $2::date${trabFilterSql}
+          AND (st."fuente" IS NULL OR st."fuente" != $${tabletParamIndex})
       ),
       lr AS (
         SELECT r."sesionTrabajoId" AS sesion_id,
@@ -570,6 +575,7 @@ export class AlertaService implements OnModuleInit {
         WHERE st."fechaFin" IS NULL
           AND st."maquinaId" = $3
           AND st."fechaInicio"::date BETWEEN $1::date AND $2::date
+          AND (st."fuente" IS NULL OR st."fuente" != $5)
       ),
       lr AS (
         SELECT r."sesionTrabajoId" AS sesion_id,
@@ -594,7 +600,7 @@ export class AlertaService implements OnModuleInit {
                (CASE WHEN d.fecha = CURRENT_DATE THEN NOW() ELSE (d.fecha + time '23:59:59')::timestamp END)
                - COALESCE(lr.last_min, st."fechaInicio")
              ))/60 > $4`,
-      [desde, hasta, maquinaId, minInactividad],
+      [desde, hasta, maquinaId, minInactividad, FuenteDatosSesion.TABLET],
     )) as Array<{ fecha: string; sesionId: string; maquinaId: string; minutos: number }>;
 
     // Mapear resultados

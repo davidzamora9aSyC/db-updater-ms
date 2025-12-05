@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { SesionTrabajoPaso } from './sesion-trabajo-paso.entity';
-import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { SesionTrabajo, FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
@@ -27,6 +27,7 @@ export class SesionTrabajoPasoService {
 
   async create(dto: CreateSesionTrabajoPasoDto) {
     dto.porAdministrador ??= false;
+    const desdeTablet = dto.desdeTablet === true;
     if (!dto.porAdministrador) {
       // Verificar si ya existe la relación
       const existente = await this.repo.findOne({
@@ -34,11 +35,19 @@ export class SesionTrabajoPasoService {
           sesionTrabajo: { id: dto.sesionTrabajo },
           pasoOrden: { id: dto.pasoOrden },
         },
+        relations: ['sesionTrabajo'],
       });
 
       if (existente) {
         const ahora = new Date();
         await this.pausaPasoSesionService.closeActive(existente.id);
+        if (
+          (desdeTablet || existente.sesionTrabajo?.fuente === FuenteDatosSesion.TABLET) &&
+          existente.fuente !== FuenteDatosSesion.TABLET
+        ) {
+          existente.fuente = FuenteDatosSesion.TABLET;
+          await this.repo.save(existente);
+        }
         const otros = await this.repo.find({
           where: { sesionTrabajo: { id: dto.sesionTrabajo } },
         });
@@ -77,6 +86,10 @@ export class SesionTrabajoPasoService {
     if (!sesion || sesion.fechaFin) {
       throw new NotFoundException('Sesión no encontrada o finalizada');
     }
+    if (desdeTablet && sesion.fuente !== FuenteDatosSesion.TABLET) {
+      sesion.fuente = FuenteDatosSesion.TABLET;
+      await sesionRepo.save(sesion);
+    }
 
     // Verificar que el paso de producción exista
     const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
@@ -96,12 +109,17 @@ export class SesionTrabajoPasoService {
       Math.max(paso.cantidadRequerida - piezasPrevias - noConformesPrevios, 0);
 
     // Crear la relación SesionTrabajoPaso
+    const fuenteAsignacion =
+      desdeTablet || sesion.fuente === FuenteDatosSesion.TABLET
+        ? FuenteDatosSesion.TABLET
+        : null;
     const entity = this.repo.create({
       sesionTrabajo: { id: dto.sesionTrabajo } as SesionTrabajo,
       pasoOrden: { id: dto.pasoOrden } as PasoProduccion,
       cantidadAsignada,
       cantidadProducida: 0,
       cantidadPedaleos: 0,
+      fuente: fuenteAsignacion,
     });
 
     // Guardar la relación

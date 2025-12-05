@@ -5,10 +5,11 @@ import {
   JoinColumn,
   BaseEntity,
   Column,
-  Index
+  Index,
 } from 'typeorm';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
+import { FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 
 @Entity('sesion_trabajo_paso')
 export class SesionTrabajoPaso extends BaseEntity {
@@ -33,5 +34,8 @@ export class SesionTrabajoPaso extends BaseEntity {
 
   @Column('int', { default: 0 })
   cantidadPedaleos: number;
+
+  @Column({ type: 'enum', enum: FuenteDatosSesion, nullable: true })
+  fuente: FuenteDatosSesion | null;
 
 }

@@ -19,4 +19,9 @@ export class CreateSesionTrabajoPasoDto {
   @IsOptional()
   @IsBoolean()
   porAdministrador?: boolean;
+
+  @ApiPropertyOptional({ description: 'Marcar la asignación como creada desde tablet' })
+  @IsOptional()
+  @IsBoolean()
+  desdeTablet?: boolean;
 }

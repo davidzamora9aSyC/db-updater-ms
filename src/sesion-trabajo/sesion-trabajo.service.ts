@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Between, Not, In } from 'typeorm';
-import { SesionTrabajo } from './sesion-trabajo.entity';
+import { SesionTrabajo, FuenteDatosSesion } from './sesion-trabajo.entity';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
 import { RegistroMinutoService } from '../registro-minuto/registro-minuto.service';
@@ -124,6 +124,7 @@ export class SesionTrabajoService {
       fechaFin: undefined,
       cantidadProducida: 0,
       cantidadPedaleos: 0,
+      fuente: dto.desdeTablet ? FuenteDatosSesion.TABLET : null,
     });
     const saved = await this.repo.save(sesion);
 
@@ -337,6 +338,7 @@ export class SesionTrabajoService {
       maquinaTipo: sesion.maquina.tipo,
       fechaInicio: sesion.fechaInicio,
       fechaFin: sesion.fechaFin!,
+      fuente: sesion.fuente ?? null,
       produccionTotal: indicadores.produccionTotal,
       defectos: indicadores.defectos,
       porcentajeDefectos,
@@ -673,7 +675,12 @@ export class SesionTrabajoService {
       relations: ['maquina', 'maquina.area'],
     });
     const areaDe = (s: SesionTrabajo) => (s.areaIdSnapshot ?? s.maquina.area?.id) as string | undefined;
-    const activas = sesiones.filter((s) => !!areaDe(s) && (!areaId || areaDe(s) === areaId));
+    const activas = sesiones.filter(
+      (s) =>
+        !!areaDe(s) &&
+        (!areaId || areaDe(s) === areaId) &&
+        (s.fuente ?? null) !== FuenteDatosSesion.TABLET,
+    );
 
     // 2) Mapear sesiones por área y armar lookup de área por sesión
     const porArea = new Map<string, string[]>(); // areaId -> [sesionId]

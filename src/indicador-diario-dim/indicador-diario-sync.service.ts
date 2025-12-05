@@ -3,13 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IndicadorDiarioDim } from './indicador-diario-dim.entity';
 import { IndicadorSesion } from '../indicador-sesion/indicador-sesion.entity';
-import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { SesionTrabajo, FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 
 type DailyKey = {
   fecha: string;
   trabajadorId: string;
   maquinaId: string;
   areaId: string | null;
+  fuente: FuenteDatosSesion | null;
 };
 
 type Totals = {
@@ -55,7 +56,7 @@ const diffTotals = (next: Totals, prev: Totals): Totals => ({
 });
 
 const keyToString = (key: DailyKey): string =>
-  `${key.fecha}|${key.trabajadorId}|${key.maquinaId}|${key.areaId ?? 'NULL'}`;
+  `${key.fecha}|${key.trabajadorId}|${key.maquinaId}|${key.areaId ?? 'NULL'}|${key.fuente ?? 'NULL'}`;
 
 @Injectable()
 export class IndicadorDiarioSyncService {
@@ -287,6 +288,11 @@ export class IndicadorDiarioSyncService {
     } else {
       qb.andWhere('d.areaId IS NULL');
     }
+    if (key.fuente) {
+      qb.andWhere('d.fuente = :fuente', { fuente: key.fuente });
+    } else {
+      qb.andWhere('d.fuente IS NULL');
+    }
     return qb.getOne();
   }
 
@@ -336,7 +342,8 @@ export class IndicadorDiarioSyncService {
       a.fecha === b.fecha &&
       a.trabajadorId === b.trabajadorId &&
       a.maquinaId === b.maquinaId &&
-      (a.areaId ?? null) === (b.areaId ?? null)
+      (a.areaId ?? null) === (b.areaId ?? null) &&
+      (a.fuente ?? null) === (b.fuente ?? null)
     );
   }
 
@@ -346,6 +353,7 @@ export class IndicadorDiarioSyncService {
       trabajadorId: snap.trabajadorId,
       maquinaId: snap.maquinaId,
       areaId: snap.areaId,
+      fuente: snap.fuente ?? null,
     };
   }
 
@@ -356,6 +364,7 @@ export class IndicadorDiarioSyncService {
       trabajadorId: sesion.trabajador.id,
       maquinaId: sesion.maquina.id,
       areaId,
+      fuente: sesion.fuente ?? null,
     };
   }
 
@@ -390,6 +399,11 @@ export class IndicadorDiarioSyncService {
       qb = qb.andWhere('s.areaIdSnapshot = :areaId', { areaId: key.areaId });
     } else {
       qb = qb.andWhere('s.areaIdSnapshot IS NULL');
+    }
+    if (key.fuente) {
+      qb = qb.andWhere('s.fuente = :fuente', { fuente: key.fuente });
+    } else {
+      qb = qb.andWhere('s.fuente IS NULL');
     }
 
     if (excludeSesionId) {

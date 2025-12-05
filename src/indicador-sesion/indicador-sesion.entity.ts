@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
+import { SesionTrabajo, FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 
 @Entity('indicador_sesion')
 export class IndicadorSesion {
@@ -27,6 +27,9 @@ export class IndicadorSesion {
 
   @Column({ type: 'timestamp' })
   fechaFin: Date;
+
+  @Column({ type: 'enum', enum: FuenteDatosSesion, nullable: true })
+  fuente: FuenteDatosSesion | null;
 
   @Column('int')
   produccionTotal: number;

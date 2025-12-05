@@ -9,6 +9,11 @@ import {
 import { Trabajador } from '../trabajador/trabajador.entity';
 import { Maquina } from '../maquina/maquina.entity';
 
+export enum FuenteDatosSesion {
+  FIRMWARE = 'firmware',
+  TABLET = 'tablet',
+}
+
 @Entity('sesion_trabajo')
 export class SesionTrabajo extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -39,4 +44,7 @@ export class SesionTrabajo extends BaseEntity {
 
   @Column({ default: false })
   agregadoEnProduccion: boolean;
+
+  @Column({ type: 'enum', enum: FuenteDatosSesion, nullable: true })
+  fuente: FuenteDatosSesion | null;
 }

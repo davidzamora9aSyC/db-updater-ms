@@ -10,6 +10,7 @@ import { OrdenProduccion } from '../orden-produccion/entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { RegistroMinuto } from '../registro-minuto/registro-minuto.entity';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
+import { FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 
 type SumRow = {
   clave: Date | string;
@@ -42,6 +43,12 @@ export class IndicadoresService {
     private readonly registroRepo: Repository<RegistroMinuto>,
     private readonly configService: ConfiguracionService,
   ) {}
+
+  private excludeTabletFuente<T extends { andWhere: (...args: any[]) => T }>(qb: T, alias = 'i') {
+    return qb.andWhere(`(${alias}.fuente IS NULL OR ${alias}.fuente != :tabletFuente)`, {
+      tabletFuente: FuenteDatosSesion.TABLET,
+    });
+  }
 
   private calcMetrics(base: {
     produccionTotal: number;
@@ -230,6 +237,7 @@ export class IndicadoresService {
     const row = await this.registroRepo
       .createQueryBuilder('r')
       .innerJoin('r.pasoSesionTrabajo', 'stp')
+      .innerJoin('r.sesionTrabajo', 'st')
       .innerJoin('stp.pasoOrden', 'p')
       .innerJoin('p.orden', 'o')
       .select('COALESCE(SUM(r.piezasContadas),0)', 'piezas')
@@ -238,6 +246,9 @@ export class IndicadoresService {
       .andWhere('r.minutoInicio BETWEEN :inicio AND :fin', {
         inicio: inicio.toJSDate(),
         fin: fin.toJSDate(),
+      })
+      .andWhere('(st.fuente IS NULL OR st.fuente != :tabletFuente)', {
+        tabletFuente: FuenteDatosSesion.TABLET,
       })
       .andWhere((qb) => {
         const subQuery = qb
@@ -322,6 +333,7 @@ export class IndicadoresService {
     const rows = await this.registroRepo
       .createQueryBuilder('r')
       .innerJoin('r.pasoSesionTrabajo', 'stp')
+      .innerJoin('r.sesionTrabajo', 'st')
       .innerJoin('stp.pasoOrden', 'p')
       .innerJoin('p.orden', 'o')
       .select('r.minutoInicio', 'minutoInicio')
@@ -334,6 +346,9 @@ export class IndicadoresService {
       .andWhere('r.minutoInicio BETWEEN :inicio AND :fin', {
         inicio: inicio.toJSDate(),
         fin: fin.toJSDate(),
+      })
+      .andWhere('(st.fuente IS NULL OR st.fuente != :tabletFuente)', {
+        tabletFuente: FuenteDatosSesion.TABLET,
       })
       .orderBy('p.id', 'ASC')
       .addOrderBy('stp.id', 'ASC')
@@ -910,7 +925,8 @@ export class IndicadoresService {
 
   private async obtenerDiariaRango(inicio: DateTime, fin: DateTime, areaId?: string) {
     if (areaId) {
-      const rows = await this.repo
+      const rows = await this.excludeTabletFuente(
+        this.repo
         .createQueryBuilder('i')
         .select('i.fecha', 'clave')
         .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
@@ -926,8 +942,8 @@ export class IndicadoresService {
         })
         .andWhere('i.areaId = :areaId', { areaId })
         .groupBy('i.fecha')
-        .orderBy('i.fecha', 'ASC')
-        .getRawMany<SumRow>();
+        .orderBy('i.fecha', 'ASC'),
+      ).getRawMany<SumRow>();
 
       const map = new Map(
         rows.map((r) => [
@@ -961,7 +977,8 @@ export class IndicadoresService {
       return resultado;
     }
 
-    const rows = await this.repo
+    const rows = await this.excludeTabletFuente(
+      this.repo
       .createQueryBuilder('i')
       .select('i.fecha', 'clave')
       .addSelect('i.areaId', 'areaId')
@@ -978,8 +995,8 @@ export class IndicadoresService {
       })
       .groupBy('i.fecha')
       .addGroupBy('i.areaId')
-      .orderBy('i.fecha', 'ASC')
-      .getRawMany<SumRow>();
+      .orderBy('i.fecha', 'ASC'),
+    ).getRawMany<SumRow>();
 
     const byKey = new Map(
       rows.map((r) => [
@@ -1019,7 +1036,8 @@ export class IndicadoresService {
 
   private async obtenerMensualRango(inicio: DateTime, fin: DateTime, areaId?: string) {
     if (areaId) {
-      const rows = await this.repo
+      const rows = await this.excludeTabletFuente(
+        this.repo
         .createQueryBuilder('i')
         .select("DATE_TRUNC('month', i.fecha)", 'clave')
         .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
@@ -1035,8 +1053,8 @@ export class IndicadoresService {
         })
         .andWhere('i.areaId = :areaId', { areaId })
         .groupBy("DATE_TRUNC('month', i.fecha)")
-        .orderBy('clave', 'ASC')
-        .getRawMany<SumRow>();
+        .orderBy('clave', 'ASC'),
+      ).getRawMany<SumRow>();
 
       const map = new Map(
         rows.map((r) => [
@@ -1070,7 +1088,8 @@ export class IndicadoresService {
       return resultado;
     }
 
-    const rows = await this.repo
+    const rows = await this.excludeTabletFuente(
+      this.repo
       .createQueryBuilder('i')
       .select("DATE_TRUNC('month', i.fecha)", 'clave')
       .addSelect('i.areaId', 'areaId')
@@ -1087,8 +1106,8 @@ export class IndicadoresService {
       })
       .groupBy("DATE_TRUNC('month', i.fecha)")
       .addGroupBy('i.areaId')
-      .orderBy('clave', 'ASC')
-      .getRawMany<SumRow>();
+      .orderBy('clave', 'ASC'),
+    ).getRawMany<SumRow>();
 
     const byKey = new Map(
       rows.map((r) => [
@@ -1130,7 +1149,8 @@ export class IndicadoresService {
     const day = fecha
       ? DateTime.fromISO(fecha, { zone: this.zone })
       : DateTime.now().setZone(this.zone);
-    const rows = await this.repo
+    const rows = await this.excludeTabletFuente(
+      this.repo
       .createQueryBuilder('i')
       .select('i.areaId', 'areaId')
       .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
@@ -1141,8 +1161,8 @@ export class IndicadoresService {
       .addSelect('SUM(i.duracionTotalMin)', 'duracionTotalMin')
       .addSelect('SUM(i.sesionesCerradas)', 'sesionesCerradas')
       .where('i.fecha = :fecha', { fecha: day.toISODate() })
-      .groupBy('i.areaId')
-      .getRawMany<SumRow>();
+      .groupBy('i.areaId'),
+    ).getRawMany<SumRow>();
 
     // Incluir áreas sin registros con ceros
     const areas = await this.areaRepo.find({ select: ['id'] });
@@ -1179,7 +1199,8 @@ export class IndicadoresService {
     const now = DateTime.now().setZone(this.zone);
     const inicio = now.startOf('month');
     const fin = now.endOf('day');
-    const rows = await this.repo
+    const rows = await this.excludeTabletFuente(
+      this.repo
       .createQueryBuilder('i')
       .select('i.areaId', 'areaId')
       .addSelect('SUM(i.produccionTotal)', 'produccionTotal')
@@ -1193,8 +1214,8 @@ export class IndicadoresService {
         inicio: inicio.toISODate(),
         fin: fin.toISODate(),
       })
-      .groupBy('i.areaId')
-      .getRawMany<SumRow>();
+      .groupBy('i.areaId'),
+    ).getRawMany<SumRow>();
 
     const areas = await this.areaRepo.find({ select: ['id'] });
     const byArea = new Map(

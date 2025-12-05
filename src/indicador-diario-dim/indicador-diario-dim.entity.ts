@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 
 @Entity('indicador_diario_dim')
 export class IndicadorDiarioDim {
@@ -16,6 +17,9 @@ export class IndicadorDiarioDim {
 
   @Column({ type: 'uuid', nullable: true })
   areaId: string | null;
+
+  @Column({ type: 'enum', enum: FuenteDatosSesion, nullable: true })
+  fuente: FuenteDatosSesion | null;
 
   @Column('int')
   produccionTotal: number;
