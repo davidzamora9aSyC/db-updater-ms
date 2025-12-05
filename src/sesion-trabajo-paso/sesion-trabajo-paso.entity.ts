@@ -38,4 +38,10 @@ export class SesionTrabajoPaso extends BaseEntity {
   @Column({ type: 'enum', enum: FuenteDatosSesion, nullable: true })
   fuente: FuenteDatosSesion | null;
 
+  @Column({ type: 'boolean', default: false })
+  finalizado: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  finalizadoEn: Date | null;
+
 }

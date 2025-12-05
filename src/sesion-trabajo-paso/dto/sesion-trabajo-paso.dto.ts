@@ -6,4 +6,6 @@ export interface SesionTrabajoPasoDto {
   cantidadProducida: number;
   cantidadPedaleos: number;
   estado: string;
+  finalizado: boolean;
+  finalizadoEn?: string | Date | null;
 }

@@ -7,6 +7,7 @@ import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
 import { RegistroMinutoController } from './registro-minuto.controller';
 import { ProduccionDiariaModule } from '../produccion-diaria/produccion-diaria.module';
+import { SesionTrabajoPasoModule } from '../sesion-trabajo-paso/sesion-trabajo-paso.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProduccionDiariaModule } from '../produccion-diaria/produccion-diaria.m
       PasoProduccion,
     ]),
     ProduccionDiariaModule,
+    SesionTrabajoPasoModule,
   ],
   providers: [RegistroMinutoService],
   controllers: [RegistroMinutoController],

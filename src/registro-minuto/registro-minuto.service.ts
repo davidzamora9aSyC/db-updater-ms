@@ -18,6 +18,7 @@ import { Mutex } from 'async-mutex';
 import { DateTime } from 'luxon';
 import { TipoEstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { ProduccionDiariaService } from '../produccion-diaria/produccion-diaria.service';
+import { SesionTrabajoPasoService } from '../sesion-trabajo-paso/sesion-trabajo-paso.service';
 
 @Injectable()
 export class RegistroMinutoService {
@@ -35,6 +36,7 @@ export class RegistroMinutoService {
     @InjectRepository(PasoProduccion)
     private readonly pasoRepo: Repository<PasoProduccion>,
     private readonly produccionDiariaService: ProduccionDiariaService,
+    private readonly sesionTrabajoPasoService: SesionTrabajoPasoService,
   ) {}
 
   private async findSesionEnProduccionPorMaquina(
@@ -213,6 +215,9 @@ export class RegistroMinutoService {
               }
 
               await this.pasoRepo.save(paso);
+              await this.sesionTrabajoPasoService.redistribuirPorPaso(
+                pasoSesion.pasoOrden.id,
+              );
             }
           }
         }

@@ -120,10 +120,13 @@ export class SesionTrabajoPasoService {
       cantidadProducida: 0,
       cantidadPedaleos: 0,
       fuente: fuenteAsignacion,
+      finalizado: false,
+      finalizadoEn: null,
     });
 
     // Guardar la relación
     const saved = await this.repo.save(entity);
+    await this.redistribuirPorPaso(paso.id);
 
     if (dto.porAdministrador) {
       await this.pausaPasoSesionService.create(saved.id);
@@ -199,7 +202,7 @@ export class SesionTrabajoPasoService {
       order: { inicio: 'DESC' },
     });
 
-    if (entity.sesionTrabajo.fechaFin) {
+    if (entity.finalizado || entity.sesionTrabajo.fechaFin) {
       return { ...entity, estado: 'finalizada' };
     }
 
@@ -235,7 +238,10 @@ export class SesionTrabajoPasoService {
   }
 
   async update(id: string, dto: UpdateSesionTrabajoPasoDto) {
-    const entity = await this.repo.findOne({ where: { id } });
+    const entity = await this.repo.findOne({
+      where: { id },
+      relations: ['pasoOrden', 'sesionTrabajo'],
+    });
     if (!entity) throw new NotFoundException('Relación no encontrada');
     if (dto.cantidadAsignada !== undefined) {
       if (dto.cantidadAsignada >= entity.cantidadPedaleos) {
@@ -252,7 +258,9 @@ export class SesionTrabajoPasoService {
         entity.cantidadPedaleos = dto.cantidadPedaleos;
       }
     }
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    await this.redistribuirPorPaso(entity.pasoOrden.id);
+    return saved;
   }
 
   async remove(id: string) {
@@ -275,15 +283,17 @@ export class SesionTrabajoPasoService {
   }
 
   findBySesion(sesionId: string) {
-    return this.repo.find({
-      where: { sesionTrabajo: { id: sesionId } },
-      relations: [
-        'sesionTrabajo',
-        'sesionTrabajo.trabajador',
-        'sesionTrabajo.maquina',
-        'pasoOrden',
-      ],
-    });
+    return this.repo
+      .find({
+        where: { sesionTrabajo: { id: sesionId } },
+        relations: [
+          'sesionTrabajo',
+          'sesionTrabajo.trabajador',
+          'sesionTrabajo.maquina',
+          'pasoOrden',
+        ],
+      })
+      .then((entities) => Promise.all(entities.map((e) => this.mapEstado(e))));
   }
 
   async removeByPaso(pasoId: string) {
@@ -300,5 +310,61 @@ export class SesionTrabajoPasoService {
     });
     await this.repo.remove(relaciones);
     return { deleted: true, count: relaciones.length };
+  }
+
+  async finalizar(id: string) {
+    const entity = await this.repo.findOne({
+      where: { id },
+      relations: ['pasoOrden', 'sesionTrabajo'],
+    });
+    if (!entity) throw new NotFoundException('Relación no encontrada');
+    if (entity.finalizado) return this.mapEstado(entity);
+
+    entity.finalizado = true;
+    entity.finalizadoEn = new Date();
+    await this.repo.save(entity);
+    await this.pausaPasoSesionService.closeActive(entity.id);
+    await this.redistribuirPorPaso(entity.pasoOrden.id);
+    await this.pasoProduccionService.actualizarEstadoPorSesion(
+      entity.sesionTrabajo.id,
+    );
+    return this.mapEstado(entity);
+  }
+
+  async redistribuirPorPaso(pasoId: string) {
+    await this.recalcularAsignaciones(pasoId);
+  }
+
+  private async recalcularAsignaciones(pasoId: string) {
+    const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
+    const paso = await pasoRepo.findOne({ where: { id: pasoId } });
+    if (!paso) return;
+
+    const activos = await this.repo.find({
+      where: { pasoOrden: { id: pasoId }, finalizado: false },
+      order: { id: 'ASC' },
+    });
+    if (activos.length === 0) return;
+
+    const faltantes = this.calcularFaltantePaso(paso);
+    const cuotaBase = activos.length > 0 ? Math.floor(faltantes / activos.length) : 0;
+    let residuo = faltantes - cuotaBase * activos.length;
+
+    for (const relacion of activos) {
+      const extra = residuo > 0 ? 1 : 0;
+      if (residuo > 0) residuo--;
+      const cuota = cuotaBase + extra;
+      const minimo = Math.max(relacion.cantidadPedaleos ?? 0, relacion.cantidadProducida ?? 0);
+      relacion.cantidadAsignada = Math.max(minimo, cuota);
+    }
+
+    await this.repo.save(activos);
+  }
+
+  private calcularFaltantePaso(paso: PasoProduccion) {
+    const piezasPrevias = paso.cantidadProducida ?? 0;
+    const pedaleosPrevios = paso.cantidadPedaleos ?? 0;
+    const noConformesPrevios = Math.max(pedaleosPrevios - piezasPrevias, 0);
+    return Math.max(paso.cantidadRequerida - piezasPrevias - noConformesPrevios, 0);
   }
 }

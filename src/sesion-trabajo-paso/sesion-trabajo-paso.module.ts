@@ -14,5 +14,6 @@ import { PasoProduccionModule } from '../paso-produccion/paso-produccion.module'
   ],
   providers: [SesionTrabajoPasoService],
   controllers: [SesionTrabajoPasoController],
+  exports: [SesionTrabajoPasoService],
 })
 export class SesionTrabajoPasoModule {}

@@ -45,6 +45,11 @@ export class SesionTrabajoPasoController {
     return this.service.update(id, dto);
   }
 
+  @Post(':id/finalizar')
+  finalizar(@Param('id') id: string) {
+    return this.service.finalizar(id);
+  }
+
   @Put('batch')
   @ApiBody({ schema: {
     type: 'array',
