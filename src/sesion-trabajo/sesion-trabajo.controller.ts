@@ -37,8 +37,9 @@ export class SesionTrabajoController {
 
   @Get('activas')
   @ApiOperation({ summary: 'Listar sesiones activas' })
-  findActivas() {
-    return this.service.findActivas();
+  @ApiQuery({ name: 'trabajador', required: false, description: 'Filtrar por ID de trabajador' })
+  findActivas(@Query('trabajador') trabajador?: string) {
+    return this.service.findActivas(trabajador);
   }
 
   @Get('activas/resumen')

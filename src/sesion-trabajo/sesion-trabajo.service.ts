@@ -571,11 +571,16 @@ export class SesionTrabajoService {
     return resultado.map((r) => this.formatSesionForResponse(r));
   }
 
-  async findActivas() {
-    const arr = await this.repo.find({
-      where: { fechaFin: IsNull() },
-      relations: ['trabajador', 'maquina'],
-    });
+  async findActivas(trabajadorId?: string) {
+    const qb = this.repo
+      .createQueryBuilder('s')
+      .leftJoinAndSelect('s.trabajador', 't')
+      .leftJoinAndSelect('s.maquina', 'm')
+      .where('s.fechaFin IS NULL');
+    if (trabajadorId) {
+      qb.andWhere('t.id = :trabajadorId', { trabajadorId });
+    }
+    const arr = await qb.getMany();
     return arr.map((s) => this.formatSesionForResponse(s));
   }
 
