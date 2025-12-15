@@ -38,7 +38,7 @@ export class SesionTrabajoPasoService {
         relations: ['sesionTrabajo'],
       });
 
-      if (existente) {
+      if (existente && !existente.finalizado) {
         const ahora = new Date();
         await this.pausaPasoSesionService.closeActive(existente.id);
         if (
