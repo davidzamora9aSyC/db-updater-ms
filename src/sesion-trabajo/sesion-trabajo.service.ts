@@ -175,13 +175,15 @@ export class SesionTrabajoService {
     });
 
     const indicador = await this.indicadorMinutoRepo.findOne({
-
       where: { sesionTrabajo: { id } },
       order: { minuto: 'DESC' },
     });
+    const indicadorData = indicador
+      ? (({ id: _indicadorId, ...rest }) => rest)(indicador)
+      : {};
     return this.formatSesionForResponse({
       ...sesionConEstado,
-      ...(indicador || {}),
+      ...indicadorData,
       sesionesTrabajoPaso: relaciones.map((r) => ({
         ...r,
         estado: sesionConEstado.estadoSesion ?? TipoEstadoSesion.OTRO,
