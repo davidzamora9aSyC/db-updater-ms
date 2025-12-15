@@ -396,8 +396,9 @@ export class SesionTrabajoPasoService {
 
   private async recalcularAsignaciones(pasoId: string) {
     const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
-    const paso = await pasoRepo.findOne({ where: { id: pasoId } });
+    let paso = await pasoRepo.findOne({ where: { id: pasoId } });
     if (!paso) return;
+    paso = await this.sincronizarTotalesPaso(paso);
 
     const activos = await this.repo.find({
       where: { pasoOrden: { id: pasoId }, finalizado: false },
@@ -425,5 +426,20 @@ export class SesionTrabajoPasoService {
     const pedaleosPrevios = paso.cantidadPedaleos ?? 0;
     const noConformesPrevios = Math.max(pedaleosPrevios - piezasPrevias, 0);
     return Math.max(paso.cantidadRequerida - piezasPrevias - noConformesPrevios, 0);
+  }
+
+  private async sincronizarTotalesPaso(paso: PasoProduccion) {
+    const totals = await this.repo
+      .createQueryBuilder('stp')
+      .select('COALESCE(SUM(stp.cantidadProducida),0)', 'produccion')
+      .addSelect('COALESCE(SUM(stp.cantidadPedaleos),0)', 'pedaleos')
+      .where('"pasoOrdenId" = :pasoId', { pasoId: paso.id })
+      .getRawOne<{ produccion: string; pedaleos: string }>();
+    const produccion = Number(totals?.produccion ?? 0);
+    const pedaleos = Number(totals?.pedaleos ?? 0);
+    paso.cantidadProducida = produccion;
+    paso.cantidadPedaleos = pedaleos;
+    await this.repo.manager.getRepository(PasoProduccion).save(paso);
+    return paso;
   }
 }
