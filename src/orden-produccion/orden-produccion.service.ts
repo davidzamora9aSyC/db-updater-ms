@@ -145,7 +145,7 @@ export class OrdenProduccionService {
       order: { inicio: 'DESC' },
     });
 
-    if (entity.sesionTrabajo.fechaFin) {
+    if (entity.finalizado || entity.sesionTrabajo.fechaFin) {
       return { ...entity, estado: 'finalizada' };
     }
 
