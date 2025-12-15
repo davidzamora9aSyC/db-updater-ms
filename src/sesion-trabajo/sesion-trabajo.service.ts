@@ -581,7 +581,8 @@ export class SesionTrabajoService {
       qb.andWhere('t.id = :trabajadorId', { trabajadorId });
     }
     const arr = await qb.getMany();
-    return arr.map((s) => this.formatSesionForResponse(s));
+    const conEstado = await Promise.all(arr.map((s) => this.mapSesionConEstado(s)));
+    return conEstado.map((s) => this.formatSesionForResponse(s));
   }
 
   async findActivasResumen() {
