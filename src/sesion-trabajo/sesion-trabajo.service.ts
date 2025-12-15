@@ -370,6 +370,7 @@ export class SesionTrabajoService {
       .delete()
       .where('"sesionTrabajoId" = :id', { id })
       .execute();
+    await this.finalizarRelacionesSesion(sesion.id);
 
     return this.formatSesionForResponse(sesion);
   }
@@ -379,6 +380,28 @@ export class SesionTrabajoService {
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     await this.repo.remove(sesion);
     return { deleted: true };
+  }
+
+  private async finalizarRelacionesSesion(sesionId: string) {
+    const relaciones = await this.stpRepo.find({
+      where: { sesionTrabajo: { id: sesionId } },
+    });
+    const activos = relaciones.filter((r) => !r.finalizado);
+    if (activos.length === 0) return;
+    const ahora = DateTime.now().setZone('America/Bogota').toJSDate();
+    for (const rel of activos) {
+      rel.finalizado = true;
+      rel.finalizadoEn = ahora;
+    }
+    await this.stpRepo.save(activos);
+    const ids = activos.map((r) => r.id);
+    await this.pausaRepo
+      .createQueryBuilder()
+      .update(PausaPasoSesion)
+      .set({ fin: ahora })
+      .where('"pasoSesionId" IN (:...ids)', { ids })
+      .andWhere('"fin" IS NULL')
+      .execute();
   }
 
   private async obtenerPausas(sesionId: string) {

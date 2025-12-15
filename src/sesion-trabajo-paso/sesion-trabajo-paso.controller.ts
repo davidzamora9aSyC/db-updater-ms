@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Param, Body, Put, Delete } from '@nestjs/common';
-import { ApiBody, ApiTags, getSchemaPath } from '@nestjs/swagger';
+import { ApiBody, ApiTags, ApiOperation, getSchemaPath } from '@nestjs/swagger';
 import { SesionTrabajoPasoService } from './sesion-trabajo-paso.service';
 import { CreateSesionTrabajoPasoDto } from './dto/create-sesion-trabajo-paso.dto';
 import { UpdateSesionTrabajoPasoDto } from './dto/update-sesion-trabajo-paso.dto';
@@ -48,6 +48,12 @@ export class SesionTrabajoPasoController {
   @Post(':id/finalizar')
   finalizar(@Param('id') id: string) {
     return this.service.finalizar(id);
+  }
+
+  @Post('finalizar-sesiones-terminadas')
+  @ApiOperation({ summary: 'Finalizar asignaciones de sesiones ya cerradas' })
+  finalizarSesionesTerminadas() {
+    return this.service.finalizarDeSesionesTerminadas();
   }
 
   @Put('batch')

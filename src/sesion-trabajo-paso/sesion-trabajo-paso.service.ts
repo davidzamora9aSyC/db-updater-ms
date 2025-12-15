@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Repository, Not } from 'typeorm';
 import { SesionTrabajoPaso } from './sesion-trabajo-paso.entity';
 import { SesionTrabajo, FuenteDatosSesion } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
@@ -248,15 +248,49 @@ export class SesionTrabajoPasoService {
         entity.cantidadAsignada = dto.cantidadAsignada;
       }
     }
-    if (dto.cantidadProducida !== undefined) {
-      const incremento = Math.max(dto.cantidadProducida, 0);
-      entity.cantidadProducida += incremento;
+    const incrementoProducido =
+      dto.cantidadProducida !== undefined
+        ? Math.max(dto.cantidadProducida, 0)
+        : 0;
+    if (incrementoProducido > 0) {
+      entity.cantidadProducida += incrementoProducido;
     }
-    if (dto.cantidadPedaleos !== undefined) {
-      const incremento = Math.max(dto.cantidadPedaleos, 0);
-      entity.cantidadPedaleos += incremento;
+    const incrementoPedaleos =
+      dto.cantidadPedaleos !== undefined
+        ? Math.max(dto.cantidadPedaleos, 0)
+        : 0;
+    if (incrementoPedaleos > 0) {
+      entity.cantidadPedaleos += incrementoPedaleos;
     }
     const saved = await this.repo.save(entity);
+    if (incrementoProducido > 0 || incrementoPedaleos > 0) {
+      const pasoRepo = this.repo.manager.getRepository(PasoProduccion);
+      const sesionRepo = this.repo.manager.getRepository(SesionTrabajo);
+      if (incrementoProducido > 0) {
+        await pasoRepo.increment(
+          { id: entity.pasoOrden.id },
+          'cantidadProducida',
+          incrementoProducido,
+        );
+        await sesionRepo.increment(
+          { id: entity.sesionTrabajo.id },
+          'cantidadProducida',
+          incrementoProducido,
+        );
+      }
+      if (incrementoPedaleos > 0) {
+        await pasoRepo.increment(
+          { id: entity.pasoOrden.id },
+          'cantidadPedaleos',
+          incrementoPedaleos,
+        );
+        await sesionRepo.increment(
+          { id: entity.sesionTrabajo.id },
+          'cantidadPedaleos',
+          incrementoPedaleos,
+        );
+      }
+    }
     await this.redistribuirPorPaso(entity.pasoOrden.id);
     return saved;
   }
@@ -327,6 +361,33 @@ export class SesionTrabajoPasoService {
       entity.sesionTrabajo.id,
     );
     return this.mapEstado(entity);
+  }
+
+  async finalizarDeSesionesTerminadas() {
+    const relaciones = await this.repo.find({
+      where: {
+        finalizado: false,
+        sesionTrabajo: { fechaFin: Not(IsNull()) },
+      },
+      relations: ['pasoOrden', 'sesionTrabajo'],
+    });
+    if (relaciones.length === 0) {
+      return { total: 0, finalizados: [] as string[] };
+    }
+    const ahora = new Date();
+    const finalizados: string[] = [];
+    for (const rel of relaciones) {
+      rel.finalizado = true;
+      rel.finalizadoEn = ahora;
+      await this.repo.save(rel);
+      await this.pausaPasoSesionService.closeActive(rel.id);
+      await this.redistribuirPorPaso(rel.pasoOrden.id);
+      await this.pasoProduccionService.actualizarEstadoPorSesion(
+        rel.sesionTrabajo.id,
+      );
+      finalizados.push(rel.id);
+    }
+    return { total: finalizados.length, finalizados };
   }
 
   async redistribuirPorPaso(pasoId: string) {

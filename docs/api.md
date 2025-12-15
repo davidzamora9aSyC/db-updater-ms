@@ -204,3 +204,37 @@ GET /ordenes/4b159c1e-5f2a-4b1d-9c54-1f6b84a5c0d7/pasos-mini
   }
 ]
 ```
+
+## Finalizar asignaciones de sesiones cerradas
+
+- **Método**: `POST`
+- **Ruta**: `/sesion-trabajo-pasos/finalizar-sesiones-terminadas`
+- **Descripción**: marca como finalizadas todas las asignaciones (`SesionTrabajoPaso`) que sigan abiertas aunque la sesión asociada ya tenga `fechaFin`. Útil para limpiar asignaciones huérfanas antes de volver a probar.
+
+### Ejemplo de uso
+
+```
+POST /sesion-trabajo-pasos/finalizar-sesiones-terminadas
+```
+
+### Ejemplo de respuesta
+
+```json
+{
+  "total": 3,
+  "finalizados": [
+    "e2d72933-13f1-420f-8b7d-36d387baf8e5",
+    "6d3585fa-3af7-4c69-8a1a-ba3b5a1395cb",
+    "91a5d73a-8885-4f6e-bc72-4373d6e63842"
+  ]
+}
+```
+
+Si no hay asignaciones pendientes, responde:
+
+```json
+{
+  "total": 0,
+  "finalizados": []
+}
+```
