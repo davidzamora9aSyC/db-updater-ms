@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository, Not } from 'typeorm';
 import { SesionTrabajoPaso } from './sesion-trabajo-paso.entity';
@@ -350,7 +350,9 @@ export class SesionTrabajoPasoService {
       relations: ['pasoOrden', 'sesionTrabajo'],
     });
     if (!entity) throw new NotFoundException('Relación no encontrada');
-    if (entity.finalizado) return this.mapEstado(entity);
+    if (entity.finalizado) {
+      throw new BadRequestException('La asignación ya estaba finalizada');
+    }
 
     entity.finalizado = true;
     entity.finalizadoEn = new Date();
