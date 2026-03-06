@@ -1,10 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import * as nodeCrypto from 'crypto';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-
-(global as any).crypto = (global as any).crypto || nodeCrypto;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
