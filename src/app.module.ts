@@ -32,23 +32,34 @@ import { AlertaModule } from './alerta/alerta.module';
   imports: [
     ScheduleModule.forRoot(),
 
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'distrecoldb.cfqes4cyag2k.us-east-2.rds.amazonaws.com',
-      port: 5432,
-      username: 'postgres',
-      password: 'Distrecol2025',
-      database: 'distrecoldb',
-      autoLoadEntities: true,
-      synchronize: true,
-      ssl: {
-        ca: fs
-          .readFileSync(
-            path.join(__dirname, '..', 'certs', 'global-bundle.pem'),
-          )
-          .toString(),
-      },
-    }),
+    TypeOrmModule.forRoot((() => {
+      const dbHost = process.env.DB_HOST || 'localhost';
+      const dbPort = Number(process.env.DB_PORT || 5432);
+      const dbUser = process.env.DB_USERNAME || 'postgres';
+      const dbPass = process.env.DB_PASSWORD || 'postgres';
+      const dbName = process.env.DB_DATABASE || 'distrecoldb';
+      const dbSync = (process.env.DB_SYNCHRONIZE || 'true') === 'true';
+      const useSsl = (process.env.DB_SSL || 'false') === 'true';
+
+      const caPath = process.env.DB_SSL_CA_PATH
+        || path.join(__dirname, '..', 'certs', 'global-bundle.pem');
+
+      const ssl = useSsl && fs.existsSync(caPath)
+        ? { ca: fs.readFileSync(caPath).toString() }
+        : (useSsl ? { rejectUnauthorized: false } : false);
+
+      return {
+        type: 'postgres' as const,
+        host: dbHost,
+        port: dbPort,
+        username: dbUser,
+        password: dbPass,
+        database: dbName,
+        autoLoadEntities: true,
+        synchronize: dbSync,
+        ssl,
+      };
+    })()),
 
     TrabajadorModule,
 

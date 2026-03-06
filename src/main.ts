@@ -5,8 +5,23 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const allowedStaticOrigins = new Set([
+    'https://production-control.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ]);
+
+  const privateIpv4Origin = /^http:\/\/(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
+
   app.enableCors({
-    origin: ['https://production-control.vercel.app', 'http://localhost:3000', 'http://186.29.33.99'],
+    origin: (origin, callback) => {
+      // Allow same-machine tools and local network frontends during development.
+      if (!origin || allowedStaticOrigins.has(origin) || privateIpv4Origin.test(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin no permitido por CORS: ${origin}`), false);
+    },
     methods: 'GET,POST,PUT,PATCH,DELETE',
     credentials: true,
   });
@@ -24,6 +39,7 @@ async function bootstrap() {
     customSiteTitle: 'API Docs - db-updater-ms',
     swaggerOptions: { persistAuthorization: true },
   });
-  await app.listen(3000, '127.0.0.1');
+  const port = Number(process.env.PORT || 3001);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
