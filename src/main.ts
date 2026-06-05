@@ -12,11 +12,19 @@ async function bootstrap() {
   ]);
 
   const privateIpv4Origin = /^http:\/\/(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
+  const ngrokOrigin = /^https:\/\/[a-z0-9-]+\.ngrok-free\.dev$/i;
+  const legacyNgrokOrigin = /^https:\/\/[a-z0-9-]+\.ngrok\.io$/i;
 
   app.enableCors({
     origin: (origin, callback) => {
       // Allow same-machine tools and local network frontends during development.
-      if (!origin || allowedStaticOrigins.has(origin) || privateIpv4Origin.test(origin)) {
+      if (
+        !origin ||
+        allowedStaticOrigins.has(origin) ||
+        privateIpv4Origin.test(origin) ||
+        ngrokOrigin.test(origin) ||
+        legacyNgrokOrigin.test(origin)
+      ) {
         callback(null, true);
         return;
       }

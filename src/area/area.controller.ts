@@ -11,6 +11,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AreaService } from './area.service';
 import { CreateAreaDto } from './dto/create-area.dto';
 import { UpdateAreaDto } from './dto/update-area.dto';
+import { Public } from '../auth/public.decorator';
 
 @ApiTags('Areas')
 @Controller('areas')
@@ -28,6 +29,7 @@ export class AreaController {
   }
 
   @Get()
+  @Public()
   listarAreas() {
     return this.service.findAll();
   }

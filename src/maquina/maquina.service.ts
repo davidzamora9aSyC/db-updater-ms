@@ -8,6 +8,7 @@ import { Area } from '../area/area.entity';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { EstadoSesion } from '../estado-sesion/estado-sesion.entity';
 import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
+import { TIPOS_MAQUINA } from './tipo-maquina';
 
 @Injectable()
 export class MaquinaService {
@@ -39,6 +40,10 @@ export class MaquinaService {
         areaNombre: m.area?.nombre,
       })),
     );
+  }
+
+  tipos() {
+    return TIPOS_MAQUINA;
   }
 
   async findOne(id: string) {

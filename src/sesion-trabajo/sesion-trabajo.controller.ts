@@ -1,8 +1,9 @@
-import { Controller, Post, Get, Param, Body, Put, Delete, Patch, Query } from '@nestjs/common';
+﻿import { Controller, Post, Get, Param, Body, Put, Delete, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { SesionTrabajoService } from './sesion-trabajo.service';
 import { CreateSesionTrabajoDto } from './dto/create-sesion-trabajo.dto';
 import { UpdateSesionTrabajoDto } from './dto/update-sesion-trabajo.dto';
+import { Public } from '../auth/public.decorator'
 
 
 @ApiTags('Sesiones')
@@ -12,8 +13,9 @@ export class SesionTrabajoController {
     private readonly service: SesionTrabajoService,
   ) {}
 
+  @Public()
   @Post()
-  @ApiOperation({ summary: 'Crear sesión de trabajo' })
+  @ApiOperation({ summary: 'Crear sesiÃ³n de trabajo' })
   async create(
     @Body() dto: CreateSesionTrabajoDto,
     @Query('esp32') esp32?: string,
@@ -24,13 +26,15 @@ export class SesionTrabajoController {
   }
 
   @Get()
+  @Public()
   @ApiOperation({ summary: 'Listar todas las sesiones' })
   findAll() {
     return this.service.findAll();
   }
 
   @Get('actuales')
-  @ApiOperation({ summary: 'Listar sesiones actuales con indicadores rápidos' })
+  @Public()
+  @ApiOperation({ summary: 'Listar sesiones actuales con indicadores rÃ¡pidos' })
   findActuales() {
     return this.service.findActuales();
   }
@@ -38,32 +42,37 @@ export class SesionTrabajoController {
   @Get('activas')
   @ApiOperation({ summary: 'Listar sesiones activas' })
   @ApiQuery({ name: 'trabajador', required: false, description: 'Filtrar por ID de trabajador' })
+  @Public()
   findActivas(@Query('trabajador') trabajador?: string) {
     return this.service.findActivas(trabajador);
   }
 
   @Get('activas/resumen')
+  @Public()
   @ApiOperation({ summary: 'Resumen de sesiones activas (ligero)' })
   findActivasResumen() {
     return this.service.findActivasResumen();
   }
 
   @Get(':id/orden-produccion')
-  @ApiOperation({ summary: 'Obtener orden/paso activo de una sesión' })
+  @Public()
+  @ApiOperation({ summary: 'Obtener orden/paso activo de una sesiÃ³n' })
   findOrdenProduccion(@Param('id') id: string) {
     return this.service.findOrdenProduccion(id);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener una sesión con último indicador' })
+  @Public()
+  @ApiOperation({ summary: 'Obtener una sesiÃ³n con Ãºltimo indicador' })
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
   }
 
-  // Serie minuto a minuto de una sesión (velocidad ventana y otros)
+  // Serie minuto a minuto de una sesiÃ³n (velocidad ventana y otros)
   @Get(':id/serie-minuto')
-  @ApiOperation({ summary: 'Serie minuto a minuto de una sesión (velocidad 10m y métricas)' })
-  @ApiParam({ name: 'id', required: true, description: 'ID de la sesión' })
+  @Public()
+  @ApiOperation({ summary: 'Serie minuto a minuto de una sesiÃ³n (velocidad 10m y mÃ©tricas)' })
+  @ApiParam({ name: 'id', required: true, description: 'ID de la sesiÃ³n' })
   @ApiQuery({ name: 'inicio', required: false, description: 'ISO inicio (opcional)' })
   @ApiQuery({ name: 'fin', required: false, description: 'ISO fin (opcional)' })
   @ApiOkResponse({ description: 'Serie ordenada por minuto', schema: { example: [
@@ -95,13 +104,14 @@ export class SesionTrabajoController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Actualizar sesión' })
+  @ApiOperation({ summary: 'Actualizar sesiÃ³n' })
   update(@Param('id') id: string, @Body() dto: UpdateSesionTrabajoDto) {
     return this.service.update(id, dto);
   }
 
   @Post(':id/finalizar')
-  @ApiOperation({ summary: 'Finalizar sesión' })
+  @Public()
+  @ApiOperation({ summary: 'Finalizar sesiÃ³n' })
   finalizar(@Param('id') id: string) {
     return this.service.finalizar(id);
   }
@@ -114,13 +124,14 @@ export class SesionTrabajoController {
 
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar sesión' })
+  @ApiOperation({ summary: 'Eliminar sesiÃ³n' })
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
 
+  @Public()
   @Get('maquina/:id/activa')
-  @ApiOperation({ summary: 'Obtener sesión activa por máquina' })
+  @ApiOperation({ summary: 'Obtener sesiÃ³n activa por mÃ¡quina' })
   async findSesionActiva(
     @Param('id') id: string,
     @Query('esp32') esp32?: string,
@@ -131,7 +142,8 @@ export class SesionTrabajoController {
   }
 
   @Get('maquina/:id/rango')
-  @ApiOperation({ summary: 'Listar sesiones de una máquina en un rango de fechas (por fechaInicio)' })
+  @Public()
+  @ApiOperation({ summary: 'Listar sesiones de una mÃ¡quina en un rango de fechas (por fechaInicio)' })
   async findSesionesPorMaquinaEnRango(
     @Param('id') id: string,
     @Query('desde') desde: string,
@@ -141,3 +153,5 @@ export class SesionTrabajoController {
   }
 
 }
+
+

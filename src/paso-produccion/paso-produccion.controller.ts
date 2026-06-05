@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger'
 import { PasoProduccionService } from './paso-produccion.service'
 import { CreatePasoProduccionDto } from './dto/create-paso-produccion.dto'
 import { UpdatePasoProduccionDto } from './dto/update-paso-produccion.dto'
+import { Public } from '../auth/public.decorator'
 
 @ApiTags('Pasos')
 @Controller('pasos')
@@ -35,6 +36,7 @@ export class PasoProduccionController {
   }
 
   @Patch(':id/finalizar')
+  @Public()
   finalizar(@Param('id') id: string) {
     return this.pasoService.finalizar(id);
   }

@@ -1,5 +1,5 @@
 import { IsString, Length, IsISO8601, IsEnum, IsOptional, IsUUID } from 'class-validator'
-import { TipoMaquina } from './create-maquina.dto'
+import { TipoMaquina } from '../tipo-maquina'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 
 export class UpdateMaquinaDto {

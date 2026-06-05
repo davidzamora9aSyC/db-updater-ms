@@ -19,14 +19,16 @@ import { MaterialOrdenModule } from './material-orden/material-orden.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { TimezoneModule } from './common/timezone.module';
 import { TimezoneInterceptor } from './common/timezone.interceptor';
+import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { AreaModule } from './area/area.module';
 import { ProduccionDiariaModule } from './produccion-diaria/produccion-diaria.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IndicadorSesionMinutoModule } from './indicador-sesion-minuto/indicador-sesion-minuto.module';
 import { IndicadoresModule } from './indicadores/indicadores.module';
 import { AlertaModule } from './alerta/alerta.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -96,6 +98,10 @@ import { AlertaModule } from './alerta/alerta.module';
     IndicadoresModule,
     AlertaModule,
   ],
-  providers: [{ provide: APP_INTERCEPTOR, useClass: TimezoneInterceptor }],
+  providers: [
+    { provide: APP_INTERCEPTOR, useClass: HttpLoggingInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TimezoneInterceptor },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
 })
 export class AppModule {}

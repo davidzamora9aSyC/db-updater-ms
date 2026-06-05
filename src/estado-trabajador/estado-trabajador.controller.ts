@@ -13,6 +13,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { EstadoTrabajadorService } from './estado-trabajador.service';
 import { CreateEstadoTrabajadorDto } from './dto/create-estado-trabajador.dto';
 import { UpdateEstadoTrabajadorDto } from './dto/update-estado-trabajador.dto';
+import { Public } from '../auth/public.decorator';
 
 @ApiTags('EstadosTrabajador')
 @Controller('estados-trabajador')
@@ -20,6 +21,7 @@ export class EstadoTrabajadorController {
   constructor(private readonly service: EstadoTrabajadorService) {}
 
   @Post()
+  @Public()
   create(@Body() dto: CreateEstadoTrabajadorDto) {
     return this.service.create(dto);
   }
@@ -30,6 +32,7 @@ export class EstadoTrabajadorController {
   }
 
   @Get('trabajador/:id')
+  @Public()
   findByTrabajador(
     @Param('id') id: string,
     @Query('inicio') inicio: string,
@@ -42,6 +45,7 @@ export class EstadoTrabajadorController {
   }
 
   @Get(':id')
+  @Public()
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
   }
@@ -57,6 +61,7 @@ export class EstadoTrabajadorController {
   }
 
   @Post('trabajador/:id/finalizar-descanso')
+  @Public()
   finalizarDescanso(@Param('id') id: string) {
     return this.service.finalizarDescanso(id);
   }

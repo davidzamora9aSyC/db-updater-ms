@@ -1,10 +1,3 @@
-export enum TipoMaquina {
-  TROQUELADORA = 'troqueladora',
-  TALADRO = 'taladro',
-  HORNO = 'horno',
-  VULCANIZADORA = 'vulcanizadora',
-}
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -17,6 +10,7 @@ import {
 
 } from 'typeorm';
 import { Area } from '../area/area.entity';
+import { TipoMaquina } from './tipo-maquina';
 
 @Entity()
 export class Maquina {

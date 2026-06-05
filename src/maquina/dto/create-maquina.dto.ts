@@ -1,12 +1,6 @@
 import { IsString, Length, IsISO8601, IsEnum, IsUUID } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
-
-export enum TipoMaquina {
-  TROQUELADORA = 'troqueladora',
-  TALADRO = 'taladro',
-  HORNO = 'horno',
-  VULCANIZADORA = 'vulcanizadora'
-}
+import { TipoMaquina } from '../tipo-maquina'
 
 export class CreateMaquinaDto {
 

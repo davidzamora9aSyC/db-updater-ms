@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger'
 import { OrdenProduccionService } from './orden-produccion.service'
 import { CrearOrdenDto } from './dto/crear-orden.dto'
 import { ActualizarOrdenDto } from './dto/actualizar-orden.dto'
+import { Public } from '../auth/public.decorator'
 
 @ApiTags('Ordenes')
 @Controller('ordenes')
@@ -25,6 +26,7 @@ export class OrdenProduccionController {
   }
 
   @Get(':id/pasos-mini')
+  @Public()
   obtenerPasosMini(@Param('id') id: string) {
     return this.service.obtenerPasosMini(id);
   }

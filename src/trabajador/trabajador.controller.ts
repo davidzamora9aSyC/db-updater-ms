@@ -3,6 +3,7 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { TrabajadorService } from './trabajador.service';
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
 import { UpdateTrabajadorDto } from './dto/update-trabajador.dto';
+import { Public } from '../auth/public.decorator';
 
 @ApiTags('Trabajadores')
 @Controller('trabajadores')
@@ -17,12 +18,14 @@ export class TrabajadorController {
 
   // Lista todos los trabajadores
   @Get()
+  @Public()
   listar() {
     return this.service.listar();
   }
 
   // Buscar por nombre o identificación
   @Get('buscar')
+  @Public()
   @ApiOperation({ summary: 'Buscar trabajadores por nombre o identificación' })
   @ApiQuery({ name: 'q', required: false, description: 'Texto libre: nombre o identificación' })
   @ApiQuery({ name: 'nombre', required: false })
@@ -39,6 +42,7 @@ export class TrabajadorController {
 
   // Obtiene un trabajador por su ID
   @Get(':id')
+  @Public()
   obtener(@Param('id') id: string) {
     return this.service.obtener(id);
   }

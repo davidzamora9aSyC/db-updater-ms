@@ -3,6 +3,7 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { MaquinaService } from './maquina.service';
 import { CreateMaquinaDto } from './dto/create-maquina.dto';
 import { UpdateMaquinaDto } from './dto/update-maquina.dto';
+import { Public } from '../auth/public.decorator';
 
 @ApiTags('Maquinas')
 @Controller('maquinas')
@@ -21,6 +22,7 @@ export class MaquinaController {
 
   // Buscar máquinas por nombre/código y/o por área
   @Get('buscar')
+  @Public()
   @ApiOperation({ summary: 'Buscar máquinas por nombre/código y/o área' })
   @ApiQuery({ name: 'q', required: false, description: 'Texto libre: nombre o código' })
   @ApiQuery({ name: 'nombre', required: false })
@@ -35,7 +37,15 @@ export class MaquinaController {
     return this.maquinaService.buscar({ q, nombre, areaId, limit: Number(limit) || 20 });
   }
 
+  @Get('tipos')
+  @Public()
+  @ApiOperation({ summary: 'Listar tipos de maquina disponibles' })
+  tipos() {
+    return this.maquinaService.tipos();
+  }
+
   @Get(':id')
+  @Public()
   findOne(@Param('id') id: string) {
     return this.maquinaService.findOne(id);
   }
