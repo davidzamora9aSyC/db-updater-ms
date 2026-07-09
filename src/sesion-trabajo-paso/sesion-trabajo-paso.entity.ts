@@ -6,6 +6,7 @@ import {
   BaseEntity,
   Column,
   Index,
+  CreateDateColumn,
 } from 'typeorm';
 import { SesionTrabajo } from '../sesion-trabajo/sesion-trabajo.entity';
 import { PasoProduccion } from '../paso-produccion/paso-produccion.entity';
@@ -43,5 +44,8 @@ export class SesionTrabajoPaso extends BaseEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   finalizadoEn: Date | null;
+
+  @CreateDateColumn({ type: 'timestamptz', nullable: true })
+  createdAt: Date | null;
 
 }

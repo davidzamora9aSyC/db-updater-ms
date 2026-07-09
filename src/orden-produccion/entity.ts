@@ -3,7 +3,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   Index,
 } from 'typeorm';
 
@@ -42,6 +41,7 @@ export class OrdenProduccion {
   })
   estado: EstadoOrdenProduccion;
 
- 
+  @CreateDateColumn({ type: 'timestamptz', nullable: true })
+  createdAt: Date | null;
 
 }
