@@ -5,6 +5,7 @@ export interface SesionTrabajoPasoDto {
   cantidadAsignada: number;
   cantidadProducida: number;
   cantidadPedaleos: number;
+  comentarioDefectuosas?: string | null;
   estado: string;
   finalizado: boolean;
   finalizadoEn?: string | Date | null;

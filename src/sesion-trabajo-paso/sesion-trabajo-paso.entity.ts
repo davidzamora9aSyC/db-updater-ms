@@ -36,6 +36,9 @@ export class SesionTrabajoPaso extends BaseEntity {
   @Column('int', { default: 0 })
   cantidadPedaleos: number;
 
+  @Column({ type: 'text', nullable: true })
+  comentarioDefectuosas: string | null;
+
   @Column({ type: 'enum', enum: FuenteDatosSesion, nullable: true })
   fuente: FuenteDatosSesion | null;
 

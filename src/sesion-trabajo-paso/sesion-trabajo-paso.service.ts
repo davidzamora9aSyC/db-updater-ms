@@ -262,6 +262,10 @@ export class SesionTrabajoPasoService {
     if (incrementoPedaleos > 0) {
       entity.cantidadPedaleos += incrementoPedaleos;
     }
+    if (dto.comentarioDefectuosas !== undefined) {
+      const comentario = dto.comentarioDefectuosas?.trim();
+      entity.comentarioDefectuosas = comentario || null;
+    }
     const saved = await this.repo.save(entity);
     if (incrementoProducido > 0 || incrementoPedaleos > 0) {
       const pasoRepo = this.repo.manager.getRepository(PasoProduccion);

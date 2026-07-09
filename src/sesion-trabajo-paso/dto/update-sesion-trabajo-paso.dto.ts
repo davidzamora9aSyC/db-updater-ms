@@ -1,4 +1,4 @@
-import { IsUUID, IsOptional, IsNumber } from 'class-validator';
+import { IsOptional, IsNumber, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateSesionTrabajoPasoDto {
@@ -19,5 +19,10 @@ export class UpdateSesionTrabajoPasoDto {
   @IsOptional()
   @IsNumber()
   cantidadPedaleos?: number;
+
+  @ApiPropertyOptional({ description: 'Comentario o motivo de piezas defectuosas' })
+  @IsOptional()
+  @IsString()
+  comentarioDefectuosas?: string;
 
 }
