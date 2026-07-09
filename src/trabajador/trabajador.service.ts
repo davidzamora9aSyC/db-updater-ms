@@ -62,8 +62,18 @@ export class TrabajadorService {
       params.nombre = `%${opts.nombre.trim().toLowerCase()}%`
     }
     if (opts.identificacion && opts.identificacion.trim()) {
-      whereParts.push('t.identificacion LIKE :identificacion')
-      params.identificacion = `%${opts.identificacion.trim()}%`
+      const identificacion = opts.identificacion.trim()
+      const identificacionDigits = identificacion.replace(/\D/g, '')
+      if (identificacionDigits) {
+        whereParts.push(
+          "(t.identificacion LIKE :identificacion OR regexp_replace(t.identificacion, '\\D', '', 'g') LIKE :identificacionDigits)",
+        )
+        params.identificacion = `%${identificacion}%`
+        params.identificacionDigits = `%${identificacionDigits}%`
+      } else {
+        whereParts.push('t.identificacion LIKE :identificacion')
+        params.identificacion = `%${identificacion}%`
+      }
     }
 
     if (whereParts.length > 0) qb.where(whereParts.join(' AND '), params)
