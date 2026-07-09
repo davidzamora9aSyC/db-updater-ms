@@ -327,6 +327,7 @@ export class SesionTrabajoPasoService {
           'sesionTrabajo.trabajador',
           'sesionTrabajo.maquina',
           'pasoOrden',
+          'pasoOrden.orden',
         ],
       })
       .then((entities) => Promise.all(entities.map((e) => this.mapEstado(e))));
