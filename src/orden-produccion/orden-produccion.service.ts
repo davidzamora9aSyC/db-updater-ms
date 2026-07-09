@@ -223,16 +223,20 @@ export class OrdenProduccionService {
     return { ...ordenConCantidad, pasos: pasosDetallados };
   }
 
-  async obtenerPasosMini(ordenId: string) {
-    if (!isUUID(ordenId)) {
+  async obtenerPasosMini(ordenRef: string) {
+    const ref = (ordenRef || '').trim();
+    if (!ref) {
       throw new BadRequestException('ID inválido');
     }
-    const existe = await this.repo.findOne({ where: { id: ordenId }, select: ['id'] });
+    const existe = await this.repo.findOne({
+      where: isUUID(ref) ? { id: ref } : { numero: ref },
+      select: ['id'],
+    });
     if (!existe) {
       throw new NotFoundException('Orden no encontrada');
     }
     const pasos = await this.pasoRepo.find({
-      where: { orden: { id: ordenId } },
+      where: { orden: { id: existe.id } },
       select: ['id', 'nombre', 'numeroPaso'],
       order: { numeroPaso: 'ASC' },
     });
