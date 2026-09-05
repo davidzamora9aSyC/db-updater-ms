@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { In, Repository, IsNull } from 'typeorm';
 import { DateTime } from 'luxon';
 import { EstadoTrabajador } from './estado-trabajador.entity';
 import { CreateEstadoTrabajadorDto } from './dto/create-estado-trabajador.dto';
@@ -12,6 +13,13 @@ import { EstadoMaquina } from '../estado-maquina/estado-maquina.entity';
 import { PasoProduccionService } from 'paso-produccion/paso-produccion.service';
 import { PausaPasoSesionService } from '../pausa-paso-sesion/pausa-paso-sesion.service';
 import { SesionTrabajoPaso } from '../sesion-trabajo-paso/sesion-trabajo-paso.entity';
+
+const ZONA_BOGOTA = 'America/Bogota';
+const ORIGEN_DESCANSO_AUTOMATICO = 'automatico:descanso-programado';
+const DESCANSOS_PROGRAMADOS = [
+  { nombre: 'desayuno', inicio: { hora: 9, minuto: 50 }, fin: { hora: 10, minuto: 0 } },
+  { nombre: 'almuerzo', inicio: { hora: 13, minuto: 0 }, fin: { hora: 13, minuto: 30 } },
+];
 
 @Injectable()
 export class EstadoTrabajadorService {
@@ -42,6 +50,7 @@ export class EstadoTrabajadorService {
     const entity = this.repo.create({
       trabajador: { id: dto.trabajador } as any,
       descanso: dto.descanso,
+      origen: 'manual',
       inicio,
       fin: null,
     });
@@ -54,6 +63,103 @@ export class EstadoTrabajadorService {
     await this.actualizarSesionOtro(dto.trabajador, inicio);
 
     return nuevo;
+  }
+
+  @Cron('* * * * *')
+  async aplicarDescansosProgramados() {
+    const ahora = DateTime.now().setZone(ZONA_BOGOTA);
+    if (ahora.weekday < 1 || ahora.weekday > 5) {
+      await this.finalizarDescansosAutomaticos(ahora.toJSDate());
+      return;
+    }
+
+    const descansoActivo = DESCANSOS_PROGRAMADOS.find((descanso) =>
+      this.estaDentroDeRango(ahora, descanso.inicio, descanso.fin),
+    );
+
+    if (!descansoActivo) {
+      await this.finalizarDescansosAutomaticos(ahora.toJSDate());
+      return;
+    }
+
+    await this.iniciarDescansoAutomatico(
+      `${ORIGEN_DESCANSO_AUTOMATICO}:${descansoActivo.nombre}`,
+      ahora.toJSDate(),
+    );
+  }
+
+  private estaDentroDeRango(
+    ahora: DateTime,
+    inicio: { hora: number; minuto: number },
+    fin: { hora: number; minuto: number },
+  ) {
+    const minutosActuales = ahora.hour * 60 + ahora.minute;
+    const minutosInicio = inicio.hora * 60 + inicio.minuto;
+    const minutosFin = fin.hora * 60 + fin.minuto;
+    return minutosActuales >= minutosInicio && minutosActuales < minutosFin;
+  }
+
+  private async iniciarDescansoAutomatico(origen: string, inicio: Date) {
+    const sesiones = await this.sesionRepo.find({
+      where: { fechaFin: IsNull() },
+      relations: ['trabajador'],
+    });
+    const trabajadorIds = Array.from(
+      new Set(
+        sesiones
+          .map((sesion) => sesion.trabajador?.id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    if (trabajadorIds.length === 0) return;
+
+    for (const trabajadorId of trabajadorIds) {
+      const descansoAbierto = await this.repo.findOne({
+        where: {
+          trabajador: { id: trabajadorId },
+          fin: IsNull(),
+          descanso: true,
+        },
+      });
+      if (descansoAbierto) continue;
+
+      const abiertos = await this.repo.find({
+        where: { trabajador: { id: trabajadorId }, fin: IsNull() },
+      });
+      for (const abierto of abiertos) {
+        abierto.fin = inicio;
+        await this.repo.save(abierto);
+      }
+
+      const estado = this.repo.create({
+        trabajador: { id: trabajadorId } as any,
+        descanso: true,
+        origen,
+        inicio,
+        fin: null,
+      });
+      await this.repo.save(estado);
+      await this.pausarPasoSesion(trabajadorId, inicio);
+      await this.actualizarSesionOtro(trabajadorId, inicio);
+    }
+  }
+
+  private async finalizarDescansosAutomaticos(fin: Date) {
+    const activos = await this.repo.find({
+      where: {
+        descanso: true,
+        fin: IsNull(),
+        origen: In(DESCANSOS_PROGRAMADOS.map((d) => `${ORIGEN_DESCANSO_AUTOMATICO}:${d.nombre}`)),
+      },
+      relations: ['trabajador'],
+    });
+
+    for (const activo of activos) {
+      activo.fin = fin;
+      await this.repo.save(activo);
+      await this.restaurarPausasPasoSesion(activo.trabajador.id, fin);
+      await this.restaurarSesionProduccion(activo.trabajador.id, fin);
+    }
   }
 
   findAll() {

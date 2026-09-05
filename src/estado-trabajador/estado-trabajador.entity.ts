@@ -15,6 +15,9 @@ export class EstadoTrabajador extends BaseEntity {
   @Column({ default: false })
   descanso: boolean;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  origen: string | null;
+
   @Column({ type: 'timestamp' })
   inicio: Date;
 
